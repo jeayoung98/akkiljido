@@ -23,7 +23,7 @@ public enum ExceptionType {
 
     // auth
     UNAUTHENTICATED(UNAUTHORIZED, "A001", "인증 정보가 존재하지 않음"),
-    AUTHORIZATION_DENIED(FORBIDDEN, "A001", "권한이 없음"),
+    AUTHORIZATION_DENIED(FORBIDDEN, "A002", "권한이 없음"),
 
     //
 
