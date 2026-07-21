@@ -4,15 +4,15 @@ services:
     ports:
       - "${DB_PORT:-5432}:5432"
     environment:
-      POSTGRES_DB: ${DB_NAME:-project}
-      POSTGRES_USER: ${DB_USERNAME:-project}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-change-me}
+      POSTGRES_DB: ${DB_NAME:?DB_NAME must be set}
+      POSTGRES_USER: ${DB_USERNAME:?DB_USERNAME must be set}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set}
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
       test:
         - CMD-SHELL
-        - pg_isready -U ${DB_USERNAME:-project} -d ${DB_NAME:-project}
+        - pg_isready -U ${DB_USERNAME:?DB_USERNAME must be set} -d ${DB_NAME:?DB_NAME must be set}
       interval: 5s
       timeout: 5s
       retries: 10
@@ -44,9 +44,9 @@ services:
       SERVER_PORT: "8080"
       DB_HOST: postgres
       DB_PORT: "5432"
-      DB_NAME: ${DB_NAME:-project}
-      DB_USERNAME: ${DB_USERNAME:-project}
-      DB_PASSWORD: ${DB_PASSWORD:-change-me}
+      DB_NAME: ${DB_NAME:?DB_NAME must be set}
+      DB_USERNAME: ${DB_USERNAME:?DB_USERNAME must be set}
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set}
       REDIS_HOST: redis
       REDIS_PORT: "6379"
     depends_on:
