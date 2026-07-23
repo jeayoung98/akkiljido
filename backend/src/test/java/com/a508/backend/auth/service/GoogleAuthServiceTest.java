@@ -1,7 +1,10 @@
 package com.a508.backend.auth.service;
 
+import com.a508.backend.auth.dto.GoogleLoginResult;
 import com.a508.backend.auth.google.GoogleIdTokenValidator;
 import com.a508.backend.auth.google.GoogleIdentity;
+import com.a508.backend.auth.token.AuthTokens;
+import com.a508.backend.auth.token.TokenIssuer;
 import com.a508.backend.global.exception.BusinessException;
 import com.a508.backend.global.exception.ExceptionType;
 import com.a508.backend.member.domain.Member;
@@ -35,12 +38,16 @@ class GoogleAuthServiceTest {
 
     private GoogleAuthService googleAuthService;
 
+    @Mock
+    private TokenIssuer tokenIssuer;
+
     @BeforeEach
     void setUp() {
         googleAuthService =
                 new GoogleAuthService(
                         googleIdTokenValidator,
-                        memberRepository
+                        memberRepository,
+                        tokenIssuer
                 );
     }
 
@@ -68,16 +75,36 @@ class GoogleAuthServiceTest {
                 )
         ).willReturn(Optional.of(existingMember));
 
+        AuthTokens issuedTokens =
+                new AuthTokens(
+                        "test-access-token",
+                        "test-refresh-token",
+                        1800L
+                );
+
+        given(
+                tokenIssuer.issue(existingMember)
+        ).willReturn(issuedTokens);
+
         // when
-        Member result =
+        GoogleLoginResult result =
                 googleAuthService.authenticate(rawIdToken);
 
         // then
-        assertThat(result)
-                .isSameAs(existingMember);
+        assertThat(result.role())
+                .isEqualTo(MemberRole.GUEST);
+
+        assertThat(result.nicknameRequired())
+                .isTrue();
+
+        assertThat(result.tokens())
+                .isSameAs(issuedTokens);
 
         verify(memberRepository, never())
                 .save(any(Member.class));
+
+        verify(tokenIssuer)
+                .issue(existingMember);
     }
 
     @Test
@@ -107,25 +134,36 @@ class GoogleAuthServiceTest {
                 invocation -> invocation.getArgument(0)
         );
 
+        AuthTokens issuedTokens =
+                new AuthTokens(
+                        "test-access-token",
+                        "test-refresh-token",
+                        1800L
+                );
+
+        given(
+                tokenIssuer.issue(any(Member.class))
+        ).willReturn(issuedTokens);
+
         // when
-        Member result =
+        GoogleLoginResult result =
                 googleAuthService.authenticate(rawIdToken);
 
         // then
-        assertThat(result.getProvider())
-                .isEqualTo(OAuthProvider.GOOGLE);
-
-        assertThat(result.getProviderSub())
-                .isEqualTo(providerSub);
-
-        assertThat(result.getNickname())
-                .isNull();
-
-        assertThat(result.getRole())
+        assertThat(result.role())
                 .isEqualTo(MemberRole.GUEST);
+
+        assertThat(result.nicknameRequired())
+                .isTrue();
+
+        assertThat(result.tokens())
+                .isSameAs(issuedTokens);
 
         verify(memberRepository)
                 .save(any(Member.class));
+
+        verify(tokenIssuer)
+                .issue(any(Member.class));
     }
 
     @Test
@@ -157,5 +195,8 @@ class GoogleAuthServiceTest {
 
         verify(memberRepository, never())
                 .save(any(Member.class));
+
+        verify(tokenIssuer, never())
+                .issue(any(Member.class));
     }
 }
