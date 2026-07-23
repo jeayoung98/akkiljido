@@ -17,7 +17,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-
+import java.time.Instant;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -79,7 +79,10 @@ class GoogleAuthServiceTest {
                 new AuthTokens(
                         "test-access-token",
                         "test-refresh-token",
-                        1800L
+                        1800L,
+                        Instant.parse(
+                                "2026-08-06T00:00:00Z"
+                        )
                 );
 
         given(
@@ -138,7 +141,10 @@ class GoogleAuthServiceTest {
                 new AuthTokens(
                         "test-access-token",
                         "test-refresh-token",
-                        1800L
+                        1800L,
+                        Instant.parse(
+                                "2026-08-06T00:00:00Z"
+                        )
                 );
 
         given(

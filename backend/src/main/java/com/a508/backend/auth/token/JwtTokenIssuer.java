@@ -11,6 +11,7 @@ import org.springframework.security.oauth2.jwt.JwsHeader;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
 @Component
@@ -39,15 +40,27 @@ public class JwtTokenIssuer implements TokenIssuer {
             );
         }
 
-        Instant issuedAt = Instant.now();
+        Instant issuedAt = Instant.now()
+                .truncatedTo(
+                        ChronoUnit.SECONDS
+                );
+
+        Instant accessTokenExpiresAt =
+                issuedAt.plus(
+                        properties.accessTokenTtl()
+                );
+
+        Instant refreshTokenExpiresAt =
+                issuedAt.plus(
+                        properties.refreshTokenTtl()
+                );
+
 
         String accessToken =
                 createToken(
                         member,
                         issuedAt,
-                        issuedAt.plus(
-                                properties.accessTokenTtl()
-                        ),
+                        accessTokenExpiresAt,
                         "access"
                 );
 
@@ -55,16 +68,15 @@ public class JwtTokenIssuer implements TokenIssuer {
                 createToken(
                         member,
                         issuedAt,
-                        issuedAt.plus(
-                                properties.refreshTokenTtl()
-                        ),
+                        refreshTokenExpiresAt,
                         "refresh"
                 );
 
         return new AuthTokens(
                 accessToken,
                 refreshToken,
-                properties.accessTokenTtl().toSeconds()
+                properties.accessTokenTtl().toSeconds(),
+                refreshTokenExpiresAt
         );
     }
 

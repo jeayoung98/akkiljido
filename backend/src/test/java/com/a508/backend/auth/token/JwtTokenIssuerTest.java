@@ -207,6 +207,12 @@ class JwtTokenIssuerTest {
 
         assertThat(refreshToken.getId())
                 .isNotEqualTo(accessToken.getId());
+
+        assertThat(tokens.refreshTokenExpiresAt())
+                .isEqualTo(
+                        refreshToken.getExpiresAt()
+                );
+
     }
 
     @Test
