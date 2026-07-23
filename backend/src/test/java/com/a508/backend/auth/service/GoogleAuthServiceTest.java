@@ -4,6 +4,7 @@ import com.a508.backend.auth.dto.GoogleLoginResult;
 import com.a508.backend.auth.google.GoogleIdTokenValidator;
 import com.a508.backend.auth.google.GoogleIdentity;
 import com.a508.backend.auth.token.AuthTokens;
+import com.a508.backend.auth.token.RefreshTokenService;
 import com.a508.backend.auth.token.TokenIssuer;
 import com.a508.backend.global.exception.BusinessException;
 import com.a508.backend.global.exception.ExceptionType;
@@ -23,9 +24,11 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+
 
 @ExtendWith(MockitoExtension.class)
 class GoogleAuthServiceTest {
@@ -41,13 +44,17 @@ class GoogleAuthServiceTest {
     @Mock
     private TokenIssuer tokenIssuer;
 
+    @Mock
+    private RefreshTokenService refreshTokenService;
+
     @BeforeEach
     void setUp() {
         googleAuthService =
                 new GoogleAuthService(
                         googleIdTokenValidator,
                         memberRepository,
-                        tokenIssuer
+                        tokenIssuer,
+                        refreshTokenService
                 );
     }
 
@@ -108,6 +115,13 @@ class GoogleAuthServiceTest {
 
         verify(tokenIssuer)
                 .issue(existingMember);
+
+        verify(refreshTokenService)
+                .saveOrReplace(
+                        existingMember,
+                        issuedTokens.refreshToken(),
+                        issuedTokens.refreshTokenExpiresAt()
+                );
     }
 
     @Test
@@ -170,6 +184,13 @@ class GoogleAuthServiceTest {
 
         verify(tokenIssuer)
                 .issue(any(Member.class));
+
+        verify(refreshTokenService)
+                .saveOrReplace(
+                        any(Member.class),
+                        eq(issuedTokens.refreshToken()),
+                        eq(issuedTokens.refreshTokenExpiresAt())
+                );
     }
 
     @Test
@@ -204,5 +225,12 @@ class GoogleAuthServiceTest {
 
         verify(tokenIssuer, never())
                 .issue(any(Member.class));
+
+        verify(refreshTokenService, never())
+                .saveOrReplace(
+                        any(Member.class),
+                        any(String.class),
+                        any(Instant.class)
+                );
     }
 }
