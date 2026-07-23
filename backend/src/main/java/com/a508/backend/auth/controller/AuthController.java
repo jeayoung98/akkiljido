@@ -15,6 +15,8 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/auth")
 public class AuthController {
 
+
+    // TODO: 회원가입을 진행할 때 기본 카테고리를 생성해주어야 한다.
     // Google ID Token을 받아오는 api
     // 앱(프론트엔드)에서 구글 로그인을 진행한 뒤 받았던 Google ID Token을 받아온다.
     @PostMapping("/oauth/google")
