@@ -1,8 +1,10 @@
 package com.a508.backend.auth.service;
 
 import com.a508.backend.auth.google.GoogleIdTokenValidator;
-import com.a508.backend.auth.google.GoogleUserProfile;
+import com.a508.backend.auth.google.GoogleIdentity;
+import org.springframework.stereotype.Service;
 
+@Service
 public class GoogleAuthService {
     private final GoogleIdTokenValidator googleIdTokenValidator;
 
@@ -12,7 +14,7 @@ public class GoogleAuthService {
         this.googleIdTokenValidator = googleIdTokenValidator;
     }
 
-    public GoogleUserProfile authenticate(String rawIdToken){
+    public GoogleIdentity authenticate(String rawIdToken){
         return googleIdTokenValidator.validate(rawIdToken);
     }
 }
