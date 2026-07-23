@@ -1,7 +1,7 @@
 package com.a508.backend.auth.service;
 
 import com.a508.backend.auth.google.GoogleIdTokenValidator;
-import com.a508.backend.auth.google.GoogleUserProfile;
+import com.a508.backend.auth.google.GoogleIdentity;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -34,13 +34,9 @@ class GoogleAuthServiceTest {
         // given
         String rawIdToken = "test-google-id-token";
 
-        GoogleUserProfile expectedProfile =
-                new GoogleUserProfile(
-                        "google-sub-123",
-                        "test@gmail.com",
-                        true,
-                        "테스트 사용자",
-                        "https://example.com/profile.png"
+        GoogleIdentity expectedProfile =
+                new GoogleIdentity(
+                        "google-sub-123"
                 );
 
         given(
@@ -48,7 +44,7 @@ class GoogleAuthServiceTest {
         ).willReturn(expectedProfile);
 
         // when
-        GoogleUserProfile actualProfile =
+        GoogleIdentity actualProfile =
                 googleAuthService.authenticate(rawIdToken);
 
         // then
