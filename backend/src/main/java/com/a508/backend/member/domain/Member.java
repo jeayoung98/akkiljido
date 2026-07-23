@@ -70,7 +70,7 @@ public class Member {
         this.role = role;
     }
 
-    public static Member createGoogleMember(
+    public static Member createGoogleGuest(
             String providerSub
     ) {
         return  new Member(
