@@ -1,7 +1,9 @@
 package com.a508.backend.auth.controller;
 
-import com.a508.backend.auth.dto.GoogleLoginReceiptResponse;
 import com.a508.backend.auth.dto.GoogleLoginRequest;
+import com.a508.backend.auth.dto.GoogleLoginResponse;
+import com.a508.backend.auth.dto.GoogleLoginResult;
+import com.a508.backend.auth.service.GoogleAuthService;
 import com.a508.backend.global.response.ResponseBody;
 import com.a508.backend.global.response.ResponseUtil;
 import jakarta.validation.Valid;
@@ -15,20 +17,36 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/auth")
 public class AuthController {
 
+    private final GoogleAuthService googleAuthService;
 
-    // TODO: 회원가입을 진행할 때 기본 카테고리를 생성해주어야 한다.
-    // Google ID Token을 받아오는 api
-    // 앱(프론트엔드)에서 구글 로그인을 진행한 뒤 받았던 Google ID Token을 받아온다.
-    @PostMapping("/oauth/google")
-    public ResponseEntity<ResponseBody<GoogleLoginReceiptResponse>> googleLogin(
-            @Valid @RequestBody GoogleLoginRequest request
-            ){
-        GoogleLoginReceiptResponse data = new GoogleLoginReceiptResponse(
-                true,
-                "Google ID Token을 전달받았습니다."
-        );
-
-        return ResponseEntity.ok(ResponseUtil.createSuccessResponse(data));
+    public AuthController(
+            GoogleAuthService googleAuthService
+    ) {
+        this.googleAuthService =
+                googleAuthService;
     }
 
+    @PostMapping("/oauth/google")
+    public ResponseEntity<
+            ResponseBody<GoogleLoginResponse>
+            > googleLogin(
+            @Valid @RequestBody
+            GoogleLoginRequest request
+    ) {
+        GoogleLoginResult result =
+                googleAuthService.authenticate(
+                        request.idToken()
+                );
+
+        GoogleLoginResponse data =
+                GoogleLoginResponse.from(
+                        result
+                );
+
+        return ResponseEntity.ok(
+                ResponseUtil.createSuccessResponse(
+                        data
+                )
+        );
+    }
 }
