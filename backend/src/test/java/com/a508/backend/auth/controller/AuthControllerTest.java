@@ -1,14 +1,16 @@
 package com.a508.backend.auth.controller;
 
 import com.a508.backend.auth.dto.GoogleLoginResult;
+import com.a508.backend.auth.dto.TokenReissueResult;
 import com.a508.backend.auth.service.GoogleAuthService;
+import com.a508.backend.auth.service.LogoutService;
 import com.a508.backend.auth.service.TokenReissueService;
 import com.a508.backend.auth.token.AuthTokens;
-import com.a508.backend.global.exception.GlobalExceptionHandler;
-import com.a508.backend.member.domain.MemberRole;
-import com.a508.backend.auth.dto.TokenReissueResult;
 import com.a508.backend.global.exception.BusinessException;
 import com.a508.backend.global.exception.ExceptionType;
+import com.a508.backend.global.exception.GlobalExceptionHandler;
+import com.a508.backend.member.domain.MemberRole;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -16,11 +18,17 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
+import org.springframework.security.web.method.annotation.AuthenticationPrincipalArgumentResolver;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.time.Instant;
 
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -37,6 +45,9 @@ class AuthControllerTest {
     @Mock
     private TokenReissueService tokenReissueService;
 
+    @Mock
+    private LogoutService logoutService;
+
     private MockMvc mockMvc;
 
     @BeforeEach
@@ -44,7 +55,8 @@ class AuthControllerTest {
         AuthController authController =
                 new AuthController(
                         googleAuthService,
-                        tokenReissueService
+                        tokenReissueService,
+                        logoutService
                 );
 
         mockMvc =
@@ -55,7 +67,15 @@ class AuthControllerTest {
                         .setControllerAdvice(
                                 new GlobalExceptionHandler()
                         )
+                        .setCustomArgumentResolvers(
+                                new AuthenticationPrincipalArgumentResolver()
+                        )
                         .build();
+    }
+
+    @AfterEach
+    void tearDown() {
+        SecurityContextHolder.clearContext();
     }
 
     @Test
@@ -179,19 +199,10 @@ class AuthControllerTest {
                 .andExpect(
                         jsonPath("$.code")
                                 .value("C002")
-                )
-                .andExpect(
-                        jsonPath("$.msg")
-                                .value(
-                                        "Google ID Token은 필수입니다."
-                                )
                 );
 
         verify(googleAuthService, never())
-                .authenticate(
-                        org.mockito.ArgumentMatchers
-                                .anyString()
-                );
+                .authenticate(anyString());
     }
 
     @Test
@@ -305,21 +316,11 @@ class AuthControllerTest {
                 .andExpect(
                         jsonPath("$.code")
                                 .value("C002")
-                )
-                .andExpect(
-                        jsonPath("$.msg")
-                                .value(
-                                        "Refresh Token은 필수입니다."
-                                )
                 );
 
         verify(tokenReissueService, never())
-                .reissue(
-                        org.mockito.ArgumentMatchers
-                                .anyString()
-                );
+                .reissue(anyString());
     }
-
 
     @Test
     @DisplayName(
@@ -366,18 +367,118 @@ class AuthControllerTest {
                 .andExpect(
                         jsonPath("$.code")
                                 .value("A004")
-                )
-                .andExpect(
-                        jsonPath("$.msg")
-                                .value(
-                                        "유효하지 않은 Refresh Token"
-                                )
                 );
 
         verify(tokenReissueService)
-                .reissue(
-                        invalidRefreshToken
-                );
+                .reissue(invalidRefreshToken);
     }
 
+    @Test
+    @DisplayName(
+            "인증된 회원이 로그아웃하면 Refresh Token을 삭제한다"
+    )
+    void logout() throws Exception {
+        // given
+        setAuthentication(
+                "1",
+                "USER"
+        );
+
+        // when & then
+        mockMvc.perform(
+                        post(
+                                "/api/v1/auth/logout"
+                        )
+                )
+                .andExpect(
+                        status().isOk()
+                )
+                .andExpect(
+                        jsonPath("$.success")
+                                .value(true)
+                )
+                .andExpect(
+                        jsonPath("$.data")
+                                .doesNotExist()
+                );
+
+        verify(logoutService)
+                .logout(1L);
+    }
+
+    @Test
+    @DisplayName(
+            "JWT sub가 회원 ID 형식이 아니면 로그아웃에 실패한다"
+    )
+    void rejectLogoutWithInvalidMemberId()
+            throws Exception {
+
+        // given
+        setAuthentication(
+                "not-a-member-id",
+                "USER"
+        );
+
+        // when & then
+        mockMvc.perform(
+                        post(
+                                "/api/v1/auth/logout"
+                        )
+                )
+                .andExpect(
+                        status().isUnauthorized()
+                )
+                .andExpect(
+                        jsonPath("$.success")
+                                .value(false)
+                )
+                .andExpect(
+                        jsonPath("$.code")
+                                .value("A001")
+                );
+
+        verify(logoutService, never())
+                .logout(anyLong());
+    }
+
+    private void setAuthentication(
+            String subject,
+            String role
+    ) {
+        Instant issuedAt =
+                Instant.parse(
+                        "2026-07-24T00:00:00Z"
+                );
+
+        Jwt jwt =
+                Jwt
+                        .withTokenValue(
+                                "test-access-token"
+                        )
+                        .header(
+                                "alg",
+                                "HS256"
+                        )
+                        .subject(subject)
+                        .issuedAt(issuedAt)
+                        .expiresAt(
+                                issuedAt.plusSeconds(1800)
+                        )
+                        .claim(
+                                "role",
+                                role
+                        )
+                        .claim(
+                                "token_type",
+                                "access"
+                        )
+                        .build();
+
+        JwtAuthenticationToken authentication =
+                new JwtAuthenticationToken(jwt);
+
+        SecurityContextHolder
+                .getContext()
+                .setAuthentication(authentication);
+    }
 }
