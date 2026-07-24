@@ -3,7 +3,11 @@ package com.a508.backend.auth.controller;
 import com.a508.backend.auth.dto.GoogleLoginRequest;
 import com.a508.backend.auth.dto.GoogleLoginResponse;
 import com.a508.backend.auth.dto.GoogleLoginResult;
+import com.a508.backend.auth.dto.TokenReissueRequest;
+import com.a508.backend.auth.dto.TokenReissueResponse;
+import com.a508.backend.auth.dto.TokenReissueResult;
 import com.a508.backend.auth.service.GoogleAuthService;
+import com.a508.backend.auth.service.TokenReissueService;
 import com.a508.backend.global.response.ResponseBody;
 import com.a508.backend.global.response.ResponseUtil;
 import jakarta.validation.Valid;
@@ -18,12 +22,17 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private final GoogleAuthService googleAuthService;
+    private final TokenReissueService tokenReissueService;
 
     public AuthController(
-            GoogleAuthService googleAuthService
+            GoogleAuthService googleAuthService,
+            TokenReissueService tokenReissueService
     ) {
         this.googleAuthService =
                 googleAuthService;
+
+        this.tokenReissueService =
+                tokenReissueService;
     }
 
     @PostMapping("/oauth/google")
@@ -40,6 +49,30 @@ public class AuthController {
 
         GoogleLoginResponse data =
                 GoogleLoginResponse.from(
+                        result
+                );
+
+        return ResponseEntity.ok(
+                ResponseUtil.createSuccessResponse(
+                        data
+                )
+        );
+    }
+
+    @PostMapping("/token/reissue")
+    public ResponseEntity<
+            ResponseBody<TokenReissueResponse>
+            > reissueTokens(
+            @Valid @RequestBody
+            TokenReissueRequest request
+    ) {
+        TokenReissueResult result =
+                tokenReissueService.reissue(
+                        request.refreshToken()
+                );
+
+        TokenReissueResponse data =
+                TokenReissueResponse.from(
                         result
                 );
 
