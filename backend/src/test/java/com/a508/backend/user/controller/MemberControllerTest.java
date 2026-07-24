@@ -102,7 +102,7 @@ class MemberControllerTest {
         // when & then
         mockMvc.perform(
                         patch(
-                                "/api/v1/members/me/nickname"
+                                "/api/v1/users/me/nickname"
                         )
                                 .contentType(
                                         MediaType.APPLICATION_JSON
@@ -166,7 +166,7 @@ class MemberControllerTest {
         // when & then
         mockMvc.perform(
                         patch(
-                                "/api/v1/members/me/nickname"
+                                "/api/v1/users/me/nickname"
                         )
                                 .contentType(
                                         MediaType.APPLICATION_JSON
@@ -215,7 +215,7 @@ class MemberControllerTest {
         // when & then
         mockMvc.perform(
                         patch(
-                                "/api/v1/members/me/nickname"
+                                "/api/v1/users/me/nickname"
                         )
                                 .contentType(
                                         MediaType.APPLICATION_JSON
@@ -269,7 +269,7 @@ class MemberControllerTest {
         // when & then
         mockMvc.perform(
                         patch(
-                                "/api/v1/members/me/nickname"
+                                "/api/v1/users/me/nickname"
                         )
                                 .contentType(
                                         MediaType.APPLICATION_JSON

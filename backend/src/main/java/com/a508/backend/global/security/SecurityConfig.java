@@ -71,7 +71,7 @@ public class SecurityConfig {
 
                                 .requestMatchers(
                                         HttpMethod.PATCH,
-                                        "/api/v1/members/me/nickname"
+                                        "/api/v1/users/me/nickname"
                                 )
                                 .hasRole("GUEST")
 

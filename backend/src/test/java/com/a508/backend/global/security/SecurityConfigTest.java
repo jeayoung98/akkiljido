@@ -115,7 +115,7 @@ class SecurityConfigTest {
 
         mockMvc.perform(
                         patch(
-                                "/api/v1/members/me/nickname"
+                                "/api/v1/users/me/nickname"
                         )
                                 .with(
                                         jwt()
@@ -266,7 +266,7 @@ class SecurityConfigTest {
         }
 
         @PatchMapping(
-                "/api/v1/members/me/nickname"
+                "/api/v1/users/me/nickname"
         )
         void updateNickname() {
         }
