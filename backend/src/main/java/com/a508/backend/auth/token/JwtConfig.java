@@ -5,8 +5,14 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
 import org.springframework.security.oauth2.core.OAuth2TokenValidator;
-import org.springframework.security.oauth2.jwt.*;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwtClaimValidator;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.JwtEncoder;
+import org.springframework.security.oauth2.jwt.JwtValidators;
+import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
+import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.util.StringUtils;
 
 import javax.crypto.SecretKey;
@@ -58,8 +64,12 @@ public class JwtConfig {
             SecretKey serviceJwtSecretKey
     ) {
         return NimbusJwtEncoder
-                .withSecretKey(serviceJwtSecretKey)
-                .algorithm(MacAlgorithm.HS256)
+                .withSecretKey(
+                        serviceJwtSecretKey
+                )
+                .algorithm(
+                        MacAlgorithm.HS256
+                )
                 .build();
     }
 
@@ -68,11 +78,33 @@ public class JwtConfig {
             SecretKey serviceJwtSecretKey,
             JwtProperties properties
     ) {
+        return createDecoder(
+                serviceJwtSecretKey,
+                properties,
+                "access"
+        );
+    }
+
+    @Bean
+    public JwtDecoder serviceRefreshTokenDecoder(
+            SecretKey serviceJwtSecretKey,
+            JwtProperties properties
+    ) {
+        return createDecoder(
+                serviceJwtSecretKey,
+                properties,
+                "refresh"
+        );
+    }
+
+    private JwtDecoder createDecoder(
+            SecretKey secretKey,
+            JwtProperties properties,
+            String expectedTokenType
+    ) {
         NimbusJwtDecoder decoder =
                 NimbusJwtDecoder
-                        .withSecretKey(
-                                serviceJwtSecretKey
-                        )
+                        .withSecretKey(secretKey)
                         .macAlgorithm(
                                 MacAlgorithm.HS256
                         )
@@ -95,10 +127,10 @@ public class JwtConfig {
                         ALLOWED_ROLES::contains
                 );
 
-        OAuth2TokenValidator<Jwt> accessTokenValidator =
+        OAuth2TokenValidator<Jwt> tokenTypeValidator =
                 new JwtClaimValidator<String>(
                         "token_type",
-                        "access"::equals
+                        expectedTokenType::equals
                 );
 
         decoder.setJwtValidator(
@@ -106,7 +138,7 @@ public class JwtConfig {
                         defaultValidator,
                         subjectValidator,
                         roleValidator,
-                        accessTokenValidator
+                        tokenTypeValidator
                 )
         );
 

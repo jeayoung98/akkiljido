@@ -1,5 +1,7 @@
 package com.a508.backend.auth.token;
 
+import com.a508.backend.global.exception.BusinessException;
+import com.a508.backend.global.exception.ExceptionType;
 import com.a508.backend.member.domain.Member;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -51,6 +53,34 @@ public class RefreshTokenService {
                 );
     }
 
+    @Transactional(readOnly = true)
+    public void verifyStoredToken(
+            Long memberId,
+            String rawRefreshToken,
+            Instant now
+    ) {
+        RefreshToken storedToken =
+                refreshTokenRepository
+                        .findByMember_Id(memberId)
+                        .orElseThrow(
+                                this::invalidRefreshToken
+                        );
+
+        if (storedToken.isExpired(now)) {
+            throw invalidRefreshToken();
+        }
+
+        String requestedTokenHash =
+                hash(rawRefreshToken);
+
+        if (!matches(
+                storedToken.getTokenHash(),
+                requestedTokenHash
+        )) {
+            throw invalidRefreshToken();
+        }
+    }
+
     private void saveNewRefreshToken(
             Member member,
             String tokenHash,
@@ -95,5 +125,31 @@ public class RefreshTokenService {
                     exception
             );
         }
+    }
+
+    private boolean matches(
+            String storedHash,
+            String requestedHash
+    ) {
+        byte[] storedHashBytes =
+                storedHash.getBytes(
+                        StandardCharsets.UTF_8
+                );
+
+        byte[] requestedHashBytes =
+                requestedHash.getBytes(
+                        StandardCharsets.UTF_8
+                );
+
+        return MessageDigest.isEqual(
+                storedHashBytes,
+                requestedHashBytes
+        );
+    }
+
+    private BusinessException invalidRefreshToken() {
+        return new BusinessException(
+                ExceptionType.INVALID_REFRESH_TOKEN
+        );
     }
 }

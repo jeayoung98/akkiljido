@@ -78,6 +78,6 @@ public class RefreshToken {
     }
 
     public boolean isExpired(Instant now) {
-        return expiresAt.isBefore(now);
+        return !expiresAt.isAfter(now);
     }
 }

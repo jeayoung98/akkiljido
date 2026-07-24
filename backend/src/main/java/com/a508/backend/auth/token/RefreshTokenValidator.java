@@ -1,0 +1,61 @@
+package com.a508.backend.auth.token;
+
+import com.a508.backend.global.exception.BusinessException;
+import com.a508.backend.global.exception.ExceptionType;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.JwtException;
+import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
+
+@Component
+public class RefreshTokenValidator {
+
+    private final JwtDecoder refreshTokenDecoder;
+
+    public RefreshTokenValidator(
+            @Qualifier("serviceRefreshTokenDecoder")
+            JwtDecoder refreshTokenDecoder
+    ) {
+        this.refreshTokenDecoder =
+                refreshTokenDecoder;
+    }
+
+    public Long validateAndExtractMemberId(
+            String rawRefreshToken
+    ) {
+        if (!StringUtils.hasText(rawRefreshToken)) {
+            throw invalidRefreshToken();
+        }
+
+        try {
+            Jwt jwt =
+                    refreshTokenDecoder.decode(
+                            rawRefreshToken
+                    );
+
+            Long memberId =
+                    Long.valueOf(
+                            jwt.getSubject()
+                    );
+
+            if (memberId <= 0) {
+                throw invalidRefreshToken();
+            }
+
+            return memberId;
+        } catch (
+                JwtException |
+                NumberFormatException exception
+        ) {
+            throw invalidRefreshToken();
+        }
+    }
+
+    private BusinessException invalidRefreshToken() {
+        return new BusinessException(
+                ExceptionType.INVALID_REFRESH_TOKEN
+        );
+    }
+}

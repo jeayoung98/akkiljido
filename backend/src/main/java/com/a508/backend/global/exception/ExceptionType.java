@@ -24,7 +24,8 @@ public enum ExceptionType {
     // auth
     UNAUTHENTICATED(UNAUTHORIZED, "A001", "인증 정보가 존재하지 않음"),
     AUTHORIZATION_DENIED(FORBIDDEN, "A002", "권한이 없음"),
-    INVALID_GOOGLE_ID_TOKEN(UNAUTHORIZED, "A003", "유효하지 않은 Google ID 토큰")
+    INVALID_GOOGLE_ID_TOKEN(UNAUTHORIZED, "A003", "유효하지 않은 Google ID 토큰"),
+    INVALID_REFRESH_TOKEN(UNAUTHORIZED,"A004","유효하지 않은 Refresh Token")
     //
 
     ;
