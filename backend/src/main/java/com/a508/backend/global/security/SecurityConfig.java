@@ -20,7 +20,13 @@ public class SecurityConfig {
             JwtDecoder serviceJwtDecoder,
 
             MemberRoleJwtAuthenticationConverter
-                    authenticationConverter
+                    authenticationConverter,
+
+            RestAuthenticationEntryPoint
+                    authenticationEntryPoint,
+
+            RestAccessDeniedHandler
+                    accessDeniedHandler
     ) throws Exception {
 
         http
@@ -31,6 +37,15 @@ public class SecurityConfig {
                         session.sessionCreationPolicy(
                                 SessionCreationPolicy.STATELESS
                         )
+                )
+                .exceptionHandling(exceptionHandling ->
+                        exceptionHandling
+                                .authenticationEntryPoint(
+                                        authenticationEntryPoint
+                                )
+                                .accessDeniedHandler(
+                                        accessDeniedHandler
+                                )
                 )
                 .authorizeHttpRequests(authorize ->
                         authorize
@@ -86,4 +101,6 @@ public class SecurityConfig {
 
         return http.build();
     }
+
+
 }
