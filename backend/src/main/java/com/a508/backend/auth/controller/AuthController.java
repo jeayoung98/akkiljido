@@ -10,6 +10,11 @@ import com.a508.backend.auth.service.GoogleAuthService;
 import com.a508.backend.auth.service.TokenReissueService;
 import com.a508.backend.global.response.ResponseBody;
 import com.a508.backend.global.response.ResponseUtil;
+import com.a508.backend.auth.service.LogoutService;
+import com.a508.backend.global.exception.BusinessException;
+import com.a508.backend.global.exception.ExceptionType;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -23,16 +28,21 @@ public class AuthController {
 
     private final GoogleAuthService googleAuthService;
     private final TokenReissueService tokenReissueService;
+    private final LogoutService logoutService;
 
     public AuthController(
             GoogleAuthService googleAuthService,
-            TokenReissueService tokenReissueService
+            TokenReissueService tokenReissueService,
+            LogoutService logoutService
     ) {
         this.googleAuthService =
                 googleAuthService;
 
         this.tokenReissueService =
                 tokenReissueService;
+
+        this.logoutService =
+                logoutService;
     }
 
     @PostMapping("/oauth/google")
@@ -81,5 +91,45 @@ public class AuthController {
                         data
                 )
         );
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<ResponseBody<Void>> logout(
+            @AuthenticationPrincipal Jwt jwt
+    ) {
+        Long memberId =
+                parseMemberId(
+                        jwt.getSubject()
+                );
+
+        logoutService.logout(memberId);
+
+        return ResponseEntity.ok(
+                ResponseUtil.createSuccessResponse()
+        );
+    }
+
+
+
+    private Long parseMemberId(
+            String subject
+    ) {
+        try {
+            Long memberId =
+                    Long.valueOf(subject);
+
+            if (memberId <= 0) {
+                throw new NumberFormatException();
+            }
+
+            return memberId;
+        } catch (
+                NumberFormatException |
+                NullPointerException exception
+        ) {
+            throw new BusinessException(
+                    ExceptionType.UNAUTHENTICATED
+            );
+        }
     }
 }
