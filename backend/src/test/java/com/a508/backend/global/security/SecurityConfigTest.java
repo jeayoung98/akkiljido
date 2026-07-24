@@ -14,6 +14,7 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtException;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.context.support.AnnotationConfigWebApplicationContext;
 import org.springframework.web.servlet.config.annotation.EnableWebMvc;
@@ -36,7 +37,9 @@ class SecurityConfigTest {
         context.register(
                 TestWebConfig.class,
                 SecurityConfig.class,
-                MemberRoleJwtAuthenticationConverter.class
+                MemberRoleJwtAuthenticationConverter.class,
+                RestAuthenticationEntryPoint.class,
+                RestAccessDeniedHandler.class
         );
 
         ServletContext servletContext =
@@ -88,6 +91,18 @@ class SecurityConfigTest {
                 )
                 .andExpect(
                         status().isUnauthorized()
+                )
+                .andExpect(
+                        jsonPath("$.success")
+                                .value(false)
+                )
+                .andExpect(
+                        jsonPath("$.code")
+                                .value("A001")
+                )
+                .andExpect(
+                        jsonPath("$.msg")
+                                .exists()
                 );
     }
 
@@ -118,7 +133,7 @@ class SecurityConfigTest {
 
     @Test
     @DisplayName(
-            "GUEST는 일반 USER API에 접근할 수 없다"
+            "GUEST가 USER API에 접근하면 공통 형식의 403 응답을 반환한다"
     )
     void rejectUserApiForGuest()
             throws Exception {
@@ -138,6 +153,18 @@ class SecurityConfigTest {
                 )
                 .andExpect(
                         status().isForbidden()
+                )
+                .andExpect(
+                        jsonPath("$.success")
+                                .value(false)
+                )
+                .andExpect(
+                        jsonPath("$.code")
+                                .value("A002")
+                )
+                .andExpect(
+                        jsonPath("$.msg")
+                                .exists()
                 );
     }
 
