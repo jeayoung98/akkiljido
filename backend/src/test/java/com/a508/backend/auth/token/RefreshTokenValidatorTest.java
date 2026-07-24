@@ -1,0 +1,229 @@
+package com.a508.backend.auth.token;
+
+import com.a508.backend.global.exception.BusinessException;
+import com.a508.backend.global.exception.ExceptionType;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.JwtException;
+
+import java.time.Instant;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+
+@ExtendWith(MockitoExtension.class)
+class RefreshTokenValidatorTest {
+
+    @Mock
+    private JwtDecoder refreshTokenDecoder;
+
+    private RefreshTokenValidator
+            refreshTokenValidator;
+
+    @BeforeEach
+    void setUp() {
+        refreshTokenValidator =
+                new RefreshTokenValidator(
+                        refreshTokenDecoder
+                );
+    }
+
+    @Test
+    @DisplayName(
+            "검증된 Refresh Token에서 회원 ID를 추출한다"
+    )
+    void extractMemberIdFromRefreshToken() {
+        // given
+        String rawRefreshToken =
+                "test-refresh-token";
+
+        Jwt jwt =
+                createRefreshJwt("1");
+
+        given(
+                refreshTokenDecoder.decode(
+                        rawRefreshToken
+                )
+        ).willReturn(jwt);
+
+        // when
+        Long memberId =
+                refreshTokenValidator
+                        .validateAndExtractMemberId(
+                                rawRefreshToken
+                        );
+
+        // then
+        assertThat(memberId)
+                .isEqualTo(1L);
+
+        verify(refreshTokenDecoder)
+                .decode(rawRefreshToken);
+    }
+
+    @Test
+    @DisplayName(
+            "Refresh Token이 비어 있으면 인증 예외를 발생시킨다"
+    )
+    void rejectBlankRefreshToken() {
+        assertInvalidRefreshToken(
+                () -> refreshTokenValidator
+                        .validateAndExtractMemberId(" ")
+        );
+
+        verify(refreshTokenDecoder, never())
+                .decode(
+                        org.mockito.ArgumentMatchers
+                                .anyString()
+                );
+    }
+
+    @Test
+    @DisplayName(
+            "Refresh Token JWT 검증에 실패하면 인증 예외로 변환한다"
+    )
+    void convertJwtExceptionToBusinessException() {
+        // given
+        String invalidRefreshToken =
+                "invalid-refresh-token";
+
+        given(
+                refreshTokenDecoder.decode(
+                        invalidRefreshToken
+                )
+        ).willThrow(
+                new JwtException(
+                        "Refresh Token verification failed"
+                )
+        );
+
+        // when & then
+        assertInvalidRefreshToken(
+                () -> refreshTokenValidator
+                        .validateAndExtractMemberId(
+                                invalidRefreshToken
+                        )
+        );
+    }
+
+    @Test
+    @DisplayName(
+            "Refresh Token의 sub가 숫자가 아니면 거부한다"
+    )
+    void rejectNonNumericSubject() {
+        // given
+        String rawRefreshToken =
+                "test-refresh-token";
+
+        Jwt jwt =
+                createRefreshJwt(
+                        "not-a-member-id"
+                );
+
+        given(
+                refreshTokenDecoder.decode(
+                        rawRefreshToken
+                )
+        ).willReturn(jwt);
+
+        // when & then
+        assertInvalidRefreshToken(
+                () -> refreshTokenValidator
+                        .validateAndExtractMemberId(
+                                rawRefreshToken
+                        )
+        );
+    }
+
+    @Test
+    @DisplayName(
+            "Refresh Token의 회원 ID가 양수가 아니면 거부한다"
+    )
+    void rejectNonPositiveMemberId() {
+        // given
+        String rawRefreshToken =
+                "test-refresh-token";
+
+        Jwt jwt =
+                createRefreshJwt("0");
+
+        given(
+                refreshTokenDecoder.decode(
+                        rawRefreshToken
+                )
+        ).willReturn(jwt);
+
+        // when & then
+        assertInvalidRefreshToken(
+                () -> refreshTokenValidator
+                        .validateAndExtractMemberId(
+                                rawRefreshToken
+                        )
+        );
+    }
+
+    private Jwt createRefreshJwt(
+            String subject
+    ) {
+        Instant issuedAt =
+                Instant.parse(
+                        "2026-07-24T00:00:00Z"
+                );
+
+        return Jwt
+                .withTokenValue(
+                        "test-refresh-token"
+                )
+                .header(
+                        "alg",
+                        "HS256"
+                )
+                .issuer(
+                        "a508-backend"
+                )
+                .subject(subject)
+                .issuedAt(issuedAt)
+                .expiresAt(
+                        issuedAt.plusSeconds(
+                                1209600
+                        )
+                )
+                .claim(
+                        "role",
+                        "USER"
+                )
+                .claim(
+                        "token_type",
+                        "refresh"
+                )
+                .build();
+    }
+
+    private void assertInvalidRefreshToken(
+            Runnable action
+    ) {
+        assertThatThrownBy(action::run)
+                .isInstanceOf(
+                        BusinessException.class
+                )
+                .satisfies(exception -> {
+                    BusinessException businessException =
+                            (BusinessException) exception;
+
+                    assertThat(
+                            businessException.getExceptionType()
+                    ).isEqualTo(
+                            ExceptionType.INVALID_REFRESH_TOKEN
+                    );
+                });
+    }
+}

@@ -1,5 +1,7 @@
 package com.a508.backend.auth.token;
 
+import com.a508.backend.global.exception.BusinessException;
+import com.a508.backend.global.exception.ExceptionType;
 import com.a508.backend.member.domain.Member;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -14,6 +16,7 @@ import java.time.Instant;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
@@ -59,7 +62,9 @@ class RefreshTokenServiceTest {
 
         given(
                 refreshTokenRepository
-                        .findByMember_Id(member.getId())
+                        .findByMember_Id(
+                                member.getId()
+                        )
         ).willReturn(
                 Optional.empty()
         );
@@ -83,20 +88,29 @@ class RefreshTokenServiceTest {
         RefreshToken savedRefreshToken =
                 captor.getValue();
 
-        assertThat(savedRefreshToken.getMember())
-                .isSameAs(member);
+        assertThat(
+                savedRefreshToken.getMember()
+        ).isSameAs(member);
 
-        assertThat(savedRefreshToken.getTokenHash())
-                .isEqualTo(SHA_256_OF_ABC);
+        assertThat(
+                savedRefreshToken.getTokenHash()
+        ).isEqualTo(
+                SHA_256_OF_ABC
+        );
 
-        assertThat(savedRefreshToken.getTokenHash())
-                .isNotEqualTo(rawRefreshToken);
+        assertThat(
+                savedRefreshToken.getTokenHash()
+        ).isNotEqualTo(
+                rawRefreshToken
+        );
 
-        assertThat(savedRefreshToken.getTokenHash())
-                .hasSize(64);
+        assertThat(
+                savedRefreshToken.getTokenHash()
+        ).hasSize(64);
 
-        assertThat(savedRefreshToken.getExpiresAt())
-                .isEqualTo(expiresAt);
+        assertThat(
+                savedRefreshToken.getExpiresAt()
+        ).isEqualTo(expiresAt);
     }
 
     @Test
@@ -129,7 +143,9 @@ class RefreshTokenServiceTest {
 
         given(
                 refreshTokenRepository
-                        .findByMember_Id(member.getId())
+                        .findByMember_Id(
+                                member.getId()
+                        )
         ).willReturn(
                 Optional.of(
                         existingRefreshToken
@@ -156,8 +172,191 @@ class RefreshTokenServiceTest {
                 newExpiresAt
         );
 
-        verify(refreshTokenRepository, never())
-                .save(any(RefreshToken.class));
+        verify(
+                refreshTokenRepository,
+                never()
+        ).save(
+                any(RefreshToken.class)
+        );
+    }
+
+    @Test
+    @DisplayName(
+            "요청한 Refresh Token 해시가 DB 값과 일치하면 검증에 성공한다"
+    )
+    void verifyStoredRefreshToken() {
+        // given
+        Member member =
+                createSavedMember();
+
+        Instant expiresAt =
+                Instant.parse(
+                        "2026-08-07T00:00:00Z"
+                );
+
+        Instant now =
+                Instant.parse(
+                        "2026-08-01T00:00:00Z"
+                );
+
+        RefreshToken storedToken =
+                RefreshToken.create(
+                        member,
+                        SHA_256_OF_ABC,
+                        expiresAt
+                );
+
+        given(
+                refreshTokenRepository
+                        .findByMember_Id(
+                                member.getId()
+                        )
+        ).willReturn(
+                Optional.of(storedToken)
+        );
+
+        // when
+        refreshTokenService.verifyStoredToken(
+                member.getId(),
+                "abc",
+                now
+        );
+
+        // then
+        verify(refreshTokenRepository)
+                .findByMember_Id(
+                        member.getId()
+                );
+    }
+
+    @Test
+    @DisplayName(
+            "DB에 Refresh Token이 없으면 인증 예외를 발생시킨다"
+    )
+    void rejectMissingStoredRefreshToken() {
+        // given
+        Long memberId = 1L;
+
+        given(
+                refreshTokenRepository
+                        .findByMember_Id(memberId)
+        ).willReturn(
+                Optional.empty()
+        );
+
+        // when & then
+        assertInvalidRefreshToken(
+                () -> refreshTokenService
+                        .verifyStoredToken(
+                                memberId,
+                                "abc",
+                                Instant.parse(
+                                        "2026-08-01T00:00:00Z"
+                                )
+                        )
+        );
+    }
+
+    @Test
+    @DisplayName(
+            "DB에 저장된 Refresh Token이 만료됐으면 거부한다"
+    )
+    void rejectExpiredStoredRefreshToken() {
+        // given
+        Member member =
+                createSavedMember();
+
+        Instant now =
+                Instant.parse(
+                        "2026-08-07T00:00:00Z"
+                );
+
+        RefreshToken expiredToken =
+                RefreshToken.create(
+                        member,
+                        SHA_256_OF_ABC,
+                        now
+                );
+
+        given(
+                refreshTokenRepository
+                        .findByMember_Id(
+                                member.getId()
+                        )
+        ).willReturn(
+                Optional.of(expiredToken)
+        );
+
+        // when & then
+        assertInvalidRefreshToken(
+                () -> refreshTokenService
+                        .verifyStoredToken(
+                                member.getId(),
+                                "abc",
+                                now
+                        )
+        );
+    }
+
+    @Test
+    @DisplayName(
+            "요청한 Refresh Token 해시가 DB 값과 다르면 거부한다"
+    )
+    void rejectMismatchedRefreshToken() {
+        // given
+        Member member =
+                createSavedMember();
+
+        RefreshToken storedToken =
+                RefreshToken.create(
+                        member,
+                        SHA_256_OF_ABC,
+                        Instant.parse(
+                                "2026-08-07T00:00:00Z"
+                        )
+                );
+
+        given(
+                refreshTokenRepository
+                        .findByMember_Id(
+                                member.getId()
+                        )
+        ).willReturn(
+                Optional.of(storedToken)
+        );
+
+        // when & then
+        assertInvalidRefreshToken(
+                () -> refreshTokenService
+                        .verifyStoredToken(
+                                member.getId(),
+                                "different-token",
+                                Instant.parse(
+                                        "2026-08-01T00:00:00Z"
+                                )
+                        )
+        );
+    }
+
+    private void assertInvalidRefreshToken(
+            Runnable action
+    ) {
+        assertThatThrownBy(action::run)
+                .isInstanceOf(
+                        BusinessException.class
+                )
+                .satisfies(exception -> {
+                    BusinessException businessException =
+                            (BusinessException) exception;
+
+                    assertThat(
+                            businessException
+                                    .getExceptionType()
+                    ).isEqualTo(
+                            ExceptionType
+                                    .INVALID_REFRESH_TOKEN
+                    );
+                });
     }
 
     private Member createSavedMember() {
