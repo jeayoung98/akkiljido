@@ -40,11 +40,16 @@ production-ssh-check:
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
       when: manual
     - when: never
-  allow_failure: false
+  allow_failure: true
 
 production-deploy:
   stage: deploy
   image: alpine:3.20
+  resource_group: production
+  interruptible: false
+  environment:
+    name: production
+    url: https://i15a508.p.ssafy.io
   tags:
     - prod_deploy
   script:
@@ -55,6 +60,6 @@ production-deploy:
     - sh scripts/deploy-production.sh
   rules:
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
-      when: manual
+      when: on_success
     - when: never
   allow_failure: false
