@@ -1,0 +1,17 @@
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    - when: never
+
+stages:
+  - test
+
+backend-test:
+  stage: test
+  image: eclipse-temurin:21-jdk
+  tags:
+    - ci_test
+  script:
+    - cd backend
+    - bash ./gradlew clean test --no-daemon
