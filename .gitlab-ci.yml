@@ -6,6 +6,7 @@ workflow:
 
 stages:
   - test
+  - verify-deploy
 
 backend-test:
   stage: test
@@ -15,3 +16,27 @@ backend-test:
   script:
     - cd backend
     - bash ./gradlew clean test --no-daemon
+
+production-ssh-check:
+  stage: verify-deploy
+  image: alpine:3.20
+  tags:
+    - prod_deploy
+  script:
+    - apk add --no-cache openssh-client
+    - install -d -m 700 "$HOME/.ssh"
+    - install -m 600 "$SSH_PRIVATE_KEY" "$HOME/.ssh/id_ed25519"
+    - install -m 644 "$SSH_KNOWN_HOSTS" "$HOME/.ssh/known_hosts"
+    - |
+      ssh \
+        -i "$HOME/.ssh/id_ed25519" \
+        -o BatchMode=yes \
+        -o IdentitiesOnly=yes \
+        -o StrictHostKeyChecking=yes \
+        "$DEPLOY_USER@$DEPLOY_HOST" \
+        'whoami && hostname'
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      when: manual
+    - when: never
+  allow_failure: false
