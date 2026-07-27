@@ -24,7 +24,7 @@
 - 개인 개발 값은 저장소 루트의 `.env.local`에 작성하며 Git에 커밋하지 않는다.
 - `.env`, `.env.prod`, `.env.production`, `.env.*.local` 등 실제 값이 들어갈 수 있는 파일은 `.gitignore`의 `.env`와 `.env.*` 규칙으로 제외한다.
 - `DB_PASSWORD`를 비롯한 실제 Secret은 코드, 문서, Docker 이미지, Notion에 기록하지 않는다.
-- 운영 Secret은 향후 GitLab CI/CD Variables에서 Masked 및 Protected 변수로 등록하고 배포 시점에 컨테이너 환경변수로 주입한다.
+- 운영 Runtime Secret은 EC2의 `/opt/akkiljido/.env.prod`에서만 관리하며 GitLab CI/CD Variable에 복제하지 않는다.
 - Secret이 Git 이력에 포함된 경우 파일 삭제만으로 해결하지 않고 해당 Credential을 폐기·재발급한 뒤 이력 정리 필요성을 별도로 검토한다.
 
 ## 개발 환경
@@ -44,8 +44,6 @@
 - `DB_PORT=5432`, `REDIS_PORT=6379`는 호스트 공개 포트가 아니라 컨테이너 내부 통신 포트다.
 - 운영 Compose 구성, Healthcheck, 볼륨, 외부 포트 공개 여부와 컨테이너 의존 관계는 S15P11A508-57에서 확정한다.
 
-## GitLab CI/CD Variables 준비
+## GitLab CI/CD Variables
 
-운영 배포 파이프라인에서는 최소 `SPRING_PROFILES_ACTIVE`, `DB_HOST`, `DB_NAME`, `DB_USERNAME`, `DB_PASSWORD`, `REDIS_HOST`를 주입해야 한다. `SERVER_PORT`, `DB_PORT`, `REDIS_PORT`는 기본값을 사용할 수 있지만 운영 구성을 명시적으로 관리하려면 함께 등록할 수 있다.
-
-`DB_PASSWORD`는 반드시 Masked 및 Protected 변수로 관리한다. 나머지 값도 운영 인프라 정보의 공개 범위에 따라 Protected 변수로 관리한다.
+운영 배포와 DB Migration Pipeline은 Protected Variable인 `SSH_PRIVATE_KEY`, `SSH_KNOWN_HOSTS`, `DEPLOY_HOST`, `DEPLOY_USER`만 사용해 EC2에 접속한다. `DB_PASSWORD`를 포함한 Runtime 환경변수는 GitLab에 등록하지 않고 서버의 `/opt/akkiljido/.env.prod`를 사용한다.
