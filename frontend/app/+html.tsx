@@ -1,3 +1,5 @@
+// 웹 빌드 전용 파일. 웹으로 정적 렌더링될 때 사용할 최상위 HTML 문서(<head>/<body>)를 정의한다.
+// 네이티브(iOS/Android) 앱 실행에는 영향을 주지 않는다.
 import { ScrollViewStyleReset } from 'expo-router/html';
 import type { ReactNode } from 'react';
 
@@ -28,6 +30,7 @@ export default function Root({ children }: { children: ReactNode }) {
   );
 }
 
+// 다크모드 시스템 설정에서도 웹 배경색이 깜빡이지 않도록 미리 넣는 raw CSS
 const responsiveBackground = `
 body {
   background-color: #fff;
