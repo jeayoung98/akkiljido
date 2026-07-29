@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-import AppScreen from '@/components/ui/AppScreen';
+import AppScreen from '@/components/common/AppScreen';
 import Colors from '@/constants/Colors';
 
 export default function HomeScreen() {

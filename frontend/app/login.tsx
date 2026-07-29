@@ -12,12 +12,14 @@ import { BrandLockup } from '@/components/onboarding/BrandLockup';
 import { GoogleIcon } from '@/components/onboarding/GoogleIcon';
 import Colors from '@/constants/Colors';
 
+// 사용자가 Google 계정으로 로그인할 수 있는 화면
 export default function LoginScreen() {
   const router = useRouter();
   const { height, width } = useWindowDimensions();
   const logoSize = Math.min(196, Math.max(180, width * 0.5));
   const compact = height < 700;
 
+  // Google 로그인 성공 시 다음 화면으로 이동한다.
   const handleGoogleLogin = () => {
     // TODO: Google OAuth 연동 완료 후 인증 성공 콜백에서 이동하도록 교체한다.
     router.replace('/nickname-setup');
