@@ -1,0 +1,26 @@
+// 홈 탭 기본 화면. 지금은 빈 placeholder이고 화면 중앙에 이름 텍스트만 표시한다.
+import { StyleSheet } from 'react-native';
+
+import { Text, View } from '@/components/ui/Themed';
+
+// 홈 화면 컴포넌트 (추후 오늘 지출액, 주간 지도 미리보기 등이 채워질 자리)
+export default function HomeScreen() {
+  return (
+    <View style={styles.container}>
+      <Text style={styles.title}>홈 화면</Text>
+    </View>
+  );
+}
+
+// 화면 중앙 정렬 레이아웃과 타이틀 텍스트 스타일
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+});
