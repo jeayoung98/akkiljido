@@ -15,6 +15,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -94,5 +95,19 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ResponseUtil.createFailureResponse(ExceptionType.UNEXPECTED_SERVER_ERROR));
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ResponseBody<Void>> methodArgumentTypeMismatchException(
+            MethodArgumentTypeMismatchException e
+    ) {
+        ExceptionType exceptionType =
+                "placeId".equals(e.getName())
+                        ? ExceptionType.INVALID_PLACE_ID
+                        : ExceptionType.BINDING_ERROR;
+
+        return ResponseEntity
+                .status(exceptionType.getStatus())
+                .body(ResponseUtil.createFailureResponse(exceptionType));
     }
 }
