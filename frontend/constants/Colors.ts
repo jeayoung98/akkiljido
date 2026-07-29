@@ -4,6 +4,15 @@
 const tintColorLight = '#2f95dc';
 
 export default {
+  onboarding: {
+    green: '#4A784F',
+    text: '#202D25',
+    muted: '#768E7C',
+    tagline: '#4D4D4D',
+    lightText: '#C6D6CA',
+    inverseText: '#FFFFFF',
+    surface: '#FFFFFF',
+  },
   light: {
     text: '#000', // 기본 텍스트 색
     background: '#fff', // 기본 배경색

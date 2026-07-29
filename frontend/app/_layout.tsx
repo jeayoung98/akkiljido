@@ -1,5 +1,6 @@
-// 앱 전체의 루트 레이아웃. 네비게이션 테마를 설정하고, (tabs) 화면을 최상위 Stack에 등록한다.
+// 앱 전체의 루트 레이아웃. 온보딩과 메인 탭 화면을 최상위 Stack에 등록한다.
 import { DefaultTheme, Stack, ThemeProvider } from 'expo-router';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import 'react-native-reanimated';
 
 export {
@@ -7,19 +8,24 @@ export {
   ErrorBoundary,
 } from 'expo-router';
 
-// 앱 시작 시 최초로 보여줄 라우트를 (tabs)로 지정
+// 앱 시작 시 최초로 보여줄 라우트를 랜딩 화면으로 지정한다.
 export const unstable_settings = {
-  initialRouteName: '(tabs)',
+  initialRouteName: 'landing',
 };
 
-// 루트 레이아웃 컴포넌트. 다크모드를 지원하지 않으므로 DefaultTheme로 고정하고,
-// (tabs)를 Stack의 첫 화면으로 렌더링한다.
+// 다크모드를 지원하지 않으므로 DefaultTheme로 고정한다.
 export default function RootLayout() {
   return (
-    <ThemeProvider value={DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      </Stack>
-    </ThemeProvider>
+    <SafeAreaProvider>
+      <ThemeProvider value={DefaultTheme}>
+        <Stack screenOptions={{ headerShown: false, statusBarStyle: 'dark' }}>
+          <Stack.Screen name="landing" options={{ statusBarStyle: 'light' }} />
+          <Stack.Screen name="login" />
+          <Stack.Screen name="nickname-setup" />
+          {/* 탭 화면은 상태바를 숨겨 화면 배경이 카메라 영역까지 자연스럽게 이어지도록 한다. */}
+          <Stack.Screen name="(tabs)" options={{ statusBarHidden: true, statusBarTranslucent: true }} />
+        </Stack>
+      </ThemeProvider>
+    </SafeAreaProvider>
   );
 }
