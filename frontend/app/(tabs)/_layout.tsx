@@ -1,15 +1,9 @@
 // 하단 탭바 정의 파일. 이 폴더(app/(tabs)) 안의 화면 5개를 <Tabs>로 감싸고,
 // 탭 아이콘/활성 표시 스타일을 이 파일에서 커스터마이징한다.
 import { Tabs } from 'expo-router';
-import type { ComponentProps } from 'react';
 import { Image, Pressable, StyleSheet, View } from 'react-native';
 
 import Colors from '@/constants/Colors';
-
-// 탭 버튼을 감싸는 컴포넌트. Android 기본 리플(회색 원) 효과를 투명하게 처리해서 안 보이게 한다.
-function TabBarButton(props: ComponentProps<typeof Pressable>) {
-  return <Pressable {...props} android_ripple={{ color: 'transparent' }} />;
-}
 
 // 탭별 on(선택)/off(비선택) 아이콘 이미지 매핑
 const icons = {
@@ -58,7 +52,11 @@ export default function TabLayout() {
           paddingTop: 10,
           height: 60,
         },
-        tabBarButton: TabBarButton,
+        // Expo Router가 전달하는 ref와 Pressable의 ref 타입이 달라 발생하는 TypeScript 오류를 방지한다.
+        // ref만 제외하고 나머지 속성과 기존 Android 투명 리플 동작은 그대로 유지한다.
+        tabBarButton: ({ ref: _ref, ...props }) => (
+          <Pressable {...props} android_ripple={{ color: 'transparent' }} />
+        ),
       }}>
       <Tabs.Screen name="index" options={{ tabBarIcon: ({ focused }) => <TabIcon name="home" focused={focused} /> }} />
       <Tabs.Screen name="list" options={{ tabBarIcon: ({ focused }) => <TabIcon name="list" focused={focused} /> }} />
