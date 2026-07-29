@@ -2,7 +2,7 @@
 import { Link, Stack } from 'expo-router';
 import { StyleSheet } from 'react-native';
 
-import { Text, View } from '@/components/ui/Themed';
+import { Text, View } from '@/components/common/Themed';
 
 // 404 화면 컴포넌트. 안내 텍스트와 홈으로 돌아가는 링크만 보여준다.
 export default function NotFoundScreen() {
