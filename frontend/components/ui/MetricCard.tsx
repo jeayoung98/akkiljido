@@ -23,6 +23,7 @@ export default function MetricCard({
   tone = 'primary',
   style,
 }: MetricCardProps) {
+  // 정렬과 색상 유형을 props로 받아 같은 구조를 홈과 리포트 화면에서 재사용합니다.
   const isCentered = align === 'center';
   const isInfoTone = tone === 'info';
 
@@ -38,11 +39,13 @@ export default function MetricCard({
 
       <View style={[styles.valueRow, isCentered && styles.centeredValueRow]}>
         <Text style={[styles.value, isInfoTone ? styles.infoValue : styles.primaryValue]}>{value}</Text>
+        {/* 단위가 전달된 경우에만 핵심 값 옆에 표시합니다. */}
         {unit ? (
           <Text style={[styles.unit, isInfoTone ? styles.infoValue : styles.primaryValue]}>{unit}</Text>
         ) : null}
       </View>
 
+      {/* 날짜 등 보조 정보는 필요한 카드에서만 표시합니다. */}
       {caption ? <Text style={[styles.caption, isInfoTone && styles.infoCaption]}>{caption}</Text> : null}
     </BaseCard>
   );
