@@ -53,7 +53,7 @@ export default function TabLayout() {
           paddingTop: 10,
           height: 60,
         },
-        // Android 기본 리플(회색 원) 효과를 투명하게 처리한다.
+        // Expo Router와 Pressable의 ref 타입 차이를 변환해 ref와 기존 투명 리플 동작을 모두 유지한다.
         tabBarButton: ({ ref, ...props }) => (
           <Pressable
             {...props}
