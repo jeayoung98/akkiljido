@@ -6,11 +6,6 @@ import { Image, Pressable, StyleSheet, View } from 'react-native';
 
 import Colors from '@/constants/Colors';
 
-// 탭 버튼을 감싸는 컴포넌트. Android 기본 리플(회색 원) 효과를 투명하게 처리해서 안 보이게 한다.
-function TabBarButton(props: ComponentProps<typeof Pressable>) {
-  return <Pressable {...props} android_ripple={{ color: 'transparent' }} />;
-}
-
 // 탭별 on(선택)/off(비선택) 아이콘 이미지 매핑
 const icons = {
   home: {
@@ -58,7 +53,14 @@ export default function TabLayout() {
           paddingTop: 10,
           height: 60,
         },
-        tabBarButton: TabBarButton,
+        // Android 기본 리플(회색 원) 효과를 투명하게 처리한다.
+        tabBarButton: ({ ref, ...props }) => (
+          <Pressable
+            {...props}
+            ref={ref as ComponentProps<typeof Pressable>['ref']}
+            android_ripple={{ color: 'transparent' }}
+          />
+        ),
       }}>
       <Tabs.Screen name="index" options={{ tabBarIcon: ({ focused }) => <TabIcon name="home" focused={focused} /> }} />
       <Tabs.Screen name="list" options={{ tabBarIcon: ({ focused }) => <TabIcon name="list" focused={focused} /> }} />
