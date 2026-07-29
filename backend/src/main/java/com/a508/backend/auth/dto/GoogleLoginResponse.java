@@ -1,10 +1,10 @@
 package com.a508.backend.auth.dto;
 
 import com.a508.backend.auth.token.AuthTokens;
-import com.a508.backend.member.domain.MemberRole;
+import com.a508.backend.user.domain.UserRole;
 
 public record GoogleLoginResponse(
-        MemberRole role,
+        UserRole role,
         boolean nicknameRequired,
         String accessToken,
         String refreshToken,

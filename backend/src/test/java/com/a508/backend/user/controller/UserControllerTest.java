@@ -1,10 +1,10 @@
-package com.a508.backend.member.controller;
+package com.a508.backend.user.controller;
 
 import com.a508.backend.auth.token.AuthTokens;
 import com.a508.backend.global.exception.GlobalExceptionHandler;
-import com.a508.backend.member.domain.MemberRole;
-import com.a508.backend.member.dto.NicknameRegistrationResult;
-import com.a508.backend.member.service.MemberRegistrationService;
+import com.a508.backend.user.domain.UserRole;
+import com.a508.backend.user.dto.NicknameRegistrationResult;
+import com.a508.backend.user.service.UserRegistrationService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -32,25 +32,25 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @ExtendWith(MockitoExtension.class)
-class MemberControllerTest {
+class UserControllerTest {
 
     @Mock
-    private MemberRegistrationService
-            memberRegistrationService;
+    private UserRegistrationService
+            userRegistrationService;
 
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
-        MemberController memberController =
-                new MemberController(
-                        memberRegistrationService
+        UserController userController =
+                new UserController(
+                        userRegistrationService
                 );
 
         mockMvc =
                 MockMvcBuilders
                         .standaloneSetup(
-                                memberController
+                                userController
                         )
                         .setControllerAdvice(
                                 new GlobalExceptionHandler()
@@ -87,12 +87,12 @@ class MemberControllerTest {
         NicknameRegistrationResult result =
                 new NicknameRegistrationResult(
                         "홍길동",
-                        MemberRole.USER,
+                        UserRole.USER,
                         tokens
                 );
 
         given(
-                memberRegistrationService
+                userRegistrationService
                         .completeRegistration(
                                 1L,
                                 "홍길동"
@@ -148,7 +148,7 @@ class MemberControllerTest {
                         ).value(1800)
                 );
 
-        verify(memberRegistrationService)
+        verify(userRegistrationService)
                 .completeRegistration(
                         1L,
                         "홍길동"
@@ -197,7 +197,7 @@ class MemberControllerTest {
                                 )
                 );
 
-        verify(memberRegistrationService, never())
+        verify(userRegistrationService, never())
                 .completeRegistration(
                         anyLong(),
                         anyString()
@@ -246,7 +246,7 @@ class MemberControllerTest {
                                 )
                 );
 
-        verify(memberRegistrationService, never())
+        verify(userRegistrationService, never())
                 .completeRegistration(
                         anyLong(),
                         anyString()
@@ -257,12 +257,12 @@ class MemberControllerTest {
     @DisplayName(
             "JWT sub가 회원 ID 형식이 아니면 401 응답을 반환한다"
     )
-    void rejectInvalidMemberIdSubject()
+    void rejectInvalidUserIdSubject()
             throws Exception {
 
         // given
         setAuthentication(
-                "not-a-member-id",
+                "not-a-user-id",
                 "GUEST"
         );
 
@@ -294,7 +294,7 @@ class MemberControllerTest {
                                 .value("A001")
                 );
 
-        verify(memberRegistrationService, never())
+        verify(userRegistrationService, never())
                 .completeRegistration(
                         anyLong(),
                         anyString()

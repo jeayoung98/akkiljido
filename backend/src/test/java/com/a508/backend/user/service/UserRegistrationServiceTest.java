@@ -1,14 +1,14 @@
-package com.a508.backend.member.service;
+package com.a508.backend.user.service;
 
 import com.a508.backend.auth.token.AuthTokens;
 import com.a508.backend.auth.token.RefreshTokenService;
 import com.a508.backend.auth.token.TokenIssuer;
 import com.a508.backend.global.exception.BusinessException;
 import com.a508.backend.global.exception.ExceptionType;
-import com.a508.backend.member.domain.Member;
-import com.a508.backend.member.domain.MemberRole;
-import com.a508.backend.member.dto.NicknameRegistrationResult;
-import com.a508.backend.member.repository.MemberRepository;
+import com.a508.backend.user.domain.User;
+import com.a508.backend.user.domain.UserRole;
+import com.a508.backend.user.dto.NicknameRegistrationResult;
+import com.a508.backend.user.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -28,10 +28,10 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
-class MemberRegistrationServiceTest {
+class UserRegistrationServiceTest {
 
     @Mock
-    private MemberRepository memberRepository;
+    private UserRepository userRepository;
 
     @Mock
     private TokenIssuer tokenIssuer;
@@ -39,14 +39,14 @@ class MemberRegistrationServiceTest {
     @Mock
     private RefreshTokenService refreshTokenService;
 
-    private MemberRegistrationService
-            memberRegistrationService;
+    private UserRegistrationService
+            userRegistrationService;
 
     @BeforeEach
     void setUp() {
-        memberRegistrationService =
-                new MemberRegistrationService(
-                        memberRepository,
+        userRegistrationService =
+                new UserRegistrationService(
+                        userRepository,
                         tokenIssuer,
                         refreshTokenService
                 );
@@ -58,16 +58,16 @@ class MemberRegistrationServiceTest {
     )
     void completeGuestRegistration() {
         // given
-        Long memberId = 1L;
+        Long userId = 1L;
 
-        Member guest =
-                createSavedGuest(memberId);
+        User guest =
+                createSavedGuest(userId);
 
         AuthTokens issuedTokens =
                 createAuthTokens();
 
         given(
-                memberRepository.findById(memberId)
+                userRepository.findById(userId)
         ).willReturn(
                 Optional.of(guest)
         );
@@ -78,9 +78,9 @@ class MemberRegistrationServiceTest {
 
         // when
         NicknameRegistrationResult result =
-                memberRegistrationService
+                userRegistrationService
                         .completeRegistration(
-                                memberId,
+                                userId,
                                 "  홍길동  "
                         );
 
@@ -89,13 +89,13 @@ class MemberRegistrationServiceTest {
                 .isEqualTo("홍길동");
 
         assertThat(guest.getRole())
-                .isEqualTo(MemberRole.USER);
+                .isEqualTo(UserRole.USER);
 
         assertThat(result.nickname())
                 .isEqualTo("홍길동");
 
         assertThat(result.role())
-                .isEqualTo(MemberRole.USER);
+                .isEqualTo(UserRole.USER);
 
         assertThat(result.tokens())
                 .isSameAs(issuedTokens);
@@ -115,21 +115,21 @@ class MemberRegistrationServiceTest {
     @DisplayName(
             "존재하지 않는 회원은 닉네임을 설정할 수 없다"
     )
-    void rejectMissingMember() {
+    void rejectMissingUser() {
         // given
-        Long memberId = 999L;
+        Long userId = 999L;
 
         given(
-                memberRepository.findById(memberId)
+                userRepository.findById(userId)
         ).willReturn(
                 Optional.empty()
         );
 
         // when & then
         assertThatThrownBy(
-                () -> memberRegistrationService
+                () -> userRegistrationService
                         .completeRegistration(
-                                memberId,
+                                userId,
                                 "홍길동"
                         )
         )
@@ -148,11 +148,11 @@ class MemberRegistrationServiceTest {
                 });
 
         verify(tokenIssuer, never())
-                .issue(any(Member.class));
+                .issue(any(User.class));
 
         verify(refreshTokenService, never())
                 .saveOrReplace(
-                        any(Member.class),
+                        any(User.class),
                         any(String.class),
                         any(Instant.class)
                 );
@@ -162,28 +162,28 @@ class MemberRegistrationServiceTest {
     @DisplayName(
             "이미 USER인 회원은 닉네임 등록을 다시 수행할 수 없다"
     )
-    void rejectAlreadyRegisteredMember() {
+    void rejectAlreadyRegisteredUser() {
         // given
-        Long memberId = 1L;
+        Long userId = 1L;
 
-        Member user =
-                createSavedGuest(memberId);
+        User user =
+                createSavedGuest(userId);
 
         user.completeRegistration(
                 "기존닉네임"
         );
 
         given(
-                memberRepository.findById(memberId)
+                userRepository.findById(userId)
         ).willReturn(
                 Optional.of(user)
         );
 
         // when & then
         assertThatThrownBy(
-                () -> memberRegistrationService
+                () -> userRegistrationService
                         .completeRegistration(
-                                memberId,
+                                userId,
                                 "새닉네임"
                         )
         )
@@ -205,34 +205,34 @@ class MemberRegistrationServiceTest {
                 .isEqualTo("기존닉네임");
 
         assertThat(user.getRole())
-                .isEqualTo(MemberRole.USER);
+                .isEqualTo(UserRole.USER);
 
         verify(tokenIssuer, never())
-                .issue(any(Member.class));
+                .issue(any(User.class));
 
         verify(refreshTokenService, never())
                 .saveOrReplace(
-                        any(Member.class),
+                        any(User.class),
                         any(String.class),
                         any(Instant.class)
                 );
     }
 
-    private Member createSavedGuest(
-            Long memberId
+    private User createSavedGuest(
+            Long userId
     ) {
-        Member member =
-                Member.createGoogleGuest(
+        User user =
+                User.createGoogleGuest(
                         "google-sub-123"
                 );
 
         ReflectionTestUtils.setField(
-                member,
+                user,
                 "id",
-                memberId
+                userId
         );
 
-        return member;
+        return user;
     }
 
     private AuthTokens createAuthTokens() {

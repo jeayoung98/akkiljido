@@ -11,11 +11,11 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class MemberRoleJwtAuthenticationConverterTest {
+class UserRoleJwtAuthenticationConverterTest {
 
-    private final MemberRoleJwtAuthenticationConverter
+    private final UserRoleJwtAuthenticationConverter
             converter =
-            new MemberRoleJwtAuthenticationConverter();
+            new UserRoleJwtAuthenticationConverter();
 
     @Test
     @DisplayName(

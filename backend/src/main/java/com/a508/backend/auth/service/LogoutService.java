@@ -18,8 +18,8 @@ public class LogoutService {
     }
 
     @Transactional
-    public void logout(Long memberId) {
+    public void logout(Long userId) {
         refreshTokenRepository
-                .deleteByMember_Id(memberId);
+                .deleteByUser_Id(userId);
     }
 }

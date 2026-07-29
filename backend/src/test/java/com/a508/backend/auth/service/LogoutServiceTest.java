@@ -33,13 +33,13 @@ class LogoutServiceTest {
     )
     void logout() {
         // given
-        Long memberId = 1L;
+        Long userId = 1L;
 
         // when
-        logoutService.logout(memberId);
+        logoutService.logout(userId);
 
         // then
         verify(refreshTokenRepository)
-                .deleteByMember_Id(memberId);
+                .deleteByUser_Id(userId);
     }
 }

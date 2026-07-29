@@ -1,7 +1,7 @@
 package com.a508.backend.auth.token;
 
-import com.a508.backend.member.domain.Member;
-import com.a508.backend.member.domain.MemberRole;
+import com.a508.backend.user.domain.User;
+import com.a508.backend.user.domain.UserRole;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -74,20 +74,20 @@ class JwtTokenIssuerTest {
     @DisplayName("회원 정보로 Access Token과 Refresh Token을 발급한다")
     void issueAccessAndRefreshTokens() {
         // given
-        Member member =
-                Member.createGoogleGuest(
+        User user =
+                User.createGoogleGuest(
                         "google-sub-123"
                 );
 
         ReflectionTestUtils.setField(
-                member,
+                user,
                 "id",
                 1L
         );
 
         // when
         AuthTokens tokens =
-                jwtTokenIssuer.issue(member);
+                jwtTokenIssuer.issue(user);
 
         // then
         assertThat(tokens.accessToken())
@@ -107,22 +107,22 @@ class JwtTokenIssuerTest {
 
     @Test
     @DisplayName("Access Token에 회원 ID와 권한을 포함한다")
-    void includeMemberClaimsInAccessToken() {
+    void includeUserClaimsInAccessToken() {
         // given
-        Member member =
-                Member.createGoogleGuest(
+        User user =
+                User.createGoogleGuest(
                         "google-sub-123"
                 );
 
         ReflectionTestUtils.setField(
-                member,
+                user,
                 "id",
                 1L
         );
 
         // when
         AuthTokens tokens =
-                jwtTokenIssuer.issue(member);
+                jwtTokenIssuer.issue(user);
 
         Jwt accessToken =
                 jwtDecoder.decode(
@@ -140,7 +140,7 @@ class JwtTokenIssuerTest {
         assertThat(
                 accessToken.getClaimAsString("role")
         ).isEqualTo(
-                MemberRole.GUEST.name()
+                UserRole.GUEST.name()
         );
 
         assertThat(
@@ -159,20 +159,20 @@ class JwtTokenIssuerTest {
     @DisplayName("Refresh Token을 Access Token과 구분하여 발급한다")
     void issueRefreshTokenWithRefreshClaims() {
         // given
-        Member member =
-                Member.createGoogleGuest(
+        User user =
+                User.createGoogleGuest(
                         "google-sub-123"
                 );
 
         ReflectionTestUtils.setField(
-                member,
+                user,
                 "id",
                 1L
         );
 
         // when
         AuthTokens tokens =
-                jwtTokenIssuer.issue(member);
+                jwtTokenIssuer.issue(user);
 
         Jwt accessToken =
                 jwtDecoder.decode(
@@ -191,7 +191,7 @@ class JwtTokenIssuerTest {
         assertThat(
                 refreshToken.getClaimAsString("role")
         ).isEqualTo(
-                MemberRole.GUEST.name()
+                UserRole.GUEST.name()
         );
 
         assertThat(
@@ -217,16 +217,16 @@ class JwtTokenIssuerTest {
 
     @Test
     @DisplayName("DB에 저장되지 않은 회원에게는 토큰을 발급하지 않는다")
-    void rejectMemberWithoutId() {
+    void rejectUserWithoutId() {
         // given
-        Member unsavedMember =
-                Member.createGoogleGuest(
+        User unsavedUser =
+                User.createGoogleGuest(
                         "google-sub-123"
                 );
 
         // when & then
         assertThatThrownBy(
-                () -> jwtTokenIssuer.issue(unsavedMember)
+                () -> jwtTokenIssuer.issue(unsavedUser)
         )
                 .isInstanceOf(
                         IllegalStateException.class

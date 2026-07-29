@@ -1,6 +1,6 @@
 package com.a508.backend.auth.token;
 
-import com.a508.backend.member.domain.Member;
+import com.a508.backend.user.domain.User;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -32,7 +32,7 @@ public class RefreshToken {
             name = "user_id",
             nullable = false
     )
-    private Member member;
+    private User user;
 
     @Column(
             name = "token_hash",
@@ -48,22 +48,22 @@ public class RefreshToken {
     private Instant expiresAt;
 
     private RefreshToken(
-            Member member,
+            User user,
             String tokenHash,
             Instant expiresAt
     ) {
-        this.member = member;
+        this.user = user;
         this.tokenHash = tokenHash;
         this.expiresAt = expiresAt;
     }
 
     public static RefreshToken create(
-            Member member,
+            User user,
             String tokenHash,
             Instant expiresAt
     ) {
         return new RefreshToken(
-                member,
+                user,
                 tokenHash,
                 expiresAt
         );

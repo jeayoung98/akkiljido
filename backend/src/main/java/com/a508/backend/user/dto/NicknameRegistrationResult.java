@@ -1,11 +1,11 @@
-package com.a508.backend.member.dto;
+package com.a508.backend.user.dto;
 
 import com.a508.backend.auth.token.AuthTokens;
-import com.a508.backend.member.domain.MemberRole;
+import com.a508.backend.user.domain.UserRole;
 
 public record NicknameRegistrationResult(
         String nickname,
-        MemberRole role,
+        UserRole role,
         AuthTokens tokens
 ) {
 }

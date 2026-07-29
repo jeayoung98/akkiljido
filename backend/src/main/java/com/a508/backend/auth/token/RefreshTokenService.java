@@ -2,7 +2,7 @@ package com.a508.backend.auth.token;
 
 import com.a508.backend.global.exception.BusinessException;
 import com.a508.backend.global.exception.ExceptionType;
-import com.a508.backend.member.domain.Member;
+import com.a508.backend.user.domain.User;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,7 +30,7 @@ public class RefreshTokenService {
 
     @Transactional
     public void saveOrReplace(
-            Member member,
+            User user,
             String rawRefreshToken,
             Instant expiresAt
     ) {
@@ -38,7 +38,7 @@ public class RefreshTokenService {
                 hash(rawRefreshToken);
 
         refreshTokenRepository
-                .findByMember_Id(member.getId())
+                .findByUser_Id(user.getId())
                 .ifPresentOrElse(
                         refreshToken ->
                                 refreshToken.rotate(
@@ -46,7 +46,7 @@ public class RefreshTokenService {
                                         expiresAt
                                 ),
                         () -> saveNewRefreshToken(
-                                member,
+                                user,
                                 tokenHash,
                                 expiresAt
                         )
@@ -55,13 +55,13 @@ public class RefreshTokenService {
 
     @Transactional(readOnly = true)
     public void verifyStoredToken(
-            Long memberId,
+            Long userId,
             String rawRefreshToken,
             Instant now
     ) {
         RefreshToken storedToken =
                 refreshTokenRepository
-                        .findByMember_Id(memberId)
+                        .findByUser_Id(userId)
                         .orElseThrow(
                                 this::invalidRefreshToken
                         );
@@ -82,13 +82,13 @@ public class RefreshTokenService {
     }
 
     private void saveNewRefreshToken(
-            Member member,
+            User user,
             String tokenHash,
             Instant expiresAt
     ) {
         RefreshToken refreshToken =
                 RefreshToken.create(
-                        member,
+                        user,
                         tokenHash,
                         expiresAt
                 );

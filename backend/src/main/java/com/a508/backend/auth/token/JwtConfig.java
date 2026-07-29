@@ -1,6 +1,6 @@
 package com.a508.backend.auth.token;
 
-import com.a508.backend.member.domain.MemberRole;
+import com.a508.backend.user.domain.UserRole;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
@@ -25,8 +25,8 @@ public class JwtConfig {
 
     private static final Set<String> ALLOWED_ROLES =
             Set.of(
-                    MemberRole.GUEST.name(),
-                    MemberRole.USER.name()
+                    UserRole.GUEST.name(),
+                    UserRole.USER.name()
             );
 
     @Bean

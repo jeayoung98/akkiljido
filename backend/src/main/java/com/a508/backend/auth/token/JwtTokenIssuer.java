@@ -1,6 +1,6 @@
 package com.a508.backend.auth.token;
 
-import com.a508.backend.member.domain.Member;
+import com.a508.backend.user.domain.User;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.security.oauth2.jose.jws.JwsAlgorithm;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
@@ -33,8 +33,8 @@ public class JwtTokenIssuer implements TokenIssuer {
     }
 
     @Override
-    public AuthTokens issue(Member member) {
-        if (member.getId() == null) {
+    public AuthTokens issue(User user) {
+        if (user.getId() == null) {
             throw new IllegalStateException(
                     "JWT 발급 전에 회원이 저장되어야 합니다."
             );
@@ -58,7 +58,7 @@ public class JwtTokenIssuer implements TokenIssuer {
 
         String accessToken =
                 createToken(
-                        member,
+                        user,
                         issuedAt,
                         accessTokenExpiresAt,
                         "access"
@@ -66,7 +66,7 @@ public class JwtTokenIssuer implements TokenIssuer {
 
         String refreshToken =
                 createToken(
-                        member,
+                        user,
                         issuedAt,
                         refreshTokenExpiresAt,
                         "refresh"
@@ -81,7 +81,7 @@ public class JwtTokenIssuer implements TokenIssuer {
     }
 
     private String createToken(
-            Member member,
+            User user,
             Instant issuedAt,
             Instant expiresAt,
             String tokenType
@@ -89,13 +89,13 @@ public class JwtTokenIssuer implements TokenIssuer {
         JwtClaimsSet claims =
                 JwtClaimsSet.builder()
                         .issuer(properties.issuer())
-                        .subject(member.getId().toString())
+                        .subject(user.getId().toString())
                         .issuedAt(issuedAt)
                         .expiresAt(expiresAt)
                         .id(UUID.randomUUID().toString())
                         .claim(
                                 "role",
-                                member.getRole().name()
+                                user.getRole().name()
                         )
                         .claim(
                                 "token_type",

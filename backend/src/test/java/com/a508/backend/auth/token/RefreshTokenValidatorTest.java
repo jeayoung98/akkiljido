@@ -41,7 +41,7 @@ class RefreshTokenValidatorTest {
     @DisplayName(
             "검증된 Refresh Token에서 회원 ID를 추출한다"
     )
-    void extractMemberIdFromRefreshToken() {
+    void extractUserIdFromRefreshToken() {
         // given
         String rawRefreshToken =
                 "test-refresh-token";
@@ -56,14 +56,14 @@ class RefreshTokenValidatorTest {
         ).willReturn(jwt);
 
         // when
-        Long memberId =
+        Long userId =
                 refreshTokenValidator
-                        .validateAndExtractMemberId(
+                        .validateAndExtractUserId(
                                 rawRefreshToken
                         );
 
         // then
-        assertThat(memberId)
+        assertThat(userId)
                 .isEqualTo(1L);
 
         verify(refreshTokenDecoder)
@@ -77,7 +77,7 @@ class RefreshTokenValidatorTest {
     void rejectBlankRefreshToken() {
         assertInvalidRefreshToken(
                 () -> refreshTokenValidator
-                        .validateAndExtractMemberId(" ")
+                        .validateAndExtractUserId(" ")
         );
 
         verify(refreshTokenDecoder, never())
@@ -109,7 +109,7 @@ class RefreshTokenValidatorTest {
         // when & then
         assertInvalidRefreshToken(
                 () -> refreshTokenValidator
-                        .validateAndExtractMemberId(
+                        .validateAndExtractUserId(
                                 invalidRefreshToken
                         )
         );
@@ -126,7 +126,7 @@ class RefreshTokenValidatorTest {
 
         Jwt jwt =
                 createRefreshJwt(
-                        "not-a-member-id"
+                        "not-a-user-id"
                 );
 
         given(
@@ -138,7 +138,7 @@ class RefreshTokenValidatorTest {
         // when & then
         assertInvalidRefreshToken(
                 () -> refreshTokenValidator
-                        .validateAndExtractMemberId(
+                        .validateAndExtractUserId(
                                 rawRefreshToken
                         )
         );
@@ -148,7 +148,7 @@ class RefreshTokenValidatorTest {
     @DisplayName(
             "Refresh Token의 회원 ID가 양수가 아니면 거부한다"
     )
-    void rejectNonPositiveMemberId() {
+    void rejectNonPositiveUserId() {
         // given
         String rawRefreshToken =
                 "test-refresh-token";
@@ -165,7 +165,7 @@ class RefreshTokenValidatorTest {
         // when & then
         assertInvalidRefreshToken(
                 () -> refreshTokenValidator
-                        .validateAndExtractMemberId(
+                        .validateAndExtractUserId(
                                 rawRefreshToken
                         )
         );

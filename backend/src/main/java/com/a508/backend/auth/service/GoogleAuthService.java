@@ -6,9 +6,9 @@ import com.a508.backend.auth.google.GoogleIdentity;
 import com.a508.backend.auth.token.AuthTokens;
 import com.a508.backend.auth.token.RefreshTokenService;
 import com.a508.backend.auth.token.TokenIssuer;
-import com.a508.backend.member.domain.Member;
-import com.a508.backend.member.domain.OAuthProvider;
-import com.a508.backend.member.repository.MemberRepository;
+import com.a508.backend.user.domain.User;
+import com.a508.backend.user.domain.OAuthProvider;
+import com.a508.backend.user.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,18 +16,18 @@ import org.springframework.transaction.annotation.Transactional;
 public class GoogleAuthService {
 
     private final GoogleIdTokenValidator googleIdTokenValidator;
-    private final MemberRepository memberRepository;
+    private final UserRepository userRepository;
     private final TokenIssuer tokenIssuer;
     private final RefreshTokenService refreshTokenService;
 
     public GoogleAuthService(
             GoogleIdTokenValidator googleIdTokenValidator,
-            MemberRepository memberRepository,
+            UserRepository userRepository,
             TokenIssuer tokenIssuer,
             RefreshTokenService refreshTokenService
     ) {
         this.googleIdTokenValidator = googleIdTokenValidator;
-        this.memberRepository = memberRepository;
+        this.userRepository = userRepository;
         this.tokenIssuer = tokenIssuer;
         this.refreshTokenService = refreshTokenService;
     }
@@ -37,32 +37,32 @@ public class GoogleAuthService {
         GoogleIdentity googleIdentity =
                 googleIdTokenValidator.validate(rawIdToken);
 
-        Member member =
-                findOrCreateGoogleMember(
+        User user =
+                findOrCreateGoogleUser(
                         googleIdentity.subject()
                 );
 
         AuthTokens tokens =
-                tokenIssuer.issue(member);
+                tokenIssuer.issue(user);
 
         refreshTokenService.saveOrReplace(
-                member,
+                user,
                 tokens.refreshToken(),
                 tokens.refreshTokenExpiresAt()
         );
 
 
         return new GoogleLoginResult(
-                member.getRole(),
-                member.isGuest(),
+                user.getRole(),
+                user.isGuest(),
                 tokens
         );
     }
 
-    private Member findOrCreateGoogleMember(
+    private User findOrCreateGoogleUser(
             String providerSub
     ) {
-        return memberRepository
+        return userRepository
                 .findByProviderAndProviderSub(
                         OAuthProvider.GOOGLE,
                         providerSub
@@ -72,12 +72,12 @@ public class GoogleAuthService {
                 );
     }
 
-    private Member createGoogleGuest(
+    private User createGoogleGuest(
             String providerSub
     ) {
-        Member guest =
-                Member.createGoogleGuest(providerSub);
+        User guest =
+                User.createGoogleGuest(providerSub);
 
-        return memberRepository.save(guest);
+        return userRepository.save(guest);
     }
 }

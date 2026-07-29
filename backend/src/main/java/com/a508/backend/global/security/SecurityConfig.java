@@ -19,7 +19,7 @@ public class SecurityConfig {
             @Qualifier("serviceJwtDecoder")
             JwtDecoder serviceJwtDecoder,
 
-            MemberRoleJwtAuthenticationConverter
+            UserRoleJwtAuthenticationConverter
                     authenticationConverter,
 
             RestAuthenticationEntryPoint

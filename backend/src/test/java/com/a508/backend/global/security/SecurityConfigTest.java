@@ -37,7 +37,7 @@ class SecurityConfigTest {
         context.register(
                 TestWebConfig.class,
                 SecurityConfig.class,
-                MemberRoleJwtAuthenticationConverter.class,
+                UserRoleJwtAuthenticationConverter.class,
                 RestAuthenticationEntryPoint.class,
                 RestAccessDeniedHandler.class
         );

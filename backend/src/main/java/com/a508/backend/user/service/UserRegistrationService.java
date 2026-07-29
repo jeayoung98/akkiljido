@@ -1,74 +1,74 @@
-package com.a508.backend.member.service;
+package com.a508.backend.user.service;
 
 import com.a508.backend.auth.token.AuthTokens;
 import com.a508.backend.auth.token.RefreshTokenService;
 import com.a508.backend.auth.token.TokenIssuer;
 import com.a508.backend.global.exception.BusinessException;
 import com.a508.backend.global.exception.ExceptionType;
-import com.a508.backend.member.domain.Member;
-import com.a508.backend.member.dto.NicknameRegistrationResult;
-import com.a508.backend.member.repository.MemberRepository;
+import com.a508.backend.user.domain.User;
+import com.a508.backend.user.dto.NicknameRegistrationResult;
+import com.a508.backend.user.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-public class MemberRegistrationService {
+public class UserRegistrationService {
 
-    private final MemberRepository memberRepository;
+    private final UserRepository userRepository;
     private final TokenIssuer tokenIssuer;
     private final RefreshTokenService refreshTokenService;
 
-    public MemberRegistrationService(
-            MemberRepository memberRepository,
+    public UserRegistrationService(
+            UserRepository userRepository,
             TokenIssuer tokenIssuer,
             RefreshTokenService refreshTokenService
     ) {
-        this.memberRepository = memberRepository;
+        this.userRepository = userRepository;
         this.tokenIssuer = tokenIssuer;
         this.refreshTokenService = refreshTokenService;
     }
 
     @Transactional
     public NicknameRegistrationResult completeRegistration(
-            Long memberId,
+            Long userId,
             String nickname
     ) {
-        Member member =
-                memberRepository
-                        .findById(memberId)
+        User user =
+                userRepository
+                        .findById(userId)
                         .orElseThrow(
                                 () -> new BusinessException(
                                         ExceptionType.UNAUTHENTICATED
                                 )
                         );
 
-        validateGuest(member);
+        validateGuest(user);
 
         String normalizedNickname =
                 nickname.trim();
 
-        member.completeRegistration(
+        user.completeRegistration(
                 normalizedNickname
         );
 
         AuthTokens tokens =
-                tokenIssuer.issue(member);
+                tokenIssuer.issue(user);
 
         refreshTokenService.saveOrReplace(
-                member,
+                user,
                 tokens.refreshToken(),
                 tokens.refreshTokenExpiresAt()
         );
 
         return new NicknameRegistrationResult(
-                member.getNickname(),
-                member.getRole(),
+                user.getNickname(),
+                user.getRole(),
                 tokens
         );
     }
 
-    private void validateGuest(Member member) {
-        if (!member.isGuest()) {
+    private void validateGuest(User user) {
+        if (!user.isGuest()) {
             throw new BusinessException(
                     ExceptionType.AUTHORIZATION_DENIED
             );

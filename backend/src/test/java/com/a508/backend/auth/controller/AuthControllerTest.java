@@ -9,7 +9,7 @@ import com.a508.backend.auth.token.AuthTokens;
 import com.a508.backend.global.exception.BusinessException;
 import com.a508.backend.global.exception.ExceptionType;
 import com.a508.backend.global.exception.GlobalExceptionHandler;
-import com.a508.backend.member.domain.MemberRole;
+import com.a508.backend.user.domain.UserRole;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -99,7 +99,7 @@ class AuthControllerTest {
 
         GoogleLoginResult result =
                 new GoogleLoginResult(
-                        MemberRole.GUEST,
+                        UserRole.GUEST,
                         true,
                         tokens
                 );
@@ -410,12 +410,12 @@ class AuthControllerTest {
     @DisplayName(
             "JWT sub가 회원 ID 형식이 아니면 로그아웃에 실패한다"
     )
-    void rejectLogoutWithInvalidMemberId()
+    void rejectLogoutWithInvalidUserId()
             throws Exception {
 
         // given
         setAuthentication(
-                "not-a-member-id",
+                "not-a-user-id",
                 "USER"
         );
 

@@ -22,7 +22,7 @@ public class RefreshTokenValidator {
                 refreshTokenDecoder;
     }
 
-    public Long validateAndExtractMemberId(
+    public Long validateAndExtractUserId(
             String rawRefreshToken
     ) {
         if (!StringUtils.hasText(rawRefreshToken)) {
@@ -35,16 +35,16 @@ public class RefreshTokenValidator {
                             rawRefreshToken
                     );
 
-            Long memberId =
+            Long userId =
                     Long.valueOf(
                             jwt.getSubject()
                     );
 
-            if (memberId <= 0) {
+            if (userId <= 0) {
                 throw invalidRefreshToken();
             }
 
-            return memberId;
+            return userId;
         } catch (
                 JwtException |
                 NumberFormatException exception

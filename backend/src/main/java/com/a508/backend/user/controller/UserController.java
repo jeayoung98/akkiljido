@@ -1,13 +1,13 @@
-package com.a508.backend.member.controller;
+package com.a508.backend.user.controller;
 
 import com.a508.backend.global.exception.BusinessException;
 import com.a508.backend.global.exception.ExceptionType;
 import com.a508.backend.global.response.ResponseBody;
 import com.a508.backend.global.response.ResponseUtil;
-import com.a508.backend.member.dto.NicknameRegistrationRequest;
-import com.a508.backend.member.dto.NicknameRegistrationResponse;
-import com.a508.backend.member.dto.NicknameRegistrationResult;
-import com.a508.backend.member.service.MemberRegistrationService;
+import com.a508.backend.user.dto.NicknameRegistrationRequest;
+import com.a508.backend.user.dto.NicknameRegistrationResponse;
+import com.a508.backend.user.dto.NicknameRegistrationResult;
+import com.a508.backend.user.service.UserRegistrationService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -16,17 +16,17 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/v1/users")
-public class MemberController {
+public class UserController {
 
-    private final MemberRegistrationService
-            memberRegistrationService;
+    private final UserRegistrationService
+            userRegistrationService;
 
-    public MemberController(
-            MemberRegistrationService
-                    memberRegistrationService
+    public UserController(
+            UserRegistrationService
+                    userRegistrationService
     ) {
-        this.memberRegistrationService =
-                memberRegistrationService;
+        this.userRegistrationService =
+                userRegistrationService;
     }
 
     @PatchMapping("/me/nickname")
@@ -38,15 +38,15 @@ public class MemberController {
             @Valid @RequestBody
             NicknameRegistrationRequest request
     ) {
-        Long memberId =
-                parseMemberId(
+        Long userId =
+                parseUserId(
                         jwt.getSubject()
                 );
 
         NicknameRegistrationResult result =
-                memberRegistrationService
+                userRegistrationService
                         .completeRegistration(
-                                memberId,
+                                userId,
                                 request.nickname()
                         );
 
@@ -62,7 +62,7 @@ public class MemberController {
         );
     }
 
-    private Long parseMemberId(
+    private Long parseUserId(
             String subject
     ) {
         try {

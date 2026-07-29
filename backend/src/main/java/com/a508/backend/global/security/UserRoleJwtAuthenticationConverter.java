@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 
 @Component
-public class MemberRoleJwtAuthenticationConverter
+public class UserRoleJwtAuthenticationConverter
         implements Converter<
         Jwt,
         AbstractAuthenticationToken

@@ -7,8 +7,8 @@ import com.a508.backend.auth.token.RefreshTokenValidator;
 import com.a508.backend.auth.token.TokenIssuer;
 import com.a508.backend.global.exception.BusinessException;
 import com.a508.backend.global.exception.ExceptionType;
-import com.a508.backend.member.domain.Member;
-import com.a508.backend.member.repository.MemberRepository;
+import com.a508.backend.user.domain.User;
+import com.a508.backend.user.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -40,8 +40,8 @@ class TokenReissueServiceTest {
             refreshTokenService;
 
     @Mock
-    private MemberRepository
-            memberRepository;
+    private UserRepository
+            userRepository;
 
     @Mock
     private TokenIssuer
@@ -56,7 +56,7 @@ class TokenReissueServiceTest {
                 new TokenReissueService(
                         refreshTokenValidator,
                         refreshTokenService,
-                        memberRepository,
+                        userRepository,
                         tokenIssuer
                 );
     }
@@ -70,29 +70,29 @@ class TokenReissueServiceTest {
         String oldRefreshToken =
                 "old-refresh-token";
 
-        Long memberId = 1L;
+        Long userId = 1L;
 
-        Member member =
-                createSavedMember(memberId);
+        User user =
+                createSavedUser(userId);
 
         AuthTokens newTokens =
                 createNewAuthTokens();
 
         given(
                 refreshTokenValidator
-                        .validateAndExtractMemberId(
+                        .validateAndExtractUserId(
                                 oldRefreshToken
                         )
-        ).willReturn(memberId);
+        ).willReturn(userId);
 
         given(
-                memberRepository.findById(memberId)
+                userRepository.findById(userId)
         ).willReturn(
-                Optional.of(member)
+                Optional.of(user)
         );
 
         given(
-                tokenIssuer.issue(member)
+                tokenIssuer.issue(user)
         ).willReturn(newTokens);
 
         // when
@@ -106,26 +106,26 @@ class TokenReissueServiceTest {
                 .isSameAs(newTokens);
 
         verify(refreshTokenValidator)
-                .validateAndExtractMemberId(
+                .validateAndExtractUserId(
                         oldRefreshToken
                 );
 
         verify(refreshTokenService)
                 .verifyStoredToken(
-                        eq(memberId),
+                        eq(userId),
                         eq(oldRefreshToken),
                         any(Instant.class)
                 );
 
-        verify(memberRepository)
-                .findById(memberId);
+        verify(userRepository)
+                .findById(userId);
 
         verify(tokenIssuer)
-                .issue(member);
+                .issue(user);
 
         verify(refreshTokenService)
                 .saveOrReplace(
-                        member,
+                        user,
                         newTokens.refreshToken(),
                         newTokens.refreshTokenExpiresAt()
                 );
@@ -135,22 +135,22 @@ class TokenReissueServiceTest {
     @DisplayName(
             "Refresh Token의 회원이 존재하지 않으면 재발급을 거부한다"
     )
-    void rejectMissingMember() {
+    void rejectMissingUser() {
         // given
         String rawRefreshToken =
                 "test-refresh-token";
 
-        Long memberId = 999L;
+        Long userId = 999L;
 
         given(
                 refreshTokenValidator
-                        .validateAndExtractMemberId(
+                        .validateAndExtractUserId(
                                 rawRefreshToken
                         )
-        ).willReturn(memberId);
+        ).willReturn(userId);
 
         given(
-                memberRepository.findById(memberId)
+                userRepository.findById(userId)
         ).willReturn(
                 Optional.empty()
         );
@@ -164,17 +164,17 @@ class TokenReissueServiceTest {
 
         verify(refreshTokenService)
                 .verifyStoredToken(
-                        eq(memberId),
+                        eq(userId),
                         eq(rawRefreshToken),
                         any(Instant.class)
                 );
 
         verify(tokenIssuer, never())
-                .issue(any(Member.class));
+                .issue(any(User.class));
 
         verify(refreshTokenService, never())
                 .saveOrReplace(
-                        any(Member.class),
+                        any(User.class),
                         any(String.class),
                         any(Instant.class)
                 );
@@ -196,7 +196,7 @@ class TokenReissueServiceTest {
 
         given(
                 refreshTokenValidator
-                        .validateAndExtractMemberId(
+                        .validateAndExtractUserId(
                                 invalidRefreshToken
                         )
         ).willThrow(expectedException);
@@ -215,15 +215,15 @@ class TokenReissueServiceTest {
                         any(Instant.class)
                 );
 
-        verify(memberRepository, never())
+        verify(userRepository, never())
                 .findById(any(Long.class));
 
         verify(tokenIssuer, never())
-                .issue(any(Member.class));
+                .issue(any(User.class));
 
         verify(refreshTokenService, never())
                 .saveOrReplace(
-                        any(Member.class),
+                        any(User.class),
                         any(String.class),
                         any(Instant.class)
                 );
@@ -250,21 +250,21 @@ class TokenReissueServiceTest {
                 });
     }
 
-    private Member createSavedMember(
-            Long memberId
+    private User createSavedUser(
+            Long userId
     ) {
-        Member member =
-                Member.createGoogleGuest(
+        User user =
+                User.createGoogleGuest(
                         "google-sub-123"
                 );
 
         ReflectionTestUtils.setField(
-                member,
+                user,
                 "id",
-                memberId
+                userId
         );
 
-        return member;
+        return user;
     }
 
     private AuthTokens createNewAuthTokens() {

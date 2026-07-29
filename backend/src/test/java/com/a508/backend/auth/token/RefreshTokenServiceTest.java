@@ -2,7 +2,7 @@ package com.a508.backend.auth.token;
 
 import com.a508.backend.global.exception.BusinessException;
 import com.a508.backend.global.exception.ExceptionType;
-import com.a508.backend.member.domain.Member;
+import com.a508.backend.user.domain.User;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -50,8 +50,8 @@ class RefreshTokenServiceTest {
     )
     void saveNewRefreshTokenWhenTokenDoesNotExist() {
         // given
-        Member member =
-                createSavedMember();
+        User user =
+                createSavedUser();
 
         String rawRefreshToken = "abc";
 
@@ -62,8 +62,8 @@ class RefreshTokenServiceTest {
 
         given(
                 refreshTokenRepository
-                        .findByMember_Id(
-                                member.getId()
+                        .findByUser_Id(
+                                user.getId()
                         )
         ).willReturn(
                 Optional.empty()
@@ -71,7 +71,7 @@ class RefreshTokenServiceTest {
 
         // when
         refreshTokenService.saveOrReplace(
-                member,
+                user,
                 rawRefreshToken,
                 expiresAt
         );
@@ -89,8 +89,8 @@ class RefreshTokenServiceTest {
                 captor.getValue();
 
         assertThat(
-                savedRefreshToken.getMember()
-        ).isSameAs(member);
+                savedRefreshToken.getUser()
+        ).isSameAs(user);
 
         assertThat(
                 savedRefreshToken.getTokenHash()
@@ -119,8 +119,8 @@ class RefreshTokenServiceTest {
     )
     void rotateExistingRefreshToken() {
         // given
-        Member member =
-                createSavedMember();
+        User user =
+                createSavedUser();
 
         Instant oldExpiresAt =
                 Instant.parse(
@@ -129,7 +129,7 @@ class RefreshTokenServiceTest {
 
         RefreshToken existingRefreshToken =
                 RefreshToken.create(
-                        member,
+                        user,
                         "old-token-hash",
                         oldExpiresAt
                 );
@@ -143,8 +143,8 @@ class RefreshTokenServiceTest {
 
         given(
                 refreshTokenRepository
-                        .findByMember_Id(
-                                member.getId()
+                        .findByUser_Id(
+                                user.getId()
                         )
         ).willReturn(
                 Optional.of(
@@ -154,7 +154,7 @@ class RefreshTokenServiceTest {
 
         // when
         refreshTokenService.saveOrReplace(
-                member,
+                user,
                 newRawRefreshToken,
                 newExpiresAt
         );
@@ -186,8 +186,8 @@ class RefreshTokenServiceTest {
     )
     void verifyStoredRefreshToken() {
         // given
-        Member member =
-                createSavedMember();
+        User user =
+                createSavedUser();
 
         Instant expiresAt =
                 Instant.parse(
@@ -201,15 +201,15 @@ class RefreshTokenServiceTest {
 
         RefreshToken storedToken =
                 RefreshToken.create(
-                        member,
+                        user,
                         SHA_256_OF_ABC,
                         expiresAt
                 );
 
         given(
                 refreshTokenRepository
-                        .findByMember_Id(
-                                member.getId()
+                        .findByUser_Id(
+                                user.getId()
                         )
         ).willReturn(
                 Optional.of(storedToken)
@@ -217,15 +217,15 @@ class RefreshTokenServiceTest {
 
         // when
         refreshTokenService.verifyStoredToken(
-                member.getId(),
+                user.getId(),
                 "abc",
                 now
         );
 
         // then
         verify(refreshTokenRepository)
-                .findByMember_Id(
-                        member.getId()
+                .findByUser_Id(
+                        user.getId()
                 );
     }
 
@@ -235,11 +235,11 @@ class RefreshTokenServiceTest {
     )
     void rejectMissingStoredRefreshToken() {
         // given
-        Long memberId = 1L;
+        Long userId = 1L;
 
         given(
                 refreshTokenRepository
-                        .findByMember_Id(memberId)
+                        .findByUser_Id(userId)
         ).willReturn(
                 Optional.empty()
         );
@@ -248,7 +248,7 @@ class RefreshTokenServiceTest {
         assertInvalidRefreshToken(
                 () -> refreshTokenService
                         .verifyStoredToken(
-                                memberId,
+                                userId,
                                 "abc",
                                 Instant.parse(
                                         "2026-08-01T00:00:00Z"
@@ -263,8 +263,8 @@ class RefreshTokenServiceTest {
     )
     void rejectExpiredStoredRefreshToken() {
         // given
-        Member member =
-                createSavedMember();
+        User user =
+                createSavedUser();
 
         Instant now =
                 Instant.parse(
@@ -273,15 +273,15 @@ class RefreshTokenServiceTest {
 
         RefreshToken expiredToken =
                 RefreshToken.create(
-                        member,
+                        user,
                         SHA_256_OF_ABC,
                         now
                 );
 
         given(
                 refreshTokenRepository
-                        .findByMember_Id(
-                                member.getId()
+                        .findByUser_Id(
+                                user.getId()
                         )
         ).willReturn(
                 Optional.of(expiredToken)
@@ -291,7 +291,7 @@ class RefreshTokenServiceTest {
         assertInvalidRefreshToken(
                 () -> refreshTokenService
                         .verifyStoredToken(
-                                member.getId(),
+                                user.getId(),
                                 "abc",
                                 now
                         )
@@ -304,12 +304,12 @@ class RefreshTokenServiceTest {
     )
     void rejectMismatchedRefreshToken() {
         // given
-        Member member =
-                createSavedMember();
+        User user =
+                createSavedUser();
 
         RefreshToken storedToken =
                 RefreshToken.create(
-                        member,
+                        user,
                         SHA_256_OF_ABC,
                         Instant.parse(
                                 "2026-08-07T00:00:00Z"
@@ -318,8 +318,8 @@ class RefreshTokenServiceTest {
 
         given(
                 refreshTokenRepository
-                        .findByMember_Id(
-                                member.getId()
+                        .findByUser_Id(
+                                user.getId()
                         )
         ).willReturn(
                 Optional.of(storedToken)
@@ -329,7 +329,7 @@ class RefreshTokenServiceTest {
         assertInvalidRefreshToken(
                 () -> refreshTokenService
                         .verifyStoredToken(
-                                member.getId(),
+                                user.getId(),
                                 "different-token",
                                 Instant.parse(
                                         "2026-08-01T00:00:00Z"
@@ -359,18 +359,18 @@ class RefreshTokenServiceTest {
                 });
     }
 
-    private Member createSavedMember() {
-        Member member =
-                Member.createGoogleGuest(
+    private User createSavedUser() {
+        User user =
+                User.createGoogleGuest(
                         "google-sub-123"
                 );
 
         ReflectionTestUtils.setField(
-                member,
+                user,
                 "id",
                 1L
         );
 
-        return member;
+        return user;
     }
 }

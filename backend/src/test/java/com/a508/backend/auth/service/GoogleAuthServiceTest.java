@@ -8,10 +8,10 @@ import com.a508.backend.auth.token.RefreshTokenService;
 import com.a508.backend.auth.token.TokenIssuer;
 import com.a508.backend.global.exception.BusinessException;
 import com.a508.backend.global.exception.ExceptionType;
-import com.a508.backend.member.domain.Member;
-import com.a508.backend.member.domain.MemberRole;
-import com.a508.backend.member.domain.OAuthProvider;
-import com.a508.backend.member.repository.MemberRepository;
+import com.a508.backend.user.domain.User;
+import com.a508.backend.user.domain.UserRole;
+import com.a508.backend.user.domain.OAuthProvider;
+import com.a508.backend.user.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -37,7 +37,7 @@ class GoogleAuthServiceTest {
     private GoogleIdTokenValidator googleIdTokenValidator;
 
     @Mock
-    private MemberRepository memberRepository;
+    private UserRepository userRepository;
 
     private GoogleAuthService googleAuthService;
 
@@ -52,7 +52,7 @@ class GoogleAuthServiceTest {
         googleAuthService =
                 new GoogleAuthService(
                         googleIdTokenValidator,
-                        memberRepository,
+                        userRepository,
                         tokenIssuer,
                         refreshTokenService
                 );
@@ -60,7 +60,7 @@ class GoogleAuthServiceTest {
 
     @Test
     @DisplayName("Google 계정에 연결된 기존 회원을 반환한다")
-    void returnExistingMember() {
+    void returnExistingUser() {
         // given
         String rawIdToken = "test-google-id-token";
         String providerSub = "google-sub-123";
@@ -68,19 +68,19 @@ class GoogleAuthServiceTest {
         GoogleIdentity googleIdentity =
                 new GoogleIdentity(providerSub);
 
-        Member existingMember =
-                Member.createGoogleGuest(providerSub);
+        User existingUser =
+                User.createGoogleGuest(providerSub);
 
         given(
                 googleIdTokenValidator.validate(rawIdToken)
         ).willReturn(googleIdentity);
 
         given(
-                memberRepository.findByProviderAndProviderSub(
+                userRepository.findByProviderAndProviderSub(
                         OAuthProvider.GOOGLE,
                         providerSub
                 )
-        ).willReturn(Optional.of(existingMember));
+        ).willReturn(Optional.of(existingUser));
 
         AuthTokens issuedTokens =
                 new AuthTokens(
@@ -93,7 +93,7 @@ class GoogleAuthServiceTest {
                 );
 
         given(
-                tokenIssuer.issue(existingMember)
+                tokenIssuer.issue(existingUser)
         ).willReturn(issuedTokens);
 
         // when
@@ -102,7 +102,7 @@ class GoogleAuthServiceTest {
 
         // then
         assertThat(result.role())
-                .isEqualTo(MemberRole.GUEST);
+                .isEqualTo(UserRole.GUEST);
 
         assertThat(result.nicknameRequired())
                 .isTrue();
@@ -110,15 +110,15 @@ class GoogleAuthServiceTest {
         assertThat(result.tokens())
                 .isSameAs(issuedTokens);
 
-        verify(memberRepository, never())
-                .save(any(Member.class));
+        verify(userRepository, never())
+                .save(any(User.class));
 
         verify(tokenIssuer)
-                .issue(existingMember);
+                .issue(existingUser);
 
         verify(refreshTokenService)
                 .saveOrReplace(
-                        existingMember,
+                        existingUser,
                         issuedTokens.refreshToken(),
                         issuedTokens.refreshTokenExpiresAt()
                 );
@@ -126,7 +126,7 @@ class GoogleAuthServiceTest {
 
     @Test
     @DisplayName("Google 계정에 연결된 회원이 없으면 GUEST 회원을 생성한다")
-    void createGuestWhenMemberDoesNotExist() {
+    void createGuestWhenUserDoesNotExist() {
         // given
         String rawIdToken = "test-google-id-token";
         String providerSub = "google-sub-123";
@@ -139,14 +139,14 @@ class GoogleAuthServiceTest {
         ).willReturn(googleIdentity);
 
         given(
-                memberRepository.findByProviderAndProviderSub(
+                userRepository.findByProviderAndProviderSub(
                         OAuthProvider.GOOGLE,
                         providerSub
                 )
         ).willReturn(Optional.empty());
 
         given(
-                memberRepository.save(any(Member.class))
+                userRepository.save(any(User.class))
         ).willAnswer(
                 invocation -> invocation.getArgument(0)
         );
@@ -162,7 +162,7 @@ class GoogleAuthServiceTest {
                 );
 
         given(
-                tokenIssuer.issue(any(Member.class))
+                tokenIssuer.issue(any(User.class))
         ).willReturn(issuedTokens);
 
         // when
@@ -171,7 +171,7 @@ class GoogleAuthServiceTest {
 
         // then
         assertThat(result.role())
-                .isEqualTo(MemberRole.GUEST);
+                .isEqualTo(UserRole.GUEST);
 
         assertThat(result.nicknameRequired())
                 .isTrue();
@@ -179,15 +179,15 @@ class GoogleAuthServiceTest {
         assertThat(result.tokens())
                 .isSameAs(issuedTokens);
 
-        verify(memberRepository)
-                .save(any(Member.class));
+        verify(userRepository)
+                .save(any(User.class));
 
         verify(tokenIssuer)
-                .issue(any(Member.class));
+                .issue(any(User.class));
 
         verify(refreshTokenService)
                 .saveOrReplace(
-                        any(Member.class),
+                        any(User.class),
                         eq(issuedTokens.refreshToken()),
                         eq(issuedTokens.refreshTokenExpiresAt())
                 );
@@ -214,21 +214,21 @@ class GoogleAuthServiceTest {
         )
                 .isSameAs(expectedException);
 
-        verify(memberRepository, never())
+        verify(userRepository, never())
                 .findByProviderAndProviderSub(
                         any(OAuthProvider.class),
                         any(String.class)
                 );
 
-        verify(memberRepository, never())
-                .save(any(Member.class));
+        verify(userRepository, never())
+                .save(any(User.class));
 
         verify(tokenIssuer, never())
-                .issue(any(Member.class));
+                .issue(any(User.class));
 
         verify(refreshTokenService, never())
                 .saveOrReplace(
-                        any(Member.class),
+                        any(User.class),
                         any(String.class),
                         any(Instant.class)
                 );

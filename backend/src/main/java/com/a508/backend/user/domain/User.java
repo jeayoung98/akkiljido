@@ -1,4 +1,4 @@
-package com.a508.backend.member.domain;
+package com.a508.backend.user.domain;
 
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -21,7 +21,7 @@ import lombok.NoArgsConstructor;
         }
 )
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class Member {
+public class User {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -56,13 +56,13 @@ public class Member {
             nullable = false,
             length = 10
     )
-    private MemberRole role;
+    private UserRole role;
 
-    private Member(
+    private User(
             OAuthProvider provider,
             String providerSub,
             String nickname,
-            MemberRole role
+            UserRole role
     ) {
         this.provider = provider;
         this.providerSub = providerSub;
@@ -70,28 +70,28 @@ public class Member {
         this.role = role;
     }
 
-    public static Member createGoogleGuest(
+    public static User createGoogleGuest(
             String providerSub
     ) {
-        return  new Member(
+        return  new User(
                 OAuthProvider.GOOGLE,
                 providerSub,
                 null,
-                MemberRole.GUEST
+                UserRole.GUEST
         );
     }
 
     public void completeRegistration(String nickname){
         this.nickname = nickname;
-        this.role = MemberRole.USER;
+        this.role = UserRole.USER;
     }
 
     public boolean isGuest(){
-        return role == MemberRole.GUEST;
+        return role == UserRole.GUEST;
     }
 
     public boolean isUser(){
-        return role == MemberRole.USER;
+        return role == UserRole.USER;
     }
 
 }

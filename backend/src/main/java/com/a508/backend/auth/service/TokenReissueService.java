@@ -7,8 +7,8 @@ import com.a508.backend.auth.token.RefreshTokenValidator;
 import com.a508.backend.auth.token.TokenIssuer;
 import com.a508.backend.global.exception.BusinessException;
 import com.a508.backend.global.exception.ExceptionType;
-import com.a508.backend.member.domain.Member;
-import com.a508.backend.member.repository.MemberRepository;
+import com.a508.backend.user.domain.User;
+import com.a508.backend.user.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,8 +23,8 @@ public class TokenReissueService {
     private final RefreshTokenService
             refreshTokenService;
 
-    private final MemberRepository
-            memberRepository;
+    private final UserRepository
+            userRepository;
 
     private final TokenIssuer
             tokenIssuer;
@@ -32,7 +32,7 @@ public class TokenReissueService {
     public TokenReissueService(
             RefreshTokenValidator refreshTokenValidator,
             RefreshTokenService refreshTokenService,
-            MemberRepository memberRepository,
+            UserRepository userRepository,
             TokenIssuer tokenIssuer
     ) {
         this.refreshTokenValidator =
@@ -41,8 +41,8 @@ public class TokenReissueService {
         this.refreshTokenService =
                 refreshTokenService;
 
-        this.memberRepository =
-                memberRepository;
+        this.userRepository =
+                userRepository;
 
         this.tokenIssuer =
                 tokenIssuer;
@@ -52,30 +52,30 @@ public class TokenReissueService {
     public TokenReissueResult reissue(
             String rawRefreshToken
     ) {
-        Long memberId =
+        Long userId =
                 refreshTokenValidator
-                        .validateAndExtractMemberId(
+                        .validateAndExtractUserId(
                                 rawRefreshToken
                         );
 
         refreshTokenService.verifyStoredToken(
-                memberId,
+                userId,
                 rawRefreshToken,
                 Instant.now()
         );
 
-        Member member =
-                memberRepository
-                        .findById(memberId)
+        User user =
+                userRepository
+                        .findById(userId)
                         .orElseThrow(
                                 this::invalidRefreshToken
                         );
 
         AuthTokens newTokens =
-                tokenIssuer.issue(member);
+                tokenIssuer.issue(user);
 
         refreshTokenService.saveOrReplace(
-                member,
+                user,
                 newTokens.refreshToken(),
                 newTokens.refreshTokenExpiresAt()
         );

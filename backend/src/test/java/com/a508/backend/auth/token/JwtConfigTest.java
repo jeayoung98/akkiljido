@@ -1,7 +1,7 @@
 package com.a508.backend.auth.token;
 
-import com.a508.backend.member.domain.Member;
-import com.a508.backend.member.domain.MemberRole;
+import com.a508.backend.user.domain.User;
+import com.a508.backend.user.domain.UserRole;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -74,11 +74,11 @@ class JwtConfigTest {
     )
     void decodeServiceAccessToken() {
         // given
-        Member member =
+        User user =
                 createSavedGuest();
 
         AuthTokens tokens =
-                jwtTokenIssuer.issue(member);
+                jwtTokenIssuer.issue(user);
 
         // when
         Jwt jwt =
@@ -97,7 +97,7 @@ class JwtConfigTest {
         assertThat(
                 jwt.getClaimAsString("role")
         ).isEqualTo(
-                MemberRole.GUEST.name()
+                UserRole.GUEST.name()
         );
 
         assertThat(
@@ -111,11 +111,11 @@ class JwtConfigTest {
     )
     void rejectRefreshTokenAsAccessToken() {
         // given
-        Member member =
+        User user =
                 createSavedGuest();
 
         AuthTokens tokens =
-                jwtTokenIssuer.issue(member);
+                jwtTokenIssuer.issue(user);
 
         // when & then
         assertThatThrownBy(
@@ -189,18 +189,18 @@ class JwtConfigTest {
                 );
     }
 
-    private Member createSavedGuest() {
-        Member member =
-                Member.createGoogleGuest(
+    private User createSavedGuest() {
+        User user =
+                User.createGoogleGuest(
                         "google-sub-123"
                 );
 
         ReflectionTestUtils.setField(
-                member,
+                user,
                 "id",
                 1L
         );
 
-        return member;
+        return user;
     }
 }

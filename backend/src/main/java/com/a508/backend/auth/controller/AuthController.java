@@ -97,12 +97,12 @@ public class AuthController {
     public ResponseEntity<ResponseBody<Void>> logout(
             @AuthenticationPrincipal Jwt jwt
     ) {
-        Long memberId =
-                parseMemberId(
+        Long userId =
+                parseUserId(
                         jwt.getSubject()
                 );
 
-        logoutService.logout(memberId);
+        logoutService.logout(userId);
 
         return ResponseEntity.ok(
                 ResponseUtil.createSuccessResponse()
@@ -111,18 +111,18 @@ public class AuthController {
 
 
 
-    private Long parseMemberId(
+    private Long parseUserId(
             String subject
     ) {
         try {
-            Long memberId =
+            Long userId =
                     Long.valueOf(subject);
 
-            if (memberId <= 0) {
+            if (userId <= 0) {
                 throw new NumberFormatException();
             }
 
-            return memberId;
+            return userId;
         } catch (
                 NumberFormatException |
                 NullPointerException exception
