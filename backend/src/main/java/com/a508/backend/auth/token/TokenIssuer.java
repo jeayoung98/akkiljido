@@ -4,5 +4,5 @@ import com.a508.backend.user.domain.User;
 
 public interface TokenIssuer {
 
-    AuthTokens issue(User user);
+	AuthTokens issue(User user);
 }

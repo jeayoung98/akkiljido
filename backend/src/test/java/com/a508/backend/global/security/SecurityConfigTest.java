@@ -1,286 +1,288 @@
 package com.a508.backend.global.security;
 
-import jakarta.servlet.ServletContext;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.*;
+import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtException;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.context.support.AnnotationConfigWebApplicationContext;
 import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
-import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import jakarta.servlet.ServletContext;
 
 class SecurityConfigTest {
 
-    private AnnotationConfigWebApplicationContext context;
-    private MockMvc mockMvc;
+	private AnnotationConfigWebApplicationContext context;
+	private MockMvc mockMvc;
 
-    @BeforeEach
-    void setUp() {
-        context =
-                new AnnotationConfigWebApplicationContext();
+	@BeforeEach
+	void setUp() {
+		context =
+			new AnnotationConfigWebApplicationContext();
 
-        context.register(
-                TestWebConfig.class,
-                SecurityConfig.class,
-                UserRoleJwtAuthenticationConverter.class,
-                RestAuthenticationEntryPoint.class,
-                RestAccessDeniedHandler.class
-        );
+		context.register(
+			TestWebConfig.class,
+			SecurityConfig.class,
+			UserRoleJwtAuthenticationConverter.class,
+			RestAuthenticationEntryPoint.class,
+			RestAccessDeniedHandler.class
+		);
 
-        ServletContext servletContext =
-                new org.springframework.mock.web.MockServletContext();
+		ServletContext servletContext =
+			new org.springframework.mock.web.MockServletContext();
 
-        context.setServletContext(servletContext);
-        context.refresh();
+		context.setServletContext(servletContext);
+		context.refresh();
 
-        mockMvc =
-                MockMvcBuilders
-                        .webAppContextSetup(context)
-                        .apply(springSecurity())
-                        .build();
-    }
+		mockMvc =
+			MockMvcBuilders
+				.webAppContextSetup(context)
+				.apply(springSecurity())
+				.build();
+	}
 
-    @AfterEach
-    void tearDown() {
-        context.close();
-    }
+	@AfterEach
+	void tearDown() {
+		context.close();
+	}
 
-    @Test
-    @DisplayName(
-            "Google 로그인 API는 인증 없이 접근할 수 있다"
-    )
-    void permitGoogleLoginWithoutAuthentication()
-            throws Exception {
+	@Test
+	@DisplayName(
+		"Google 로그인 API는 인증 없이 접근할 수 있다"
+	)
+	void permitGoogleLoginWithoutAuthentication()
+		throws Exception {
 
-        mockMvc.perform(
-                        post(
-                                "/api/v1/auth/oauth/google"
-                        )
-                )
-                .andExpect(
-                        status().isOk()
-                );
-    }
+		mockMvc.perform(
+				post(
+					"/api/v1/auth/oauth/google"
+				)
+			)
+			.andExpect(
+				status().isOk()
+			);
+	}
 
-    @Test
-    @DisplayName(
-            "인증 없이 일반 API에 접근하면 401을 반환한다"
-    )
-    void rejectProtectedApiWithoutAuthentication()
-            throws Exception {
+	@Test
+	@DisplayName(
+		"인증 없이 일반 API에 접근하면 401을 반환한다"
+	)
+	void rejectProtectedApiWithoutAuthentication()
+		throws Exception {
 
-        mockMvc.perform(
-                        get(
-                                "/api/v1/test/user"
-                        )
-                )
-                .andExpect(
-                        status().isUnauthorized()
-                )
-                .andExpect(
-                        jsonPath("$.success")
-                                .value(false)
-                )
-                .andExpect(
-                        jsonPath("$.code")
-                                .value("A001")
-                )
-                .andExpect(
-                        jsonPath("$.msg")
-                                .exists()
-                );
-    }
+		mockMvc.perform(
+				get(
+					"/api/v1/test/user"
+				)
+			)
+			.andExpect(
+				status().isUnauthorized()
+			)
+			.andExpect(
+				jsonPath("$.success")
+					.value(false)
+			)
+			.andExpect(
+				jsonPath("$.code")
+					.value("A001")
+			)
+			.andExpect(
+				jsonPath("$.msg")
+					.exists()
+			);
+	}
 
-    @Test
-    @DisplayName(
-            "GUEST는 닉네임 설정 API에 접근할 수 있다"
-    )
-    void permitNicknameApiForGuest()
-            throws Exception {
+	@Test
+	@DisplayName(
+		"GUEST는 닉네임 설정 API에 접근할 수 있다"
+	)
+	void permitNicknameApiForGuest()
+		throws Exception {
 
-        mockMvc.perform(
-                        patch(
-                                "/api/v1/users/me/nickname"
-                        )
-                                .with(
-                                        jwt()
-                                                .authorities(
-                                                        new SimpleGrantedAuthority(
-                                                                "ROLE_GUEST"
-                                                        )
-                                                )
-                                )
-                )
-                .andExpect(
-                        status().isOk()
-                );
-    }
+		mockMvc.perform(
+				patch(
+					"/api/v1/users/me/nickname"
+				)
+					.with(
+						jwt()
+							.authorities(
+								new SimpleGrantedAuthority(
+									"ROLE_GUEST"
+								)
+							)
+					)
+			)
+			.andExpect(
+				status().isOk()
+			);
+	}
 
-    @Test
-    @DisplayName(
-            "GUEST가 USER API에 접근하면 공통 형식의 403 응답을 반환한다"
-    )
-    void rejectUserApiForGuest()
-            throws Exception {
+	@Test
+	@DisplayName(
+		"GUEST가 USER API에 접근하면 공통 형식의 403 응답을 반환한다"
+	)
+	void rejectUserApiForGuest()
+		throws Exception {
 
-        mockMvc.perform(
-                        get(
-                                "/api/v1/test/user"
-                        )
-                                .with(
-                                        jwt()
-                                                .authorities(
-                                                        new SimpleGrantedAuthority(
-                                                                "ROLE_GUEST"
-                                                        )
-                                                )
-                                )
-                )
-                .andExpect(
-                        status().isForbidden()
-                )
-                .andExpect(
-                        jsonPath("$.success")
-                                .value(false)
-                )
-                .andExpect(
-                        jsonPath("$.code")
-                                .value("A002")
-                )
-                .andExpect(
-                        jsonPath("$.msg")
-                                .exists()
-                );
-    }
+		mockMvc.perform(
+				get(
+					"/api/v1/test/user"
+				)
+					.with(
+						jwt()
+							.authorities(
+								new SimpleGrantedAuthority(
+									"ROLE_GUEST"
+								)
+							)
+					)
+			)
+			.andExpect(
+				status().isForbidden()
+			)
+			.andExpect(
+				jsonPath("$.success")
+					.value(false)
+			)
+			.andExpect(
+				jsonPath("$.code")
+					.value("A002")
+			)
+			.andExpect(
+				jsonPath("$.msg")
+					.exists()
+			);
+	}
 
-    @Test
-    @DisplayName(
-            "USER는 일반 API에 접근할 수 있다"
-    )
-    void permitProtectedApiForUser()
-            throws Exception {
+	@Test
+	@DisplayName(
+		"USER는 일반 API에 접근할 수 있다"
+	)
+	void permitProtectedApiForUser()
+		throws Exception {
 
-        mockMvc.perform(
-                        get(
-                                "/api/v1/test/user"
-                        )
-                                .with(
-                                        jwt()
-                                                .authorities(
-                                                        new SimpleGrantedAuthority(
-                                                                "ROLE_USER"
-                                                        )
-                                                )
-                                )
-                )
-                .andExpect(
-                        status().isOk()
-                );
-    }
+		mockMvc.perform(
+				get(
+					"/api/v1/test/user"
+				)
+					.with(
+						jwt()
+							.authorities(
+								new SimpleGrantedAuthority(
+									"ROLE_USER"
+								)
+							)
+					)
+			)
+			.andExpect(
+				status().isOk()
+			);
+	}
 
-    @Test
-    @DisplayName(
-            "GUEST와 USER는 로그아웃 API에 접근할 수 있다"
-    )
-    void permitLogoutForGuestAndUser()
-            throws Exception {
+	@Test
+	@DisplayName(
+		"GUEST와 USER는 로그아웃 API에 접근할 수 있다"
+	)
+	void permitLogoutForGuestAndUser()
+		throws Exception {
 
-        mockMvc.perform(
-                        post(
-                                "/api/v1/auth/logout"
-                        )
-                                .with(
-                                        jwt()
-                                                .authorities(
-                                                        new SimpleGrantedAuthority(
-                                                                "ROLE_GUEST"
-                                                        )
-                                                )
-                                )
-                )
-                .andExpect(
-                        status().isOk()
-                );
+		mockMvc.perform(
+				post(
+					"/api/v1/auth/logout"
+				)
+					.with(
+						jwt()
+							.authorities(
+								new SimpleGrantedAuthority(
+									"ROLE_GUEST"
+								)
+							)
+					)
+			)
+			.andExpect(
+				status().isOk()
+			);
 
-        mockMvc.perform(
-                        post(
-                                "/api/v1/auth/logout"
-                        )
-                                .with(
-                                        jwt()
-                                                .authorities(
-                                                        new SimpleGrantedAuthority(
-                                                                "ROLE_USER"
-                                                        )
-                                                )
-                                )
-                )
-                .andExpect(
-                        status().isOk()
-                );
-    }
+		mockMvc.perform(
+				post(
+					"/api/v1/auth/logout"
+				)
+					.with(
+						jwt()
+							.authorities(
+								new SimpleGrantedAuthority(
+									"ROLE_USER"
+								)
+							)
+					)
+			)
+			.andExpect(
+				status().isOk()
+			);
+	}
 
-    @Configuration
-    @EnableWebMvc
-    @EnableWebSecurity
-    static class TestWebConfig {
+	@Configuration
+	@EnableWebMvc
+	@EnableWebSecurity
+	static class TestWebConfig {
 
-        @Bean
-        JwtDecoder serviceJwtDecoder() {
-            return token -> {
-                throw new JwtException(
-                        "실제 JWT 검증은 JwtConfigTest에서 수행한다."
-                );
-            };
-        }
+		@Bean
+		JwtDecoder serviceJwtDecoder() {
+			return token -> {
+				throw new JwtException(
+					"실제 JWT 검증은 JwtConfigTest에서 수행한다."
+				);
+			};
+		}
 
-        @Bean
-        SecurityTestController
-        securityTestController() {
-            return new SecurityTestController();
-        }
-    }
+		@Bean
+		SecurityTestController
+		securityTestController() {
+			return new SecurityTestController();
+		}
+	}
 
-    @RestController
-    static class SecurityTestController {
+	@RestController
+	static class SecurityTestController {
 
-        @PostMapping(
-                "/api/v1/auth/oauth/google"
-        )
-        void googleLogin() {
-        }
+		@PostMapping(
+			"/api/v1/auth/oauth/google"
+		)
+		void googleLogin() {
+		}
 
-        @PatchMapping(
-                "/api/v1/users/me/nickname"
-        )
-        void updateNickname() {
-        }
+		@PatchMapping(
+			"/api/v1/users/me/nickname"
+		)
+		void updateNickname() {
+		}
 
-        @PostMapping(
-                "/api/v1/auth/logout"
-        )
-        void logout() {
-        }
+		@PostMapping(
+			"/api/v1/auth/logout"
+		)
+		void logout() {
+		}
 
-        @GetMapping(
-                "/api/v1/test/user"
-        )
-        void userApi() {
-        }
-    }
+		@GetMapping(
+			"/api/v1/test/user"
+		)
+		void userApi() {
+		}
+	}
 }

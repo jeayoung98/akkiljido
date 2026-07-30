@@ -1,61 +1,63 @@
 package com.a508.backend.global.security;
 
-import com.a508.backend.global.exception.ExceptionType;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+
 import org.springframework.http.MediaType;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.stereotype.Component;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
+import com.a508.backend.global.exception.ExceptionType;
+
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 @Component
 public class RestAccessDeniedHandler
-        implements AccessDeniedHandler {
+	implements AccessDeniedHandler {
 
-    @Override
-    public void handle(
-            HttpServletRequest request,
-            HttpServletResponse response,
-            AccessDeniedException exception
-    ) throws IOException {
+	@Override
+	public void handle(
+		HttpServletRequest request,
+		HttpServletResponse response,
+		AccessDeniedException exception
+	) throws IOException {
 
-        ExceptionType exceptionType =
-                ExceptionType.AUTHORIZATION_DENIED;
+		ExceptionType exceptionType =
+			ExceptionType.AUTHORIZATION_DENIED;
 
-        response.setStatus(
-                exceptionType
-                        .getStatus()
-                        .value()
-        );
+		response.setStatus(
+			exceptionType
+				.getStatus()
+				.value()
+		);
 
-        response.setCharacterEncoding(
-                StandardCharsets.UTF_8.name()
-        );
+		response.setCharacterEncoding(
+			StandardCharsets.UTF_8.name()
+		);
 
-        response.setContentType(
-                MediaType.APPLICATION_JSON_VALUE
-        );
+		response.setContentType(
+			MediaType.APPLICATION_JSON_VALUE
+		);
 
-        response.getWriter().write(
-                createFailureBody(exceptionType)
-        );
-    }
+		response.getWriter().write(
+			createFailureBody(exceptionType)
+		);
+	}
 
-    private String createFailureBody(
-            ExceptionType exceptionType
-    ) {
-        return """
-                {
-                  "code": "%s",
-                  "success": false,
-                  "msg": "%s"
-                }
-                """.formatted(
-                exceptionType.getCode(),
-                exceptionType.getMessage()
-        );
-    }
+	private String createFailureBody(
+		ExceptionType exceptionType
+	) {
+		return """
+			{
+			  "code": "%s",
+			  "success": false,
+			  "msg": "%s"
+			}
+			""".formatted(
+			exceptionType.getCode(),
+			exceptionType.getMessage()
+		);
+	}
 }

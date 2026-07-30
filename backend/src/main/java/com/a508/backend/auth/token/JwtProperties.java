@@ -1,25 +1,26 @@
 package com.a508.backend.auth.token;
 
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
+import java.time.Duration;
+
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
 
-import java.time.Duration;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 
 @Validated
 @ConfigurationProperties(prefix = "auth.jwt")
-public record JwtProperties (
-        @NotBlank
-        String issuer,
+public record JwtProperties(
+	@NotBlank
+	String issuer,
 
-        @NotBlank
-        String secret,
+	@NotBlank
+	String secret,
 
-        @NotNull
-        Duration accessTokenTtl,
+	@NotNull
+	Duration accessTokenTtl,
 
-        @NotNull
-        Duration refreshTokenTtl
-){
+	@NotNull
+	Duration refreshTokenTtl
+) {
 }

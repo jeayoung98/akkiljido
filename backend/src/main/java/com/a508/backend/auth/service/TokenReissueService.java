@@ -1,5 +1,10 @@
 package com.a508.backend.auth.service;
 
+import java.time.Instant;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.a508.backend.auth.dto.TokenReissueResult;
 import com.a508.backend.auth.token.AuthTokens;
 import com.a508.backend.auth.token.RefreshTokenService;
@@ -9,85 +14,81 @@ import com.a508.backend.global.exception.BusinessException;
 import com.a508.backend.global.exception.ExceptionType;
 import com.a508.backend.user.domain.User;
 import com.a508.backend.user.repository.UserRepository;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.time.Instant;
 
 @Service
 public class TokenReissueService {
 
-    private final RefreshTokenValidator
-            refreshTokenValidator;
+	private final RefreshTokenValidator
+		refreshTokenValidator;
 
-    private final RefreshTokenService
-            refreshTokenService;
+	private final RefreshTokenService
+		refreshTokenService;
 
-    private final UserRepository
-            userRepository;
+	private final UserRepository
+		userRepository;
 
-    private final TokenIssuer
-            tokenIssuer;
+	private final TokenIssuer
+		tokenIssuer;
 
-    public TokenReissueService(
-            RefreshTokenValidator refreshTokenValidator,
-            RefreshTokenService refreshTokenService,
-            UserRepository userRepository,
-            TokenIssuer tokenIssuer
-    ) {
-        this.refreshTokenValidator =
-                refreshTokenValidator;
+	public TokenReissueService(
+		RefreshTokenValidator refreshTokenValidator,
+		RefreshTokenService refreshTokenService,
+		UserRepository userRepository,
+		TokenIssuer tokenIssuer
+	) {
+		this.refreshTokenValidator =
+			refreshTokenValidator;
 
-        this.refreshTokenService =
-                refreshTokenService;
+		this.refreshTokenService =
+			refreshTokenService;
 
-        this.userRepository =
-                userRepository;
+		this.userRepository =
+			userRepository;
 
-        this.tokenIssuer =
-                tokenIssuer;
-    }
+		this.tokenIssuer =
+			tokenIssuer;
+	}
 
-    @Transactional
-    public TokenReissueResult reissue(
-            String rawRefreshToken
-    ) {
-        Long userId =
-                refreshTokenValidator
-                        .validateAndExtractUserId(
-                                rawRefreshToken
-                        );
+	@Transactional
+	public TokenReissueResult reissue(
+		String rawRefreshToken
+	) {
+		Long userId =
+			refreshTokenValidator
+				.validateAndExtractUserId(
+					rawRefreshToken
+				);
 
-        refreshTokenService.verifyStoredToken(
-                userId,
-                rawRefreshToken,
-                Instant.now()
-        );
+		refreshTokenService.verifyStoredToken(
+			userId,
+			rawRefreshToken,
+			Instant.now()
+		);
 
-        User user =
-                userRepository
-                        .findById(userId)
-                        .orElseThrow(
-                                this::invalidRefreshToken
-                        );
+		User user =
+			userRepository
+				.findById(userId)
+				.orElseThrow(
+					this::invalidRefreshToken
+				);
 
-        AuthTokens newTokens =
-                tokenIssuer.issue(user);
+		AuthTokens newTokens =
+			tokenIssuer.issue(user);
 
-        refreshTokenService.saveOrReplace(
-                user,
-                newTokens.refreshToken(),
-                newTokens.refreshTokenExpiresAt()
-        );
+		refreshTokenService.saveOrReplace(
+			user,
+			newTokens.refreshToken(),
+			newTokens.refreshTokenExpiresAt()
+		);
 
-        return new TokenReissueResult(
-                newTokens
-        );
-    }
+		return new TokenReissueResult(
+			newTokens
+		);
+	}
 
-    private BusinessException invalidRefreshToken() {
-        return new BusinessException(
-                ExceptionType.INVALID_REFRESH_TOKEN
-        );
-    }
+	private BusinessException invalidRefreshToken() {
+		return new BusinessException(
+			ExceptionType.INVALID_REFRESH_TOKEN
+		);
+	}
 }

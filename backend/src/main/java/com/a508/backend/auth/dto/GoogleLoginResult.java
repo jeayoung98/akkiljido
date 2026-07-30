@@ -4,8 +4,8 @@ import com.a508.backend.auth.token.AuthTokens;
 import com.a508.backend.user.domain.UserRole;
 
 public record GoogleLoginResult(
-        UserRole role,
-        boolean nicknameRequired,
-        AuthTokens tokens
+	UserRole role,
+	boolean nicknameRequired,
+	AuthTokens tokens
 ) {
 }
