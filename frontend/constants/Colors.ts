@@ -19,5 +19,6 @@ export default {
     disabled: '#C9CDC9', // 비활성 버튼 배경 등
     placeholder: '#6B8F7A', // 입력창 안내 문구 색
     danger: '#FB2C36', // 위험/삭제 액션, 빨강 버튼 등
+    inputBackground: '#F0F7F1', // 기본 입력창의 연한 초록 배경
   },
 };
