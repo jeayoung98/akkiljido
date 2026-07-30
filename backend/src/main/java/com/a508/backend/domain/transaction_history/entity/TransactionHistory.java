@@ -1,0 +1,125 @@
+package com.a508.backend.domain.transaction_history.entity;
+
+import java.time.OffsetDateTime;
+
+import org.locationtech.jts.geom.Point;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+
+import lombok.AccessLevel;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+
+/**
+ * 거래내역 엔티티. ERD 의 transaction_history 테이블과 매핑된다.
+ * datetime 은 TIMESTAMPTZ(OffsetDateTime)로 저장하고, coordinate 는 latitude/longitude 를 PostGIS Point 로 저장한다.
+ * b_code/region_*depth_name 은 좌표를 카카오 coord2regioncode 로 변환한 법정동 정보다.
+ */
+@Entity
+@Getter
+@Table(name = "transaction_history")
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+public class TransactionHistory {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "transaction_id")
+    private Long id;
+
+    // TODO: users 엔티티 구현 후 @ManyToOne 연관관계로 교체
+    @Column(name = "user_id", nullable = false)
+    private Long userId;
+
+    // TODO: category 엔티티 구현 후 @ManyToOne 연관관계로 교체
+    @Column(name = "category_id", nullable = false)
+    private Long categoryId;
+
+    @Column(nullable = false)
+    private OffsetDateTime datetime;
+
+    @Column(nullable = false)
+    private Long amount;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 10)
+    private TransactionType type;
+
+    @Column(name = "transaction_name", length = 10, nullable = false)
+    private String transactionName;
+
+    @Column(name = "payment_method", length = 30, nullable = false)
+    private String paymentMethod;
+
+    // ERD 상 존재하는 컬럼이나 현재 API 스펙에는 노출되지 않는다(항상 null). 스키마 정합성을 위해 유지.
+    @Column(length = 30)
+    private String branch;
+
+    @Column(length = 30)
+    private String memo;
+
+    @Column(columnDefinition = "TEXT")
+    private String address;
+
+    // 좌표 -> 법정동 변환(카카오 coord2regioncode) 결과
+    @Column(name = "b_code", length = 10)
+    private String bCode;
+
+    @Column(name = "region_1depth_name", columnDefinition = "TEXT")
+    private String region1DepthName;
+
+    @Column(name = "region_2depth_name", columnDefinition = "TEXT")
+    private String region2DepthName;
+
+    @Column(name = "region_3depth_name", columnDefinition = "TEXT")
+    private String region3DepthName;
+
+    // PostGIS geometry(Point, 4326) 컬럼. SRID 를 컬럼 정의에 고정해 삽입 시 SRID 불일치를 방지한다.
+    @Column(columnDefinition = "geometry(Point,4326)")
+    private Point coordinate;
+
+    @Builder
+    private TransactionHistory(Long userId, Long categoryId, OffsetDateTime datetime, Long amount,
+                               TransactionType type, String transactionName, String paymentMethod,
+                               String memo, String address, String bCode, String region1DepthName,
+                               String region2DepthName, String region3DepthName, Point coordinate) {
+        this.userId = userId;
+        this.categoryId = categoryId;
+        this.datetime = datetime;
+        this.amount = amount;
+        this.type = type;
+        this.transactionName = transactionName;
+        this.paymentMethod = paymentMethod;
+        this.memo = memo;
+        this.address = address;
+        this.bCode = bCode;
+        this.region1DepthName = region1DepthName;
+        this.region2DepthName = region2DepthName;
+        this.region3DepthName = region3DepthName;
+        this.coordinate = coordinate;
+    }
+
+    /**
+     * 거래내역의 기본 정보를 수정한다. 법정동 정보(b_code/region_*)는 등록 시점 값을 유지한다.
+     */
+    public void update(Long categoryId, OffsetDateTime datetime, Long amount, TransactionType type,
+                       String transactionName, String paymentMethod, String memo, String address,
+                       Point coordinate) {
+        this.categoryId = categoryId;
+        this.datetime = datetime;
+        this.amount = amount;
+        this.type = type;
+        this.transactionName = transactionName;
+        this.paymentMethod = paymentMethod;
+        this.memo = memo;
+        this.address = address;
+        this.coordinate = coordinate;
+    }
+}
