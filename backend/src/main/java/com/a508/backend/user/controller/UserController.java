@@ -59,14 +59,11 @@ public class UserController {
 	}
 
 	@PatchMapping("/me/nickname")
-	public ResponseEntity<
-		ResponseBody<NicknameRegistrationResponse>
-		> registerNickname(
+	public ResponseEntity<ResponseBody<NicknameRegistrationResponse>> registerNickname(
 		@AuthenticationPrincipal
 		AuthenticatedUser authenticatedUser,
 
-		@Valid
-		@RequestBody
+		@Valid @RequestBody
 		NicknameRegistrationRequest request
 	) {
 		NicknameRegistrationResult result =

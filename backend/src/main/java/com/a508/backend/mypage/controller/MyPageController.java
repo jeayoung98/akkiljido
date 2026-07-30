@@ -36,67 +36,67 @@ public class MyPageController {
 
 	@GetMapping("/place")
 	public ResponseEntity<ResponseBody<List<MyPlaceResponse>>> getMyPlaces(
-		@AuthenticationPrincipal AuthenticatedUser authenticatedUser
+			@AuthenticationPrincipal AuthenticatedUser authenticatedUser
 	) {
 		List<MyPlaceResponse> data =
-			myPlaceService.getMyPlaces(authenticatedUser.getUserId())
-				.stream()
-				.map(MyPlaceResponse::from)
-				.toList();
+				myPlaceService.getMyPlaces(authenticatedUser.getUserId())
+						.stream()
+						.map(MyPlaceResponse::from)
+						.toList();
 
 		return ResponseEntity.ok(
-			ResponseUtil.createSuccessResponse(data)
+				ResponseUtil.createSuccessResponse(data)
 		);
 	}
 
 	@PostMapping("/place")
 	public ResponseEntity<ResponseBody<MyPlaceResponse>> createMyPlace(
-		@AuthenticationPrincipal AuthenticatedUser authenticatedUser,
-		@Valid @RequestBody MyPlaceCreateRequest request
+			@AuthenticationPrincipal AuthenticatedUser authenticatedUser,
+			@Valid @RequestBody MyPlaceCreateRequest request
 	) {
 		MyPlaceResult result = myPlaceService.createMyPlace(
-			authenticatedUser.getUserId(),
-			request
+				authenticatedUser.getUserId(),
+				request
 		);
 
+		MyPlaceResponse data = MyPlaceResponse.from(result);
+
 		return ResponseEntity.ok(
-			ResponseUtil.createSuccessResponse(
-				MyPlaceResponse.from(result)
-			)
+				ResponseUtil.createSuccessResponse(data)
 		);
 	}
 
 	@PatchMapping("/place/{placeId}")
 	public ResponseEntity<ResponseBody<MyPlaceResponse>> updateMyPlace(
-		@AuthenticationPrincipal AuthenticatedUser authenticatedUser,
-		@PathVariable Long placeId,
-		@Valid @RequestBody MyPlaceUpdateRequest request
+			@AuthenticationPrincipal AuthenticatedUser authenticatedUser,
+			@PathVariable Long placeId,
+			@Valid @RequestBody MyPlaceUpdateRequest request
 	) {
 		MyPlaceResult result = myPlaceService.updateMyPlace(
-			authenticatedUser.getUserId(),
-			placeId,
-			request
+				authenticatedUser.getUserId(),
+				placeId,
+				request
 		);
 
+		MyPlaceResponse data = MyPlaceResponse.from(result);
+
 		return ResponseEntity.ok(
-			ResponseUtil.createSuccessResponse(
-				MyPlaceResponse.from(result)
-			)
+				ResponseUtil.createSuccessResponse(data)
 		);
 	}
 
 	@DeleteMapping("/place/{placeId}")
 	public ResponseEntity<ResponseBody<Void>> deleteMyPlace(
-		@AuthenticationPrincipal AuthenticatedUser authenticatedUser,
-		@PathVariable Long placeId
+			@AuthenticationPrincipal AuthenticatedUser authenticatedUser,
+			@PathVariable Long placeId
 	) {
 		myPlaceService.deleteMyPlace(
-			authenticatedUser.getUserId(),
-			placeId
+				authenticatedUser.getUserId(),
+				placeId
 		);
 
 		return ResponseEntity.ok(
-			ResponseUtil.createSuccessResponse()
+				ResponseUtil.createSuccessResponse()
 		);
 	}
 }
