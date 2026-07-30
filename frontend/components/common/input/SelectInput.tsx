@@ -17,7 +17,6 @@ export type SelectOption<T extends string = string> = {
 };
 
 export type SelectInputProps<T extends string = string> = {
-  // 화면이나 API에서 받은 선택지를 전달하므로 목록 내용은 고정되지 않습니다.
   options: SelectOption<T>[];
   value: T | null;
   onChange: (value: T) => void;
@@ -28,11 +27,7 @@ export type SelectInputProps<T extends string = string> = {
   containerStyle?: StyleProp<ViewStyle>;
 };
 
-/**
- * 여러 선택지 중 하나를 고르는 공통 입력 컴포넌트입니다.
- * 목록은 입력창 아래로 열리며, 약 4개 항목 높이 안에서 독립적으로 스크롤합니다.
- * AppScreen의 nestedScrollEnabled와 함께 사용해 실물 안드로이드의 스크롤 충돌을 방지합니다.
- */
+/** 목록이 주변 레이아웃을 밀지 않고 입력창 위에 펼쳐지는 공통 선택 컴포넌트입니다. */
 export function SelectInput<T extends string = string>({
   options,
   value,
@@ -44,12 +39,9 @@ export function SelectInput<T extends string = string>({
   containerStyle,
 }: SelectInputProps<T>) {
   const [isOpen, setIsOpen] = useState(false);
-
-  // 저장된 value와 일치하는 옵션의 표시용 label을 찾습니다.
   const selectedOption = options.find((option) => option.value === value);
   const hasError = Boolean(errorMessage);
 
-  // 선택값을 부모 화면에 전달한 뒤 드롭다운을 닫습니다.
   const handleSelect = (selectedValue: T) => {
     onChange(selectedValue);
     setIsOpen(false);
@@ -73,7 +65,7 @@ export function SelectInput<T extends string = string>({
             disabled && styles.disabled,
             pressed && !disabled && styles.pressedTrigger,
           ]}>
-          <Text style={[styles.valueText, !selectedOption && styles.placeholder]} numberOfLines={1}>
+          <Text numberOfLines={1} style={[styles.valueText, !selectedOption && styles.placeholder]}>
             {selectedOption?.label ?? placeholder}
           </Text>
           <Text style={styles.chevron}>{isOpen ? '⌃' : '⌄'}</Text>
@@ -81,7 +73,6 @@ export function SelectInput<T extends string = string>({
 
         {isOpen ? (
           <View style={styles.dropdown}>
-            {/* 부모 AppScreen과 중첩 스크롤을 연결해 필터 목록 안의 터치를 먼저 처리합니다. */}
             <ScrollView
               bounces={false}
               keyboardShouldPersistTaps="handled"
@@ -119,21 +110,11 @@ export function SelectInput<T extends string = string>({
 }
 
 const styles = StyleSheet.create({
-  container: {
-    width: '100%',
-  },
-  openContainer: {
-    zIndex: 10,
-  },
-  label: {
-    marginBottom: 6,
-    color: Colors.light.placeholder,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  fieldArea: {
-    position: 'relative',
-  },
+  container: { width: '100%' },
+  // 열린 Select 전체를 형제 컴포넌트보다 위에 배치하며 elevation은 Android를 보완합니다.
+  openContainer: { zIndex: 10, elevation: 10 },
+  label: { marginBottom: 6, color: Colors.light.placeholder, fontSize: 13, fontWeight: '600' },
+  fieldArea: { position: 'relative', zIndex: 10, elevation: 10 },
   trigger: {
     minHeight: 52,
     flexDirection: 'row',
@@ -144,72 +125,37 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     backgroundColor: Colors.light.inputBackground,
   },
-  valueText: {
-    flex: 1,
-    color: Colors.light.text,
-    fontSize: 16,
-  },
-  placeholder: {
-    color: Colors.light.placeholder,
-  },
-  chevron: {
-    marginLeft: 8,
-    color: Colors.light.text,
-    fontSize: 22,
-    fontWeight: '700',
-  },
+  valueText: { flex: 1, color: Colors.light.text, fontSize: 16 },
+  placeholder: { color: Colors.light.placeholder },
+  chevron: { marginLeft: 8, color: Colors.light.text, fontSize: 22, fontWeight: '700' },
   dropdown: {
+    // 목록을 레이아웃 흐름에서 분리해 열릴 때 아래 콘텐츠를 밀지 않게 합니다.
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    right: 0,
     marginTop: 8,
     borderWidth: 1,
     borderColor: Colors.light.border,
     borderRadius: 14,
     backgroundColor: Colors.light.cardBackground,
-    elevation: 8,
+    elevation: 12,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.14,
+    shadowRadius: 8,
   },
-  optionScroll: {
-    maxHeight: 224,
-  },
-  option: {
-    minHeight: 52,
-    justifyContent: 'center',
-    paddingHorizontal: 16,
-  },
-  selectedOption: {
-    margin: 8,
-    minHeight: 48,
-    borderRadius: 12,
-    backgroundColor: Colors.light.primary,
-  },
-  optionText: {
-    color: Colors.light.text,
-    fontSize: 16,
-  },
-  selectedOptionText: {
-    color: Colors.onboarding.inverseText,
-    fontWeight: '600',
-  },
-  focused: {
-    borderColor: Colors.light.primary,
-  },
-  error: {
-    borderColor: Colors.light.danger,
-  },
-  disabled: {
-    backgroundColor: Colors.light.disabled,
-    opacity: 0.7,
-  },
-  pressedTrigger: {
-    opacity: 0.8,
-  },
-  pressedOption: {
-    opacity: 0.75,
-  },
-  errorMessage: {
-    minHeight: 20,
-    marginTop: 4,
-    fontSize: 12,
-  },
-  errorText: {
-    color: Colors.light.danger,
-  },
+  optionScroll: { maxHeight: 224 },
+  option: { minHeight: 52, justifyContent: 'center', paddingHorizontal: 16 },
+  // 선택 여부와 관계없이 행 높이를 유지하고 배경색만 변경합니다.
+  selectedOption: { backgroundColor: Colors.light.primary },
+  optionText: { color: Colors.light.text, fontSize: 16 },
+  selectedOptionText: { color: Colors.onboarding.inverseText, fontWeight: '600' },
+  focused: { borderColor: Colors.light.primary },
+  error: { borderColor: Colors.light.danger },
+  disabled: { backgroundColor: Colors.light.disabled, opacity: 0.7 },
+  pressedTrigger: { opacity: 0.8 },
+  pressedOption: { opacity: 0.75 },
+  errorMessage: { minHeight: 20, marginTop: 4, fontSize: 12 },
+  errorText: { color: Colors.light.danger },
 });
