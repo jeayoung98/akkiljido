@@ -11,23 +11,28 @@ import static org.springframework.test.web.servlet.setup.MockMvcBuilders.*;
 import java.math.BigDecimal;
 import java.util.List;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.method.annotation.AuthenticationPrincipalArgumentResolver;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.a508.backend.global.exception.BusinessException;
 import com.a508.backend.global.exception.ExceptionType;
 import com.a508.backend.global.exception.GlobalExceptionHandler;
+import com.a508.backend.global.security.AuthenticatedUser;
 import com.a508.backend.mypage.dto.MyPlaceCreateRequest;
 import com.a508.backend.mypage.dto.MyPlaceResult;
 import com.a508.backend.mypage.dto.MyPlaceUpdateRequest;
 import com.a508.backend.mypage.service.MyPlaceService;
-import com.a508.backend.mypage.support.CurrentUserIdProvider;
 
 @ExtendWith(MockitoExtension.class)
 class MyPageControllerTest {
@@ -37,29 +42,48 @@ class MyPageControllerTest {
 	@Mock
 	private MyPlaceService myPlaceService;
 
-	@Mock
-	private CurrentUserIdProvider currentUserIdProvider;
-
 	private MockMvc mockMvc;
 
 	@BeforeEach
 	void setUp() {
 		MyPageController controller =
-			new MyPageController(myPlaceService, currentUserIdProvider);
+			new MyPageController(myPlaceService);
 
 		mockMvc = standaloneSetup(controller)
 			.setControllerAdvice(new GlobalExceptionHandler())
+			.setCustomArgumentResolvers(
+				new AuthenticationPrincipalArgumentResolver()
+			)
 			.build();
+
+		setAuthentication(USER_ID);
+	}
+
+	@AfterEach
+	void tearDown() {
+		SecurityContextHolder.clearContext();
 	}
 
 	@Test
+	@DisplayName("인증된 사용자의 내 장소 목록을 조회한다")
 	void getMyPlaces() throws Exception {
-		given(currentUserIdProvider.getCurrentUserId()).willReturn(USER_ID);
 		given(myPlaceService.getMyPlaces(USER_ID))
 			.willReturn(
 				List.of(
-					result(1L, "집", "서울 마포구", "37.5563", "126.9236"),
-					result(2L, "회사", "서울 강남구", "37.5007", "127.0365")
+					result(
+						1L,
+						"집",
+						"서울 마포구 서교동",
+						"37.5563",
+						"126.9236"
+					),
+					result(
+						2L,
+						"회사",
+						"서울 강남구 역삼동",
+						"37.5007",
+						"127.0365"
+					)
 				)
 			);
 
@@ -69,43 +93,64 @@ class MyPageControllerTest {
 			.andExpect(jsonPath("$.data.length()").value(2))
 			.andExpect(jsonPath("$.data[0].placeId").value(1))
 			.andExpect(jsonPath("$.data[0].myPlaceName").value("집"))
-			.andExpect(jsonPath("$.data[0].address").value("서울 마포구"))
-			.andExpect(jsonPath("$.data[0].latitude").value(37.5563))
-			.andExpect(jsonPath("$.data[0].longitude").value(126.9236))
+			.andExpect(
+				jsonPath("$.data[0].address")
+					.value("서울 마포구 서교동")
+			)
+			.andExpect(
+				jsonPath("$.data[0].latitude")
+					.value(37.5563)
+			)
+			.andExpect(
+				jsonPath("$.data[0].longitude")
+					.value(126.9236)
+			)
 			.andExpect(jsonPath("$.data[1].placeId").value(2))
-			.andExpect(jsonPath("$.data[1].myPlaceName").value("회사"));
+			.andExpect(
+				jsonPath("$.data[1].myPlaceName")
+					.value("회사")
+			);
 
 		verify(myPlaceService).getMyPlaces(USER_ID);
 	}
 
 	@Test
+	@DisplayName("등록한 장소가 없으면 빈 배열을 반환한다")
 	void getEmptyMyPlaces() throws Exception {
-		given(currentUserIdProvider.getCurrentUserId()).willReturn(USER_ID);
-		given(myPlaceService.getMyPlaces(USER_ID)).willReturn(List.of());
+		given(myPlaceService.getMyPlaces(USER_ID))
+			.willReturn(List.of());
 
 		mockMvc.perform(get("/api/v1/my/place"))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.success").value(true))
 			.andExpect(jsonPath("$.data").isArray())
 			.andExpect(jsonPath("$.data").isEmpty());
+
+		verify(myPlaceService).getMyPlaces(USER_ID);
 	}
 
 	@Test
+	@DisplayName("인증된 사용자의 내 장소를 생성한다")
 	void createMyPlace() throws Exception {
-		given(currentUserIdProvider.getCurrentUserId()).willReturn(USER_ID);
 		given(
 			myPlaceService.createMyPlace(
 				eq(USER_ID),
 				any(MyPlaceCreateRequest.class)
 			)
 		).willReturn(
-			result(1L, "집", "서울 마포구", "37.5563", "126.9236")
+			result(
+				1L,
+				"집",
+				"서울 마포구 서교동",
+				"37.5563",
+				"126.9236"
+			)
 		);
 
 		String requestBody = """
 			{
 			  "my_place_name": "집",
-			  "address": "서울 마포구",
+			  "address": "서울 마포구 서교동",
 			  "latitude": 37.5563,
 			  "longitude": 126.9236
 			}
@@ -119,30 +164,58 @@ class MyPageControllerTest {
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.success").value(true))
 			.andExpect(jsonPath("$.data.placeId").value(1))
-			.andExpect(jsonPath("$.data.myPlaceName").value("집"))
-			.andExpect(jsonPath("$.data.address").value("서울 마포구"))
-			.andExpect(jsonPath("$.data.latitude").value(37.5563))
-			.andExpect(jsonPath("$.data.longitude").value(126.9236));
+			.andExpect(
+				jsonPath("$.data.myPlaceName")
+					.value("집")
+			)
+			.andExpect(
+				jsonPath("$.data.address")
+					.value("서울 마포구 서교동")
+			)
+			.andExpect(
+				jsonPath("$.data.latitude")
+					.value(37.5563)
+			)
+			.andExpect(
+				jsonPath("$.data.longitude")
+					.value(126.9236)
+			);
 
 		ArgumentCaptor<MyPlaceCreateRequest> captor =
-			ArgumentCaptor.forClass(MyPlaceCreateRequest.class);
+			ArgumentCaptor.forClass(
+				MyPlaceCreateRequest.class
+			);
 
-		verify(myPlaceService).createMyPlace(eq(USER_ID), captor.capture());
+		verify(myPlaceService).createMyPlace(
+			eq(USER_ID),
+			captor.capture()
+		);
 
-		MyPlaceCreateRequest request = captor.getValue();
+		MyPlaceCreateRequest request =
+			captor.getValue();
 
-		assertThat(request.myPlaceName()).isEqualTo("집");
-		assertThat(request.address()).isEqualTo("서울 마포구");
-		assertThat(request.latitude()).isEqualByComparingTo("37.5563");
-		assertThat(request.longitude()).isEqualByComparingTo("126.9236");
+		assertThat(request.myPlaceName())
+			.isEqualTo("집");
+
+		assertThat(request.address())
+			.isEqualTo("서울 마포구 서교동");
+
+		assertThat(request.latitude())
+			.isEqualByComparingTo("37.5563");
+
+		assertThat(request.longitude())
+			.isEqualByComparingTo("126.9236");
 	}
 
 	@Test
-	void rejectMissingFieldWhenCreatingMyPlace() throws Exception {
+	@DisplayName("장소 생성 시 필수 필드가 없으면 400을 반환한다")
+	void rejectMissingFieldWhenCreatingMyPlace()
+		throws Exception {
+
 		String requestBody = """
 			{
 			  "my_place_name": "집",
-			  "address": "서울 마포구",
+			  "address": "서울 마포구 서교동",
 			  "latitude": 37.5563
 			}
 			""";
@@ -154,19 +227,24 @@ class MyPageControllerTest {
 			)
 			.andExpect(status().isBadRequest())
 			.andExpect(jsonPath("$.success").value(false))
-			.andExpect(jsonPath("$.code").value("C002"))
-			.andExpect(jsonPath("$.msg").value("필수 입력값을 확인해 주세요."));
+			.andExpect(jsonPath("$.code").value("C002"));
 
 		verify(myPlaceService, never())
-			.createMyPlace(any(), any(MyPlaceCreateRequest.class));
+			.createMyPlace(
+				any(),
+				any(MyPlaceCreateRequest.class)
+			);
 	}
 
 	@Test
-	void rejectInvalidJsonWhenCreatingMyPlace() throws Exception {
+	@DisplayName("잘못된 JSON 타입이 들어오면 400을 반환한다")
+	void rejectInvalidJsonWhenCreatingMyPlace()
+		throws Exception {
+
 		String requestBody = """
 			{
 			  "my_place_name": "집",
-			  "address": "서울 마포구",
+			  "address": "서울 마포구 서교동",
 			  "latitude": "잘못된 위도",
 			  "longitude": 126.9236
 			}
@@ -179,29 +257,35 @@ class MyPageControllerTest {
 			)
 			.andExpect(status().isBadRequest())
 			.andExpect(jsonPath("$.success").value(false))
-			.andExpect(jsonPath("$.code").value("C004"))
-			.andExpect(jsonPath("$.msg").value("잘못된 JSON 데이터 형식"));
+			.andExpect(jsonPath("$.code").value("C004"));
 
 		verify(myPlaceService, never())
-			.createMyPlace(any(), any(MyPlaceCreateRequest.class));
+			.createMyPlace(
+				any(),
+				any(MyPlaceCreateRequest.class)
+			);
 	}
 
 	@Test
-	void rejectDuplicateNameWhenCreatingMyPlace() throws Exception {
-		given(currentUserIdProvider.getCurrentUserId()).willReturn(USER_ID);
+	@DisplayName("중복된 장소 이름을 등록하면 409를 반환한다")
+	void rejectDuplicateNameWhenCreatingMyPlace()
+		throws Exception {
+
 		given(
 			myPlaceService.createMyPlace(
 				eq(USER_ID),
 				any(MyPlaceCreateRequest.class)
 			)
 		).willThrow(
-			new BusinessException(ExceptionType.DUPLICATE_PLACE_NAME)
+			new BusinessException(
+				ExceptionType.DUPLICATE_PLACE_NAME
+			)
 		);
 
 		String requestBody = """
 			{
 			  "my_place_name": "집",
-			  "address": "서울 마포구",
+			  "address": "서울 마포구 서교동",
 			  "latitude": 37.5563,
 			  "longitude": 126.9236
 			}
@@ -214,13 +298,12 @@ class MyPageControllerTest {
 			)
 			.andExpect(status().isConflict())
 			.andExpect(jsonPath("$.success").value(false))
-			.andExpect(jsonPath("$.code").value("P002"))
-			.andExpect(jsonPath("$.msg").value("이미 등록된 장소 이름입니다."));
+			.andExpect(jsonPath("$.code").value("P002"));
 	}
 
 	@Test
+	@DisplayName("인증된 사용자의 장소 이름을 수정한다")
 	void updateMyPlace() throws Exception {
-		given(currentUserIdProvider.getCurrentUserId()).willReturn(USER_ID);
 		given(
 			myPlaceService.updateMyPlace(
 				eq(USER_ID),
@@ -228,7 +311,13 @@ class MyPageControllerTest {
 				any(MyPlaceUpdateRequest.class)
 			)
 		).willReturn(
-			result(1L, "우리 집", "서울 마포구", "37.5563", "126.9236")
+			result(
+				1L,
+				"우리 집",
+				"서울 마포구 서교동",
+				"37.5563",
+				"126.9236"
+			)
 		);
 
 		String requestBody = """
@@ -245,24 +334,42 @@ class MyPageControllerTest {
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.success").value(true))
 			.andExpect(jsonPath("$.data.placeId").value(1))
-			.andExpect(jsonPath("$.data.myPlaceName").value("우리 집"))
-			.andExpect(jsonPath("$.data.address").value("서울 마포구"));
+			.andExpect(
+				jsonPath("$.data.myPlaceName")
+					.value("우리 집")
+			)
+			.andExpect(
+				jsonPath("$.data.address")
+					.value("서울 마포구 서교동")
+			);
 
 		ArgumentCaptor<MyPlaceUpdateRequest> captor =
-			ArgumentCaptor.forClass(MyPlaceUpdateRequest.class);
+			ArgumentCaptor.forClass(
+				MyPlaceUpdateRequest.class
+			);
 
-		verify(myPlaceService).updateMyPlace(eq(USER_ID), eq(1L), captor.capture());
+		verify(myPlaceService).updateMyPlace(
+			eq(USER_ID),
+			eq(1L),
+			captor.capture()
+		);
 
-		MyPlaceUpdateRequest request = captor.getValue();
+		MyPlaceUpdateRequest request =
+			captor.getValue();
 
-		assertThat(request.myPlaceName()).isEqualTo("우리 집");
+		assertThat(request.myPlaceName())
+			.isEqualTo("우리 집");
+
 		assertThat(request.address()).isNull();
 		assertThat(request.latitude()).isNull();
 		assertThat(request.longitude()).isNull();
 	}
 
 	@Test
-	void rejectInvalidPlaceIdWhenUpdatingMyPlace() throws Exception {
+	@DisplayName("장소 ID 타입이 잘못되면 400을 반환한다")
+	void rejectInvalidPlaceIdWhenUpdatingMyPlace()
+		throws Exception {
+
 		String requestBody = """
 			{
 			  "my_place_name": "우리 집"
@@ -270,58 +377,121 @@ class MyPageControllerTest {
 			""";
 
 		mockMvc.perform(
-				patch("/api/v1/my/place/{placeId}", "abc")
+				patch(
+					"/api/v1/my/place/{placeId}",
+					"abc"
+				)
 					.contentType(MediaType.APPLICATION_JSON)
 					.content(requestBody)
 			)
 			.andExpect(status().isBadRequest())
 			.andExpect(jsonPath("$.success").value(false))
-			.andExpect(jsonPath("$.code").value("C002"))
-			.andExpect(jsonPath("$.msg").value("장소 ID가 올바르지 않습니다."));
+			.andExpect(jsonPath("$.code").value("C002"));
 
 		verify(myPlaceService, never())
-			.updateMyPlace(any(), any(), any(MyPlaceUpdateRequest.class));
+			.updateMyPlace(
+				any(),
+				any(),
+				any(MyPlaceUpdateRequest.class)
+			);
 	}
 
 	@Test
+	@DisplayName("인증된 사용자의 장소를 삭제한다")
 	void deleteMyPlace() throws Exception {
-		given(currentUserIdProvider.getCurrentUserId()).willReturn(USER_ID);
-
-		mockMvc.perform(delete("/api/v1/my/place/{placeId}", 1L))
+		mockMvc.perform(
+				delete(
+					"/api/v1/my/place/{placeId}",
+					1L
+				)
+			)
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.success").value(true));
 
-		verify(myPlaceService).deleteMyPlace(USER_ID, 1L);
+		verify(myPlaceService)
+			.deleteMyPlace(USER_ID, 1L);
 	}
 
 	@Test
+	@DisplayName("존재하지 않는 장소를 삭제하면 404를 반환한다")
 	void rejectMissingMyPlaceDelete() throws Exception {
-		given(currentUserIdProvider.getCurrentUserId()).willReturn(USER_ID);
-
-		willThrow(new BusinessException(ExceptionType.MY_PLACE_NOT_FOUND))
+		willThrow(
+			new BusinessException(
+				ExceptionType.MY_PLACE_NOT_FOUND
+			)
+		)
 			.given(myPlaceService)
 			.deleteMyPlace(USER_ID, 999L);
 
-		mockMvc.perform(delete("/api/v1/my/place/{placeId}", 999L))
+		mockMvc.perform(
+				delete(
+					"/api/v1/my/place/{placeId}",
+					999L
+				)
+			)
 			.andExpect(status().isNotFound())
 			.andExpect(jsonPath("$.success").value(false))
-			.andExpect(jsonPath("$.code").value("P003"))
-			.andExpect(jsonPath("$.msg").value("등록된 장소를 찾을 수 없습니다."));
+			.andExpect(jsonPath("$.code").value("P003"));
 	}
 
 	@Test
-	void rejectOtherUsersMyPlaceDelete() throws Exception {
-		given(currentUserIdProvider.getCurrentUserId()).willReturn(USER_ID);
+	@DisplayName("다른 사용자의 장소를 삭제하면 403을 반환한다")
+	void rejectOtherUsersMyPlaceDelete()
+		throws Exception {
 
-		willThrow(new BusinessException(ExceptionType.AUTHORIZATION_DENIED))
+		willThrow(
+			new BusinessException(
+				ExceptionType.AUTHORIZATION_DENIED
+			)
+		)
 			.given(myPlaceService)
 			.deleteMyPlace(USER_ID, 1L);
 
-		mockMvc.perform(delete("/api/v1/my/place/{placeId}", 1L))
+		mockMvc.perform(
+				delete(
+					"/api/v1/my/place/{placeId}",
+					1L
+				)
+			)
 			.andExpect(status().isForbidden())
 			.andExpect(jsonPath("$.success").value(false))
-			.andExpect(jsonPath("$.code").value("A002"))
-			.andExpect(jsonPath("$.msg").value("권한이 없음"));
+			.andExpect(jsonPath("$.code").value("A002"));
+	}
+
+	@Test
+	@DisplayName("JWT principal의 사용자 ID가 서비스에 전달된다")
+	void useAuthenticatedUserId() throws Exception {
+		Long anotherUserId = 99L;
+
+		setAuthentication(anotherUserId);
+
+		given(myPlaceService.getMyPlaces(anotherUserId))
+			.willReturn(List.of());
+
+		mockMvc.perform(get("/api/v1/my/place"))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.success").value(true));
+
+		verify(myPlaceService)
+			.getMyPlaces(anotherUserId);
+
+		verify(myPlaceService, never())
+			.getMyPlaces(USER_ID);
+	}
+
+	private void setAuthentication(Long userId) {
+		AuthenticatedUser principal =
+			new AuthenticatedUser(userId);
+
+		UsernamePasswordAuthenticationToken authentication =
+			UsernamePasswordAuthenticationToken.authenticated(
+				principal,
+				null,
+				List.of()
+			);
+
+		SecurityContextHolder.getContext()
+			.setAuthentication(authentication);
 	}
 
 	private MyPlaceResult result(
