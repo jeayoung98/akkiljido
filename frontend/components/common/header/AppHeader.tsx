@@ -14,7 +14,9 @@ type HeaderActionIcon =
   | 'add';
 
 export type HeaderAction = {
+  /** AppHeader에서 지원하는 공통 액션 아이콘입니다. */
   icon: HeaderActionIcon;
+  /** 아이콘 버튼을 눌렀을 때 실행할 화면별 동작입니다. */
   onPress: () => void;
   key?: string;
   color?: string;
@@ -24,8 +26,11 @@ export type HeaderAction = {
 export type AppHeaderProps = {
   title: string;
   subtitle?: string;
+  /** 상세 화면처럼 이전 화면 이동이 필요한 경우에만 활성화합니다. */
   showBackButton?: boolean;
+  /** 검색, 필터, 수정 등 화면 오른쪽에 표시할 액션 목록입니다. */
   rightActions?: HeaderAction[];
+  /** 전달하지 않으면 Expo Router의 기본 뒤로가기를 실행합니다. */
   onBack?: () => void;
   style?: StyleProp<ViewStyle>;
 };
@@ -54,6 +59,7 @@ export function AppHeader({
 
   return (
     <View style={[styles.container, style]}>
+      {/* 목록·탭 화면에는 숨기고 상세 화면에서만 뒤로가기 버튼을 표시합니다. */}
       {showBackButton ? (
         <IconButton
           background
@@ -64,6 +70,7 @@ export function AppHeader({
         />
       ) : null}
 
+      {/* flex 영역과 한 줄 제한으로 양쪽 버튼이 있어도 제목이 겹치지 않게 합니다. */}
       <View style={styles.titleArea}>
         <Text numberOfLines={1} style={styles.title}>
           {title}
@@ -75,6 +82,7 @@ export function AppHeader({
         ) : null}
       </View>
 
+      {/* 화면에서 전달한 순서대로 오른쪽 액션 버튼을 렌더링합니다. */}
       {rightActions.length > 0 ? (
         <View style={styles.actions}>
           {rightActions.map((action, index) => (
