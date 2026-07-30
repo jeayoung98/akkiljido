@@ -13,12 +13,8 @@ import io.swagger.v3.oas.models.info.Info;
 @Configuration
 public class OpenApiConfig {
 
-    @Bean
-    public OpenAPI openAPI() {
-        return new OpenAPI()
-                .info(new Info()
-                        .title("아낄맵 API")
-                        .description("아낄맵 백엔드 API 문서")
-                        .version("v1"));
-    }
+	@Bean
+	public OpenAPI openAPI() {
+		return new OpenAPI().info(new Info().title("아낄맵 API").description("아낄맵 백엔드 API 문서").version("v1"));
+	}
 }
