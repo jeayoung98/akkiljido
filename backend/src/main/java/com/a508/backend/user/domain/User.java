@@ -7,91 +7,55 @@ import lombok.NoArgsConstructor;
 
 @Getter
 @Entity
-@Table(
-        name = "users",
-        uniqueConstraints = {
-                @UniqueConstraint(
-                        name = "uk_users_provider_provider_sub",
-                        columnNames = {
-                                "provider",
-                                "provider_sub"
-                        }
-                )
+@Table(name = "users", uniqueConstraints = {
+	@UniqueConstraint(name = "uk_users_provider_provider_sub", columnNames = {"provider", "provider_sub"})
 
-        }
-)
+})
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class User {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "user_id")
-    private Long id;
+	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	@Column(name = "user_id")
+	private Long id;
 
-    @Enumerated(EnumType.STRING)
-    @Column(
-            name = "provider",
-            nullable = false,
-            length = 10
-    )
-    private OAuthProvider provider;
+	@Enumerated(EnumType.STRING)
+	@Column(name = "provider", nullable = false, length = 10)
+	private OAuthProvider provider;
 
-    @Column(
-            name = "provider_sub",
-            nullable = false,
-            length = 255
-    )
-    private String providerSub;
+	@Column(name = "provider_sub", nullable = false, length = 255)
+	private String providerSub;
 
-    // 닉네임은 자동 회원가입을 진행시키기에, nickname 설정을 나중에 하므로 nullabel하게 두었다.
-    @Column(
-            name = "nickname",
-            length = 20
-    )
-    private String nickname;
+	// 닉네임은 자동 회원가입을 진행시키기에, nickname 설정을 나중에 하므로 nullabel하게 두었다.
+	@Column(name = "nickname", length = 20)
+	private String nickname;
 
-    @Enumerated(EnumType.STRING)
-    @Column(
-            name = "role",
-            nullable = false,
-            length = 10
-    )
-    private UserRole role;
+	@Enumerated(EnumType.STRING)
+	@Column(name = "role", nullable = false, length = 10)
+	private UserRole role;
 
-    private User(
-            OAuthProvider provider,
-            String providerSub,
-            String nickname,
-            UserRole role
-    ) {
-        this.provider = provider;
-        this.providerSub = providerSub;
-        this.nickname = nickname;
-        this.role = role;
-    }
+	private User(OAuthProvider provider, String providerSub, String nickname, UserRole role) {
+		this.provider = provider;
+		this.providerSub = providerSub;
+		this.nickname = nickname;
+		this.role = role;
+	}
 
-    public static User createGoogleGuest(
-            String providerSub
-    ) {
-        return  new User(
-                OAuthProvider.GOOGLE,
-                providerSub,
-                null,
-                UserRole.GUEST
-        );
-    }
+	public static User createGoogleGuest(String providerSub) {
+		return new User(OAuthProvider.GOOGLE, providerSub, null, UserRole.GUEST);
+	}
 
-    public void completeRegistration(String nickname){
-        this.nickname = nickname;
-        this.role = UserRole.USER;
-    }
+	public void completeRegistration(String nickname) {
+		this.nickname = nickname;
+		this.role = UserRole.USER;
+	}
 
-    public boolean isGuest(){
-        return role == UserRole.GUEST;
-    }
+	public boolean isGuest() {
+		return role == UserRole.GUEST;
+	}
 
-    public boolean isUser(){
-        return role == UserRole.USER;
-    }
+	public boolean isUser() {
+		return role == UserRole.USER;
+	}
 
 }

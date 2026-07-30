@@ -8,19 +8,14 @@ import com.a508.backend.auth.token.RefreshTokenRepository;
 @Service
 public class LogoutService {
 
-	private final RefreshTokenRepository
-		refreshTokenRepository;
+	private final RefreshTokenRepository refreshTokenRepository;
 
-	public LogoutService(
-		RefreshTokenRepository refreshTokenRepository
-	) {
-		this.refreshTokenRepository =
-			refreshTokenRepository;
+	public LogoutService(RefreshTokenRepository refreshTokenRepository) {
+		this.refreshTokenRepository = refreshTokenRepository;
 	}
 
 	@Transactional
 	public void logout(Long userId) {
-		refreshTokenRepository
-			.deleteByUser_Id(userId);
+		refreshTokenRepository.deleteByUser_Id(userId);
 	}
 }

@@ -8,7 +8,7 @@ import lombok.Setter;
 @Getter
 @Setter
 public sealed abstract class ResponseBody<T> permits SuccessResponseBody, FailedResponseBody {
-    @JsonInclude(JsonInclude.Include.NON_NULL)
-    private String code;
-    private boolean success;
+	@JsonInclude(JsonInclude.Include.NON_NULL)
+	private String code;
+	private boolean success;
 }

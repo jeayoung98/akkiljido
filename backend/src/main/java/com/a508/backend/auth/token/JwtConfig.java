@@ -25,124 +25,54 @@ import com.a508.backend.user.domain.UserRole;
 @Configuration
 public class JwtConfig {
 
-	private static final Set<String> ALLOWED_ROLES =
-		Set.of(
-			UserRole.GUEST.name(),
-			UserRole.USER.name()
-		);
+	private static final Set<String> ALLOWED_ROLES = Set.of(UserRole.GUEST.name(), UserRole.USER.name());
 
 	@Bean
-	public SecretKey serviceJwtSecretKey(
-		JwtProperties properties
-	) {
+	public SecretKey serviceJwtSecretKey(JwtProperties properties) {
 		byte[] secretBytes;
 
 		try {
-			secretBytes =
-				Base64.getDecoder().decode(
-					properties.secret()
-				);
+			secretBytes = Base64.getDecoder().decode(properties.secret());
 		} catch (IllegalArgumentException exception) {
-			throw new IllegalArgumentException(
-				"JWT Secret은 올바른 Base64 형식이어야 합니다.",
-				exception
-			);
+			throw new IllegalArgumentException("JWT Secret은 올바른 Base64 형식이어야 합니다.", exception);
 		}
 
 		if (secretBytes.length < 32) {
-			throw new IllegalArgumentException(
-				"JWT Secret은 최소 32바이트 이상이어야 합니다."
-			);
+			throw new IllegalArgumentException("JWT Secret은 최소 32바이트 이상이어야 합니다.");
 		}
 
-		return new SecretKeySpec(
-			secretBytes,
-			"HmacSHA256"
-		);
+		return new SecretKeySpec(secretBytes, "HmacSHA256");
 	}
 
 	@Bean
-	public JwtEncoder serviceJwtEncoder(
-		SecretKey serviceJwtSecretKey
-	) {
-		return NimbusJwtEncoder
-			.withSecretKey(
-				serviceJwtSecretKey
-			)
-			.algorithm(
-				MacAlgorithm.HS256
-			)
-			.build();
+	public JwtEncoder serviceJwtEncoder(SecretKey serviceJwtSecretKey) {
+		return NimbusJwtEncoder.withSecretKey(serviceJwtSecretKey).algorithm(MacAlgorithm.HS256).build();
 	}
 
 	@Bean
-	public JwtDecoder serviceJwtDecoder(
-		SecretKey serviceJwtSecretKey,
-		JwtProperties properties
-	) {
-		return createDecoder(
-			serviceJwtSecretKey,
-			properties,
-			"access"
-		);
+	public JwtDecoder serviceJwtDecoder(SecretKey serviceJwtSecretKey, JwtProperties properties) {
+		return createDecoder(serviceJwtSecretKey, properties, "access");
 	}
 
 	@Bean
-	public JwtDecoder serviceRefreshTokenDecoder(
-		SecretKey serviceJwtSecretKey,
-		JwtProperties properties
-	) {
-		return createDecoder(
-			serviceJwtSecretKey,
-			properties,
-			"refresh"
-		);
+	public JwtDecoder serviceRefreshTokenDecoder(SecretKey serviceJwtSecretKey, JwtProperties properties) {
+		return createDecoder(serviceJwtSecretKey, properties, "refresh");
 	}
 
-	private JwtDecoder createDecoder(
-		SecretKey secretKey,
-		JwtProperties properties,
-		String expectedTokenType
-	) {
-		NimbusJwtDecoder decoder =
-			NimbusJwtDecoder
-				.withSecretKey(secretKey)
-				.macAlgorithm(
-					MacAlgorithm.HS256
-				)
-				.build();
+	private JwtDecoder createDecoder(SecretKey secretKey, JwtProperties properties, String expectedTokenType) {
+		NimbusJwtDecoder decoder = NimbusJwtDecoder.withSecretKey(secretKey).macAlgorithm(MacAlgorithm.HS256).build();
 
-		OAuth2TokenValidator<Jwt> defaultValidator =
-			JwtValidators.createDefaultWithIssuer(
-				properties.issuer()
-			);
+		OAuth2TokenValidator<Jwt> defaultValidator = JwtValidators.createDefaultWithIssuer(properties.issuer());
 
-		OAuth2TokenValidator<Jwt> subjectValidator =
-			new JwtClaimValidator<String>(
-				"sub",
-				StringUtils::hasText
-			);
+		OAuth2TokenValidator<Jwt> subjectValidator = new JwtClaimValidator<String>("sub", StringUtils::hasText);
 
-		OAuth2TokenValidator<Jwt> roleValidator =
-			new JwtClaimValidator<String>(
-				"role",
-				ALLOWED_ROLES::contains
-			);
+		OAuth2TokenValidator<Jwt> roleValidator = new JwtClaimValidator<String>("role", ALLOWED_ROLES::contains);
 
-		OAuth2TokenValidator<Jwt> tokenTypeValidator =
-			new JwtClaimValidator<String>(
-				"token_type",
-				expectedTokenType::equals
-			);
+		OAuth2TokenValidator<Jwt> tokenTypeValidator = new JwtClaimValidator<String>("token_type",
+			expectedTokenType::equals);
 
-		decoder.setJwtValidator(
-			new DelegatingOAuth2TokenValidator<>(
-				defaultValidator,
-				subjectValidator,
-				roleValidator,
-				tokenTypeValidator
-			)
-		);
+		decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(defaultValidator, subjectValidator, roleValidator,
+			tokenTypeValidator));
 
 		return decoder;
 	}

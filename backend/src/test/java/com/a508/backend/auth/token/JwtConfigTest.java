@@ -28,179 +28,86 @@ class JwtConfigTest {
 
 	@BeforeEach
 	void setUp() {
-		jwtConfig =
-			new JwtConfig();
+		jwtConfig = new JwtConfig();
 
-		byte[] secretBytes =
-			new byte[32];
+		byte[] secretBytes = new byte[32];
 
-		String encodedSecret =
-			Base64.getEncoder()
-				.encodeToString(secretBytes);
+		String encodedSecret = Base64.getEncoder().encodeToString(secretBytes);
 
-		jwtProperties =
-			new JwtProperties(
-				"a508-backend",
-				encodedSecret,
-				Duration.ofMinutes(30),
-				Duration.ofDays(14)
-			);
+		jwtProperties = new JwtProperties("a508-backend", encodedSecret, Duration.ofMinutes(30), Duration.ofDays(14));
 
-		SecretKey secretKey =
-			jwtConfig.serviceJwtSecretKey(
-				jwtProperties
-			);
+		SecretKey secretKey = jwtConfig.serviceJwtSecretKey(jwtProperties);
 
-		JwtEncoder jwtEncoder =
-			jwtConfig.serviceJwtEncoder(
-				secretKey
-			);
+		JwtEncoder jwtEncoder = jwtConfig.serviceJwtEncoder(secretKey);
 
-		jwtDecoder =
-			jwtConfig.serviceJwtDecoder(
-				secretKey,
-				jwtProperties
-			);
+		jwtDecoder = jwtConfig.serviceJwtDecoder(secretKey, jwtProperties);
 
-		jwtTokenIssuer =
-			new JwtTokenIssuer(
-				jwtEncoder,
-				jwtProperties
-			);
+		jwtTokenIssuer = new JwtTokenIssuer(jwtEncoder, jwtProperties);
 	}
 
 	@Test
-	@DisplayName(
-		"백엔드가 발급한 Access Token을 검증한다"
-	)
+	@DisplayName("백엔드가 발급한 Access Token을 검증한다")
 	void decodeServiceAccessToken() {
 		// given
-		User user =
-			createSavedGuest();
+		User user = createSavedGuest();
 
-		AuthTokens tokens =
-			jwtTokenIssuer.issue(user);
+		AuthTokens tokens = jwtTokenIssuer.issue(user);
 
 		// when
-		Jwt jwt =
-			jwtDecoder.decode(
-				tokens.accessToken()
-			);
+		Jwt jwt = jwtDecoder.decode(tokens.accessToken());
 
 		// then
-		assertThat(jwt.getSubject())
-			.isEqualTo("1");
+		assertThat(jwt.getSubject()).isEqualTo("1");
 
-		assertThat(
-			jwt.getClaimAsString("iss")
-		).isEqualTo("a508-backend");
+		assertThat(jwt.getClaimAsString("iss")).isEqualTo("a508-backend");
 
-		assertThat(
-			jwt.getClaimAsString("role")
-		).isEqualTo(
-			UserRole.GUEST.name()
-		);
+		assertThat(jwt.getClaimAsString("role")).isEqualTo(UserRole.GUEST.name());
 
-		assertThat(
-			jwt.getClaimAsString("token_type")
-		).isEqualTo("access");
+		assertThat(jwt.getClaimAsString("token_type")).isEqualTo("access");
 	}
 
 	@Test
-	@DisplayName(
-		"Refresh Token을 Access Token 인증에 사용할 수 없다"
-	)
+	@DisplayName("Refresh Token을 Access Token 인증에 사용할 수 없다")
 	void rejectRefreshTokenAsAccessToken() {
 		// given
-		User user =
-			createSavedGuest();
+		User user = createSavedGuest();
 
-		AuthTokens tokens =
-			jwtTokenIssuer.issue(user);
+		AuthTokens tokens = jwtTokenIssuer.issue(user);
 
 		// when & then
-		assertThatThrownBy(
-			() -> jwtDecoder.decode(
-				tokens.refreshToken()
-			)
-		).isInstanceOf(
-			JwtException.class
-		);
+		assertThatThrownBy(() -> jwtDecoder.decode(tokens.refreshToken())).isInstanceOf(JwtException.class);
 	}
 
 	@Test
-	@DisplayName(
-		"Base64 형식이 아닌 JWT Secret을 거부한다"
-	)
+	@DisplayName("Base64 형식이 아닌 JWT Secret을 거부한다")
 	void rejectInvalidBase64Secret() {
 		// given
-		JwtProperties invalidProperties =
-			new JwtProperties(
-				"a508-backend",
-				"not-valid-base64!!!",
-				Duration.ofMinutes(30),
-				Duration.ofDays(14)
-			);
+		JwtProperties invalidProperties = new JwtProperties("a508-backend", "not-valid-base64!!!",
+			Duration.ofMinutes(30), Duration.ofDays(14));
 
 		// when & then
-		assertThatThrownBy(
-			() -> jwtConfig.serviceJwtSecretKey(
-				invalidProperties
-			)
-		)
-			.isInstanceOf(
-				IllegalArgumentException.class
-			)
-			.hasMessage(
-				"JWT Secret은 올바른 Base64 형식이어야 합니다."
-			);
+		assertThatThrownBy(() -> jwtConfig.serviceJwtSecretKey(invalidProperties)).isInstanceOf(
+			IllegalArgumentException.class).hasMessage("JWT Secret은 올바른 Base64 형식이어야 합니다.");
 	}
 
 	@Test
-	@DisplayName(
-		"32바이트보다 짧은 JWT Secret을 거부한다"
-	)
+	@DisplayName("32바이트보다 짧은 JWT Secret을 거부한다")
 	void rejectShortJwtSecret() {
 		// given
-		byte[] shortSecretBytes =
-			new byte[16];
+		byte[] shortSecretBytes = new byte[16];
 
-		JwtProperties invalidProperties =
-			new JwtProperties(
-				"a508-backend",
-				Base64.getEncoder()
-					.encodeToString(
-						shortSecretBytes
-					),
-				Duration.ofMinutes(30),
-				Duration.ofDays(14)
-			);
+		JwtProperties invalidProperties = new JwtProperties("a508-backend",
+			Base64.getEncoder().encodeToString(shortSecretBytes), Duration.ofMinutes(30), Duration.ofDays(14));
 
 		// when & then
-		assertThatThrownBy(
-			() -> jwtConfig.serviceJwtSecretKey(
-				invalidProperties
-			)
-		)
-			.isInstanceOf(
-				IllegalArgumentException.class
-			)
-			.hasMessage(
-				"JWT Secret은 최소 32바이트 이상이어야 합니다."
-			);
+		assertThatThrownBy(() -> jwtConfig.serviceJwtSecretKey(invalidProperties)).isInstanceOf(
+			IllegalArgumentException.class).hasMessage("JWT Secret은 최소 32바이트 이상이어야 합니다.");
 	}
 
 	private User createSavedGuest() {
-		User user =
-			User.createGoogleGuest(
-				"google-sub-123"
-			);
+		User user = User.createGoogleGuest("google-sub-123");
 
-		ReflectionTestUtils.setField(
-			user,
-			"id",
-			1L
-		);
+		ReflectionTestUtils.setField(user, "id", 1L);
 
 		return user;
 	}

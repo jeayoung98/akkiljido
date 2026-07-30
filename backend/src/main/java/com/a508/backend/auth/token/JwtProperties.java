@@ -10,17 +10,11 @@ import jakarta.validation.constraints.NotNull;
 
 @Validated
 @ConfigurationProperties(prefix = "auth.jwt")
-public record JwtProperties(
-	@NotBlank
-	String issuer,
+public record JwtProperties(@NotBlank String issuer,
 
-	@NotBlank
-	String secret,
+                            @NotBlank String secret,
 
-	@NotNull
-	Duration accessTokenTtl,
+                            @NotNull Duration accessTokenTtl,
 
-	@NotNull
-	Duration refreshTokenTtl
-) {
+                            @NotNull Duration refreshTokenTtl) {
 }

@@ -33,28 +33,17 @@ class SecurityConfigTest {
 
 	@BeforeEach
 	void setUp() {
-		context =
-			new AnnotationConfigWebApplicationContext();
+		context = new AnnotationConfigWebApplicationContext();
 
-		context.register(
-			TestWebConfig.class,
-			SecurityConfig.class,
-			UserRoleJwtAuthenticationConverter.class,
-			RestAuthenticationEntryPoint.class,
-			RestAccessDeniedHandler.class
-		);
+		context.register(TestWebConfig.class, SecurityConfig.class, UserRoleJwtAuthenticationConverter.class,
+			RestAuthenticationEntryPoint.class, RestAccessDeniedHandler.class);
 
-		ServletContext servletContext =
-			new org.springframework.mock.web.MockServletContext();
+		ServletContext servletContext = new org.springframework.mock.web.MockServletContext();
 
 		context.setServletContext(servletContext);
 		context.refresh();
 
-		mockMvc =
-			MockMvcBuilders
-				.webAppContextSetup(context)
-				.apply(springSecurity())
-				.build();
+		mockMvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
 	}
 
 	@AfterEach
@@ -63,178 +52,60 @@ class SecurityConfigTest {
 	}
 
 	@Test
-	@DisplayName(
-		"Google 로그인 API는 인증 없이 접근할 수 있다"
-	)
-	void permitGoogleLoginWithoutAuthentication()
-		throws Exception {
+	@DisplayName("Google 로그인 API는 인증 없이 접근할 수 있다")
+	void permitGoogleLoginWithoutAuthentication() throws Exception {
 
-		mockMvc.perform(
-				post(
-					"/api/v1/auth/oauth/google"
-				)
-			)
-			.andExpect(
-				status().isOk()
-			);
+		mockMvc.perform(post("/api/v1/auth/oauth/google")).andExpect(status().isOk());
 	}
 
 	@Test
-	@DisplayName(
-		"인증 없이 일반 API에 접근하면 401을 반환한다"
-	)
-	void rejectProtectedApiWithoutAuthentication()
-		throws Exception {
+	@DisplayName("인증 없이 일반 API에 접근하면 401을 반환한다")
+	void rejectProtectedApiWithoutAuthentication() throws Exception {
 
-		mockMvc.perform(
-				get(
-					"/api/v1/test/user"
-				)
-			)
-			.andExpect(
-				status().isUnauthorized()
-			)
-			.andExpect(
-				jsonPath("$.success")
-					.value(false)
-			)
-			.andExpect(
-				jsonPath("$.code")
-					.value("A001")
-			)
-			.andExpect(
-				jsonPath("$.msg")
-					.exists()
-			);
+		mockMvc.perform(get("/api/v1/test/user"))
+			.andExpect(status().isUnauthorized())
+			.andExpect(jsonPath("$.success").value(false))
+			.andExpect(jsonPath("$.code").value("A001"))
+			.andExpect(jsonPath("$.msg").exists());
 	}
 
 	@Test
-	@DisplayName(
-		"GUEST는 닉네임 설정 API에 접근할 수 있다"
-	)
-	void permitNicknameApiForGuest()
-		throws Exception {
+	@DisplayName("GUEST는 닉네임 설정 API에 접근할 수 있다")
+	void permitNicknameApiForGuest() throws Exception {
 
 		mockMvc.perform(
-				patch(
-					"/api/v1/users/me/nickname"
-				)
-					.with(
-						jwt()
-							.authorities(
-								new SimpleGrantedAuthority(
-									"ROLE_GUEST"
-								)
-							)
-					)
-			)
-			.andExpect(
-				status().isOk()
-			);
+				patch("/api/v1/users/me/nickname").with(jwt().authorities(new SimpleGrantedAuthority("ROLE_GUEST"))))
+			.andExpect(status().isOk());
 	}
 
 	@Test
-	@DisplayName(
-		"GUEST가 USER API에 접근하면 공통 형식의 403 응답을 반환한다"
-	)
-	void rejectUserApiForGuest()
-		throws Exception {
+	@DisplayName("GUEST가 USER API에 접근하면 공통 형식의 403 응답을 반환한다")
+	void rejectUserApiForGuest() throws Exception {
 
-		mockMvc.perform(
-				get(
-					"/api/v1/test/user"
-				)
-					.with(
-						jwt()
-							.authorities(
-								new SimpleGrantedAuthority(
-									"ROLE_GUEST"
-								)
-							)
-					)
-			)
-			.andExpect(
-				status().isForbidden()
-			)
-			.andExpect(
-				jsonPath("$.success")
-					.value(false)
-			)
-			.andExpect(
-				jsonPath("$.code")
-					.value("A002")
-			)
-			.andExpect(
-				jsonPath("$.msg")
-					.exists()
-			);
+		mockMvc.perform(get("/api/v1/test/user").with(jwt().authorities(new SimpleGrantedAuthority("ROLE_GUEST"))))
+			.andExpect(status().isForbidden())
+			.andExpect(jsonPath("$.success").value(false))
+			.andExpect(jsonPath("$.code").value("A002"))
+			.andExpect(jsonPath("$.msg").exists());
 	}
 
 	@Test
-	@DisplayName(
-		"USER는 일반 API에 접근할 수 있다"
-	)
-	void permitProtectedApiForUser()
-		throws Exception {
+	@DisplayName("USER는 일반 API에 접근할 수 있다")
+	void permitProtectedApiForUser() throws Exception {
 
-		mockMvc.perform(
-				get(
-					"/api/v1/test/user"
-				)
-					.with(
-						jwt()
-							.authorities(
-								new SimpleGrantedAuthority(
-									"ROLE_USER"
-								)
-							)
-					)
-			)
-			.andExpect(
-				status().isOk()
-			);
+		mockMvc.perform(get("/api/v1/test/user").with(jwt().authorities(new SimpleGrantedAuthority("ROLE_USER"))))
+			.andExpect(status().isOk());
 	}
 
 	@Test
-	@DisplayName(
-		"GUEST와 USER는 로그아웃 API에 접근할 수 있다"
-	)
-	void permitLogoutForGuestAndUser()
-		throws Exception {
+	@DisplayName("GUEST와 USER는 로그아웃 API에 접근할 수 있다")
+	void permitLogoutForGuestAndUser() throws Exception {
 
-		mockMvc.perform(
-				post(
-					"/api/v1/auth/logout"
-				)
-					.with(
-						jwt()
-							.authorities(
-								new SimpleGrantedAuthority(
-									"ROLE_GUEST"
-								)
-							)
-					)
-			)
-			.andExpect(
-				status().isOk()
-			);
+		mockMvc.perform(post("/api/v1/auth/logout").with(jwt().authorities(new SimpleGrantedAuthority("ROLE_GUEST"))))
+			.andExpect(status().isOk());
 
-		mockMvc.perform(
-				post(
-					"/api/v1/auth/logout"
-				)
-					.with(
-						jwt()
-							.authorities(
-								new SimpleGrantedAuthority(
-									"ROLE_USER"
-								)
-							)
-					)
-			)
-			.andExpect(
-				status().isOk()
-			);
+		mockMvc.perform(post("/api/v1/auth/logout").with(jwt().authorities(new SimpleGrantedAuthority("ROLE_USER"))))
+			.andExpect(status().isOk());
 	}
 
 	@Configuration
@@ -245,15 +116,12 @@ class SecurityConfigTest {
 		@Bean
 		JwtDecoder serviceJwtDecoder() {
 			return token -> {
-				throw new JwtException(
-					"실제 JWT 검증은 JwtConfigTest에서 수행한다."
-				);
+				throw new JwtException("실제 JWT 검증은 JwtConfigTest에서 수행한다.");
 			};
 		}
 
 		@Bean
-		SecurityTestController
-		securityTestController() {
+		SecurityTestController securityTestController() {
 			return new SecurityTestController();
 		}
 	}
@@ -261,27 +129,19 @@ class SecurityConfigTest {
 	@RestController
 	static class SecurityTestController {
 
-		@PostMapping(
-			"/api/v1/auth/oauth/google"
-		)
+		@PostMapping("/api/v1/auth/oauth/google")
 		void googleLogin() {
 		}
 
-		@PatchMapping(
-			"/api/v1/users/me/nickname"
-		)
+		@PatchMapping("/api/v1/users/me/nickname")
 		void updateNickname() {
 		}
 
-		@PostMapping(
-			"/api/v1/auth/logout"
-		)
+		@PostMapping("/api/v1/auth/logout")
 		void logout() {
 		}
 
-		@GetMapping(
-			"/api/v1/test/user"
-		)
+		@GetMapping("/api/v1/test/user")
 		void userApi() {
 		}
 	}

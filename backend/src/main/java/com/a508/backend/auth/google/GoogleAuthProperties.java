@@ -10,7 +10,5 @@ import jakarta.validation.constraints.NotEmpty;
 @Validated
 @ConfigurationProperties(prefix = "auth.google")
 public record GoogleAuthProperties(
-	@NotEmpty(message = "Google 허용 Audience는 최소 하나 필요합니다.")
-	List<String> allowedAudiences
-) {
+	@NotEmpty(message = "Google 허용 Audience는 최소 하나 필요합니다.") List<String> allowedAudiences) {
 }

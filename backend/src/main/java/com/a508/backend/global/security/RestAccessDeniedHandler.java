@@ -14,50 +14,30 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 @Component
-public class RestAccessDeniedHandler
-	implements AccessDeniedHandler {
+public class RestAccessDeniedHandler implements AccessDeniedHandler {
 
 	@Override
-	public void handle(
-		HttpServletRequest request,
-		HttpServletResponse response,
-		AccessDeniedException exception
-	) throws IOException {
+	public void handle(HttpServletRequest request, HttpServletResponse response, AccessDeniedException exception) throws
+		IOException {
 
-		ExceptionType exceptionType =
-			ExceptionType.AUTHORIZATION_DENIED;
+		ExceptionType exceptionType = ExceptionType.AUTHORIZATION_DENIED;
 
-		response.setStatus(
-			exceptionType
-				.getStatus()
-				.value()
-		);
+		response.setStatus(exceptionType.getStatus().value());
 
-		response.setCharacterEncoding(
-			StandardCharsets.UTF_8.name()
-		);
+		response.setCharacterEncoding(StandardCharsets.UTF_8.name());
 
-		response.setContentType(
-			MediaType.APPLICATION_JSON_VALUE
-		);
+		response.setContentType(MediaType.APPLICATION_JSON_VALUE);
 
-		response.getWriter().write(
-			createFailureBody(exceptionType)
-		);
+		response.getWriter().write(createFailureBody(exceptionType));
 	}
 
-	private String createFailureBody(
-		ExceptionType exceptionType
-	) {
+	private String createFailureBody(ExceptionType exceptionType) {
 		return """
 			{
 			  "code": "%s",
 			  "success": false,
 			  "msg": "%s"
 			}
-			""".formatted(
-			exceptionType.getCode(),
-			exceptionType.getMessage()
-		);
+			""".formatted(exceptionType.getCode(), exceptionType.getMessage());
 	}
 }

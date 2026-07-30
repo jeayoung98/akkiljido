@@ -30,10 +30,7 @@ class GoogleIdTokenValidatorImplTest {
 
 	@BeforeEach
 	void setUp() {
-		validator =
-			new GoogleIdTokenValidatorImpl(
-				googleIdTokenDecoder
-			);
+		validator = new GoogleIdTokenValidatorImpl(googleIdTokenDecoder);
 	}
 
 	@Test
@@ -48,47 +45,31 @@ class GoogleIdTokenValidatorImplTest {
 		Jwt jwt = Jwt.withTokenValue(rawIdToken)
 			.header("alg", "RS256")
 			.issuer("https://accounts.google.com")
-			.audience(
-				List.of("test-google-client-id")
-			)
+			.audience(List.of("test-google-client-id"))
 			.subject("google-sub-123")
 			.issuedAt(issuedAt)
 			.expiresAt(expiresAt)
 			.build();
 
-		given(
-			googleIdTokenDecoder.decode(rawIdToken)
-		).willReturn(jwt);
+		given(googleIdTokenDecoder.decode(rawIdToken)).willReturn(jwt);
 
 		// when
-		GoogleIdentity result =
-			validator.validate(rawIdToken);
+		GoogleIdentity result = validator.validate(rawIdToken);
 
 		// then
-		assertThat(result.subject())
-			.isEqualTo("google-sub-123");
+		assertThat(result.subject()).isEqualTo("google-sub-123");
 
-		verify(googleIdTokenDecoder)
-			.decode(rawIdToken);
+		verify(googleIdTokenDecoder).decode(rawIdToken);
 	}
 
 	@Test
 	@DisplayName("ID Token이 비어 있으면 인증 예외가 발생한다")
 	void rejectBlankIdToken() {
-		assertThatThrownBy(
-			() -> validator.validate(" ")
-		)
-			.isInstanceOf(BusinessException.class)
-			.satisfies(exception -> {
-				BusinessException businessException =
-					(BusinessException)exception;
+		assertThatThrownBy(() -> validator.validate(" ")).isInstanceOf(BusinessException.class).satisfies(exception -> {
+			BusinessException businessException = (BusinessException)exception;
 
-				assertThat(
-					businessException.getExceptionType()
-				).isEqualTo(
-					ExceptionType.INVALID_GOOGLE_ID_TOKEN
-				);
-			});
+			assertThat(businessException.getExceptionType()).isEqualTo(ExceptionType.INVALID_GOOGLE_ID_TOKEN);
+		});
 	}
 
 	@Test
@@ -97,26 +78,14 @@ class GoogleIdTokenValidatorImplTest {
 		// given
 		String invalidToken = "invalid-google-id-token";
 
-		given(
-			googleIdTokenDecoder.decode(invalidToken)
-		).willThrow(
-			new JwtException("JWT verification failed")
-		);
+		given(googleIdTokenDecoder.decode(invalidToken)).willThrow(new JwtException("JWT verification failed"));
 
 		// when & then
-		assertThatThrownBy(
-			() -> validator.validate(invalidToken)
-		)
-			.isInstanceOf(BusinessException.class)
+		assertThatThrownBy(() -> validator.validate(invalidToken)).isInstanceOf(BusinessException.class)
 			.satisfies(exception -> {
-				BusinessException businessException =
-					(BusinessException)exception;
+				BusinessException businessException = (BusinessException)exception;
 
-				assertThat(
-					businessException.getExceptionType()
-				).isEqualTo(
-					ExceptionType.INVALID_GOOGLE_ID_TOKEN
-				);
+				assertThat(businessException.getExceptionType()).isEqualTo(ExceptionType.INVALID_GOOGLE_ID_TOKEN);
 			});
 	}
 
@@ -136,14 +105,9 @@ class GoogleIdTokenValidatorImplTest {
 			.expiresAt(expiresAt)
 			.build();
 
-		given(
-			googleIdTokenDecoder.decode(rawIdToken)
-		).willReturn(jwt);
+		given(googleIdTokenDecoder.decode(rawIdToken)).willReturn(jwt);
 
 		// when & then
-		assertThatThrownBy(
-			() -> validator.validate(rawIdToken)
-		)
-			.isInstanceOf(BusinessException.class);
+		assertThatThrownBy(() -> validator.validate(rawIdToken)).isInstanceOf(BusinessException.class);
 	}
 }

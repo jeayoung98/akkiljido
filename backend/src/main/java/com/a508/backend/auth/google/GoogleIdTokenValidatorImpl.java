@@ -11,15 +11,11 @@ import com.a508.backend.global.exception.BusinessException;
 import com.a508.backend.global.exception.ExceptionType;
 
 @Component
-public class GoogleIdTokenValidatorImpl
-	implements GoogleIdTokenValidator {
+public class GoogleIdTokenValidatorImpl implements GoogleIdTokenValidator {
 
 	private final JwtDecoder googleIdTokenDecoder;
 
-	public GoogleIdTokenValidatorImpl(
-		@Qualifier("googleIdTokenDecoder")
-		JwtDecoder googleIdTokenDecoder
-	) {
+	public GoogleIdTokenValidatorImpl(@Qualifier("googleIdTokenDecoder") JwtDecoder googleIdTokenDecoder) {
 		this.googleIdTokenDecoder = googleIdTokenDecoder;
 	}
 
@@ -38,17 +34,13 @@ public class GoogleIdTokenValidatorImpl
 				throw invalidGoogleIdToken();
 			}
 
-			return new GoogleIdentity(
-				subject
-			);
+			return new GoogleIdentity(subject);
 		} catch (JwtException exception) {
 			throw invalidGoogleIdToken();
 		}
 	}
 
 	private BusinessException invalidGoogleIdToken() {
-		return new BusinessException(
-			ExceptionType.INVALID_GOOGLE_ID_TOKEN
-		);
+		return new BusinessException(ExceptionType.INVALID_GOOGLE_ID_TOKEN);
 	}
 }

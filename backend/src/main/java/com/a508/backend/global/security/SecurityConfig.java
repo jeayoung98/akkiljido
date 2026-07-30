@@ -13,92 +13,39 @@ import org.springframework.security.web.SecurityFilterChain;
 public class SecurityConfig {
 
 	@Bean
-	public SecurityFilterChain securityFilterChain(
-		HttpSecurity http,
+	public SecurityFilterChain securityFilterChain(HttpSecurity http,
 
-		@Qualifier("serviceJwtDecoder")
-		JwtDecoder serviceJwtDecoder,
+		@Qualifier("serviceJwtDecoder") JwtDecoder serviceJwtDecoder,
 
-		UserRoleJwtAuthenticationConverter
-			authenticationConverter,
+		UserRoleJwtAuthenticationConverter authenticationConverter,
 
-		RestAuthenticationEntryPoint
-			authenticationEntryPoint,
+		RestAuthenticationEntryPoint authenticationEntryPoint,
 
-		RestAccessDeniedHandler
-			accessDeniedHandler
-	) throws Exception {
+		RestAccessDeniedHandler accessDeniedHandler) throws Exception {
 
-		http
-			.csrf(csrf ->
-				csrf.disable()
-			)
-			.sessionManagement(session ->
-				session.sessionCreationPolicy(
-					SessionCreationPolicy.STATELESS
-				)
-			)
-			.exceptionHandling(exceptionHandling ->
-				exceptionHandling
-					.authenticationEntryPoint(
-						authenticationEntryPoint
-					)
-					.accessDeniedHandler(
-						accessDeniedHandler
-					)
-			)
+		http.csrf(csrf -> csrf.disable())
+			.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+			.exceptionHandling(exceptionHandling -> exceptionHandling
+				.authenticationEntryPoint(authenticationEntryPoint)
+				.accessDeniedHandler(accessDeniedHandler))
 
-			.authorizeHttpRequests(authorize ->
-				authorize
-					.requestMatchers(
-						HttpMethod.POST,
-						"/api/v1/auth/oauth/google"
-					)
-					.permitAll()
+			.authorizeHttpRequests(
+				authorize -> authorize.requestMatchers(HttpMethod.POST
+						, "/api/v1/auth/oauth/google").permitAll()
 
-					.requestMatchers(
-						HttpMethod.POST,
-						"/api/v1/auth/token/reissue"
-					)
-					.permitAll()
+					.requestMatchers(HttpMethod.POST, "/api/v1/auth/token/reissue").permitAll()
 
-					.requestMatchers(
-						"/api/health",
-						"/actuator/health",
-						"/swagger-ui/**",
-						"/v3/api-docs/**"
-					)
-					.permitAll()
+					.requestMatchers("/api/health", "/actuator/health").permitAll()
 
-					.requestMatchers(
-						HttpMethod.PATCH,
-						"/api/v1/users/me/nickname"
-					)
-					.hasRole("GUEST")
+					.requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
 
-					.requestMatchers(
-						HttpMethod.POST,
-						"/api/v1/auth/logout"
-					)
-					.hasAnyRole(
-						"GUEST",
-						"USER"
-					)
+					.requestMatchers(HttpMethod.PATCH, "/api/v1/users/me/nickname").hasRole("GUEST")
 
-					.anyRequest()
-					.hasRole("USER")
-			)
-			.oauth2ResourceServer(resourceServer ->
-				resourceServer.jwt(jwt ->
-					jwt
-						.decoder(
-							serviceJwtDecoder
-						)
-						.jwtAuthenticationConverter(
-							authenticationConverter
-						)
-				)
-			);
+					.requestMatchers(HttpMethod.POST, "/api/v1/auth/logout").hasAnyRole("GUEST", "USER")
+
+					.anyRequest().hasRole("USER"))
+			.oauth2ResourceServer(resourceServer -> resourceServer.jwt(
+				jwt -> jwt.decoder(serviceJwtDecoder).jwtAuthenticationConverter(authenticationConverter)));
 
 		return http.build();
 	}

@@ -15,23 +15,17 @@ import com.a508.backend.auth.token.RefreshTokenRepository;
 class LogoutServiceTest {
 
 	@Mock
-	private RefreshTokenRepository
-		refreshTokenRepository;
+	private RefreshTokenRepository refreshTokenRepository;
 
 	private LogoutService logoutService;
 
 	@BeforeEach
 	void setUp() {
-		logoutService =
-			new LogoutService(
-				refreshTokenRepository
-			);
+		logoutService = new LogoutService(refreshTokenRepository);
 	}
 
 	@Test
-	@DisplayName(
-		"로그아웃하면 회원의 Refresh Token을 삭제한다"
-	)
+	@DisplayName("로그아웃하면 회원의 Refresh Token을 삭제한다")
 	void logout() {
 		// given
 		Long userId = 1L;
@@ -40,7 +34,6 @@ class LogoutServiceTest {
 		logoutService.logout(userId);
 
 		// then
-		verify(refreshTokenRepository)
-			.deleteByUser_Id(userId);
+		verify(refreshTokenRepository).deleteByUser_Id(userId);
 	}
 }
