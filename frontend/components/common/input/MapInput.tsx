@@ -28,7 +28,7 @@ export function MapInput({ label, value, onPress, style }: MapInputProps) {
         <Pressable
           onPress={onPress}
           style={({ pressed }) => [styles.button, { opacity: pressed ? 0.7 : 1 }]}>
-          <Text style={styles.buttonText}>지도에서 확인</Text>
+          <Text style={styles.buttonText}>지도에서 검색</Text>
         </Pressable>
       </View>
     </View>
