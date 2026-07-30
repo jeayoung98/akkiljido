@@ -1,7 +1,7 @@
 import type { StyleProp, ViewStyle } from 'react-native';
 import { StyleSheet, Text, View } from 'react-native';
 
-import BaseCard from '@/components/ui/BaseCard';
+import BaseCard from '@/components/common/card/BaseCard';
 
 export type MetricCardProps = {
   label: string;
