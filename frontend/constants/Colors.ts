@@ -1,8 +1,5 @@
 // 앱 전체에서 쓰는 색상 팔레트. 다크모드 없이 라이트 팔레트 하나만 관리한다.
 
-// 선택/강조 상태에 쓰는 틴트 색 (현재는 템플릿 기본값, 실사용처 적음)
-const tintColorLight = '#2f95dc';
-
 export default {
   onboarding: {
     green: '#4A784F',
@@ -15,11 +12,13 @@ export default {
   },
   light: {
     text: '#000', // 기본 텍스트 색
-    background: '#fff', // 기본 배경색
-    tint: tintColorLight,
-    tabIconDefault: '#ccc', // 비선택 탭 아이콘 색
-    tabIconSelected: tintColorLight, // 선택된 탭 아이콘 색
-    primary: '#4B8062', // 브랜드 그린. 탭바 활성 원 배경 등에 사용
+    textSecondary: '#525a55', // 보조 설명, 타임스탬프 등 회색톤 텍스트
+    background: '#FCFFFD', // 기본 배경색
+    primary: '#63A061', // 브랜드 그린. 탭바 활성 원 배경 등에 사용
+    border: '#DCDCDC', // 구분선, 입력창 테두리 등
+    disabled: '#C9CDC9', // 비활성 버튼 배경 등
+    placeholder: '#6B8F7A', // 입력창 안내 문구 색
+    danger: '#FB2C36', // 위험/삭제 액션, 빨강 버튼 등
     cardBackground: '#FFFFFF',
     cardTitle: '#18251E',
     cardDescription: '#789080',
