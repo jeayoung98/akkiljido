@@ -19,5 +19,15 @@ export default {
     disabled: '#C9CDC9', // 비활성 버튼 배경 등
     placeholder: '#6B8F7A', // 입력창 안내 문구 색
     danger: '#FB2C36', // 위험/삭제 액션, 빨강 버튼 등
+    cardBackground: '#FFFFFF',
+    cardTitle: '#18251E',
+    cardDescription: '#789080',
+    summaryPrimaryBackground: 'rgba(49, 95, 61, 0.45)',
+    summaryPrimaryLabel: '#DCECD7',
+    summaryPrimaryText: '#FFFFFF',
+    summaryInfoBackground: '#EEF3FF',
+    summaryInfoLabel: '#8198C3',
+    summaryInfoText: '#647AA5',
+    summaryInfoCaption: '#91A5CA',
   },
 };
