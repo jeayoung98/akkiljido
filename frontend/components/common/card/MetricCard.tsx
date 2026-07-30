@@ -2,18 +2,26 @@ import type { StyleProp, ViewStyle } from 'react-native';
 import { StyleSheet, Text, View } from 'react-native';
 
 import BaseCard from '@/components/common/card/BaseCard';
+import Colors from '@/constants/Colors';
 
 export type MetricCardProps = {
   label: string;
   value: string;
+  /** 원처럼 값 옆에 표시할 단위입니다. */
   unit?: string;
+  /** 날짜나 집계 기간처럼 값 아래에 표시할 선택적 보조 정보입니다. */
   caption?: string;
+  /** 홈은 왼쪽, 리포트 요약은 가운데처럼 화면에 맞춰 정렬합니다. */
   align?: 'left' | 'center';
+  /** 카드 구조는 유지하면서 배경과 텍스트 색상만 변경합니다. */
   tone?: 'primary' | 'info';
   style?: StyleProp<ViewStyle>;
 };
 
-/** 라벨, 큰 값, 단위와 선택적 보조 문구를 표시하는 공통 수치 카드입니다. */
+/**
+ * 라벨, 강조 값, 단위와 선택적 보조 문구를 표시하는 요약 카드입니다.
+ * 정렬과 색상 유형을 props로 받아 홈과 리포트 화면에서 같은 구조를 재사용합니다.
+ */
 export default function MetricCard({
   label,
   value,
@@ -23,7 +31,6 @@ export default function MetricCard({
   tone = 'primary',
   style,
 }: MetricCardProps) {
-  // 정렬과 색상 유형을 props로 받아 같은 구조를 홈과 리포트 화면에서 재사용합니다.
   const isCentered = align === 'center';
   const isInfoTone = tone === 'info';
 
@@ -58,10 +65,10 @@ const styles = StyleSheet.create({
   },
   primaryCard: {
     // 홈 상단 초록 배경이 비치도록 지정 색상(#315F3D)에 투명도를 적용합니다.
-    backgroundColor: 'rgba(49, 95, 61, 0.45)',
+    backgroundColor: Colors.light.summaryPrimaryBackground,
   },
   infoCard: {
-    backgroundColor: '#EEF3FF',
+    backgroundColor: Colors.light.summaryInfoBackground,
   },
   centered: {
     alignItems: 'center',
@@ -71,10 +78,10 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   primaryLabel: {
-    color: '#DCECD7',
+    color: Colors.light.summaryPrimaryLabel,
   },
   infoLabel: {
-    color: '#8198C3',
+    color: Colors.light.summaryInfoLabel,
   },
   valueRow: {
     marginTop: 5,
@@ -94,17 +101,17 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   primaryValue: {
-    color: '#FFFFFF',
+    color: Colors.light.summaryPrimaryText,
   },
   infoValue: {
-    color: '#647AA5',
+    color: Colors.light.summaryInfoText,
   },
   caption: {
     marginTop: 6,
-    color: '#DCECD7',
+    color: Colors.light.summaryPrimaryLabel,
     fontSize: 11,
   },
   infoCaption: {
-    color: '#91A5CA',
+    color: Colors.light.summaryInfoCaption,
   },
 });

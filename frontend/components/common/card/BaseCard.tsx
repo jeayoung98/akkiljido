@@ -8,9 +8,13 @@ import {
   type ViewStyle,
 } from 'react-native';
 
+import Colors from '@/constants/Colors';
+
 export type BaseCardProps = {
+  /** 카드 내부 내용은 화면이나 기능 컴포넌트가 직접 구성합니다. */
   children: ReactNode;
   style?: StyleProp<ViewStyle>;
+  /** 전달한 경우에만 카드 전체가 눌리는 Pressable로 렌더링됩니다. */
   onPress?: PressableProps['onPress'];
   disabled?: boolean;
   accessibilityLabel?: string;
@@ -18,7 +22,8 @@ export type BaseCardProps = {
 
 /**
  * 화면별 카드가 공통으로 사용하는 외곽 컨테이너입니다.
- * 카드 안의 제목, 금액, 아이콘 등은 children으로 자유롭게 구성합니다.
+ * 공통 배경색, 내부 여백과 모서리 값을 제공하며 내부 내용은 children으로 구성합니다.
+ * onPress가 있을 때만 카드 전체가 눌리는 버튼으로 동작합니다.
  */
 export default function BaseCard({
   children,
@@ -27,12 +32,12 @@ export default function BaseCard({
   disabled = false,
   accessibilityLabel,
 }: BaseCardProps) {
-  // 터치 동작이 없는 정보 카드는 불필요한 버튼 역할 없이 View로 렌더링합니다.
+  // 터치 동작이 없는 정보 카드는 View로 렌더링합니다.
   if (!onPress) {
     return <View style={[styles.card, style]}>{children}</View>;
   }
 
-  // 장소 이동 카드처럼 누를 수 있는 경우에만 Pressable과 터치 피드백을 적용합니다.
+  // 상세 화면 이동처럼 카드 전체를 누르는 경우에만 터치 피드백을 적용합니다.
   return (
     <Pressable
       accessibilityLabel={accessibilityLabel}
@@ -54,7 +59,7 @@ const styles = StyleSheet.create({
   card: {
     padding: 16,
     borderRadius: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.light.cardBackground,
   },
   pressed: {
     opacity: 0.8,

@@ -20,5 +20,15 @@ export default {
     tabIconDefault: '#ccc', // 비선택 탭 아이콘 색
     tabIconSelected: tintColorLight, // 선택된 탭 아이콘 색
     primary: '#4B8062', // 브랜드 그린. 탭바 활성 원 배경 등에 사용
+    cardBackground: '#FFFFFF',
+    cardTitle: '#18251E',
+    cardDescription: '#789080',
+    summaryPrimaryBackground: 'rgba(49, 95, 61, 0.45)',
+    summaryPrimaryLabel: '#DCECD7',
+    summaryPrimaryText: '#FFFFFF',
+    summaryInfoBackground: '#EEF3FF',
+    summaryInfoLabel: '#8198C3',
+    summaryInfoText: '#647AA5',
+    summaryInfoCaption: '#91A5CA',
   },
 };
