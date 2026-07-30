@@ -29,8 +29,11 @@ export default function AppScreen({
         edges={['left', 'right']}>
         {/* 화면 성격에 따라 스크롤 컨테이너와 고정 컨테이너를 선택합니다. */}
         {scrollable ? (
-          // 콘텐츠가 짧아도 화면 높이를 채워 공통 레이아웃이 유지됩니다.
-          <ScrollView style={[styles.container, backgroundStyle]} contentContainerStyle={styles.scrollContent}>
+          // 콘텐츠가 짧아도 화면 높이를 채우고, 자체 스크롤을 가진 자식과의 터치 충돌을 방지합니다.
+          <ScrollView
+            style={[styles.container, backgroundStyle]}
+            contentContainerStyle={styles.scrollContent}
+            nestedScrollEnabled>
             {children}
           </ScrollView>
         ) : (
