@@ -11,15 +11,15 @@ import com.a508.backend.mypage.domain.MyPlace;
 @Repository
 public interface MyPlaceRepository extends JpaRepository<MyPlace, Long> {
 
-	List<MyPlace> findAllByUserIdOrderByIdAsc(Long userId);
+	List<MyPlace> findAllByUser_IdOrderByIdAsc(Long userId);
 
-	Optional<MyPlace> findByIdAndUserId(Long placeId, Long userId);
+	Optional<MyPlace> findByIdAndUser_Id(Long placeId, Long userId);
 
-	boolean existsByUserIdAndMyPlaceName(Long userId, String myPlaceName);
+	boolean existsByUser_IdAndMyPlaceName(Long userId, String myPlaceName);
 
-	boolean existsByUserIdAndMyPlaceNameAndIdNot(
-		Long userId,
-		String myPlaceName,
-		Long placeId
+	boolean existsByUser_IdAndMyPlaceNameAndIdNot(
+			Long userId,
+			String myPlaceName,
+			Long placeId
 	);
 }

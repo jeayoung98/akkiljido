@@ -24,6 +24,8 @@ import com.a508.backend.mypage.dto.MyPlaceCreateRequest;
 import com.a508.backend.mypage.dto.MyPlaceResult;
 import com.a508.backend.mypage.dto.MyPlaceUpdateRequest;
 import com.a508.backend.mypage.repository.MyPlaceRepository;
+import com.a508.backend.user.domain.User;
+import com.a508.backend.user.repository.UserRepository;
 
 @ExtendWith(MockitoExtension.class)
 class MyPlaceServiceTest {
@@ -33,11 +35,17 @@ class MyPlaceServiceTest {
 	@Mock
 	private MyPlaceRepository myPlaceRepository;
 
+	@Mock
+	private UserRepository userRepository;
+
 	private MyPlaceService myPlaceService;
+	private User user;
 
 	@BeforeEach
 	void setUp() {
-		myPlaceService = new MyPlaceService(myPlaceRepository);
+		myPlaceService = new MyPlaceService(myPlaceRepository, userRepository);
+		user = User.createGoogleGuest("google-sub");
+		ReflectionTestUtils.setField(user, "id", USER_ID);
 	}
 
 	@Test
@@ -58,7 +66,7 @@ class MyPlaceServiceTest {
 			"127.0365"
 		);
 
-		given(myPlaceRepository.findAllByUserIdOrderByIdAsc(USER_ID))
+		given(myPlaceRepository.findAllByUser_IdOrderByIdAsc(USER_ID))
 			.willReturn(List.of(home, company));
 
 		List<MyPlaceResult> results =
@@ -80,7 +88,7 @@ class MyPlaceServiceTest {
 
 	@Test
 	void getEmptyMyPlaces() {
-		given(myPlaceRepository.findAllByUserIdOrderByIdAsc(USER_ID))
+		given(myPlaceRepository.findAllByUser_IdOrderByIdAsc(USER_ID))
 			.willReturn(List.of());
 
 		List<MyPlaceResult> results =
@@ -100,11 +108,14 @@ class MyPlaceServiceTest {
 			);
 
 		given(
-			myPlaceRepository.existsByUserIdAndMyPlaceName(
+			myPlaceRepository.existsByUser_IdAndMyPlaceName(
 				USER_ID,
 				"집"
 			)
 		).willReturn(false);
+
+		given(userRepository.findById(USER_ID))
+			.willReturn(Optional.of(user));
 
 		given(myPlaceRepository.save(any(MyPlace.class)))
 			.willAnswer(invocation -> {
@@ -140,8 +151,7 @@ class MyPlaceServiceTest {
 
 		MyPlace savedMyPlace = captor.getValue();
 
-		assertThat(savedMyPlace.getUserId())
-			.isEqualTo(USER_ID);
+		assertThat(savedMyPlace.getUser()).isSameAs(user);
 		assertThat(savedMyPlace.getMyPlaceName())
 			.isEqualTo("집");
 		assertThat(savedMyPlace.getAddress())
@@ -184,7 +194,7 @@ class MyPlaceServiceTest {
 			);
 
 		given(
-			myPlaceRepository.existsByUserIdAndMyPlaceName(
+			myPlaceRepository.existsByUser_IdAndMyPlaceName(
 				USER_ID,
 				"집"
 			)
@@ -224,11 +234,11 @@ class MyPlaceServiceTest {
 				null
 			);
 
-		given(myPlaceRepository.findById(1L))
+		given(myPlaceRepository.findByIdAndUser_Id(1L, USER_ID))
 			.willReturn(Optional.of(myPlace));
 
 		given(
-			myPlaceRepository.existsByUserIdAndMyPlaceNameAndIdNot(
+			myPlaceRepository.existsByUser_IdAndMyPlaceNameAndIdNot(
 				USER_ID,
 				"우리 집",
 				1L
@@ -270,7 +280,7 @@ class MyPlaceServiceTest {
 				new BigDecimal("126.9217")
 			);
 
-		given(myPlaceRepository.findById(1L))
+		given(myPlaceRepository.findByIdAndUser_Id(1L, USER_ID))
 			.willReturn(Optional.of(myPlace));
 
 		MyPlaceResult result =
@@ -419,7 +429,7 @@ class MyPlaceServiceTest {
 				new BigDecimal("126.9217")
 			);
 
-		given(myPlaceRepository.findById(1L))
+		given(myPlaceRepository.findByIdAndUser_Id(1L, USER_ID))
 			.willReturn(Optional.of(myPlace));
 
 		BusinessException exception =
@@ -459,11 +469,11 @@ class MyPlaceServiceTest {
 				null
 			);
 
-		given(myPlaceRepository.findById(1L))
+		given(myPlaceRepository.findByIdAndUser_Id(1L, USER_ID))
 			.willReturn(Optional.of(myPlace));
 
 		given(
-			myPlaceRepository.existsByUserIdAndMyPlaceNameAndIdNot(
+			myPlaceRepository.existsByUser_IdAndMyPlaceNameAndIdNot(
 				USER_ID,
 				"회사",
 				1L
@@ -497,7 +507,7 @@ class MyPlaceServiceTest {
 				null
 			);
 
-		given(myPlaceRepository.findById(999L))
+		given(myPlaceRepository.findByIdAndUser_Id(999L, USER_ID))
 			.willReturn(Optional.empty());
 
 		BusinessException exception =
@@ -516,20 +526,6 @@ class MyPlaceServiceTest {
 
 	@Test
 	void rejectOtherUsersMyPlaceUpdate() {
-		MyPlace myPlace = createMyPlace(
-			1L,
-			"집",
-			"서울 마포구",
-			"37.5563",
-			"126.9236"
-		);
-
-		ReflectionTestUtils.setField(
-			myPlace,
-			"userId",
-			2L
-		);
-
 		MyPlaceUpdateRequest request =
 			new MyPlaceUpdateRequest(
 				"우리 집",
@@ -538,8 +534,8 @@ class MyPlaceServiceTest {
 				null
 			);
 
-		given(myPlaceRepository.findById(1L))
-			.willReturn(Optional.of(myPlace));
+		given(myPlaceRepository.findByIdAndUser_Id(1L, USER_ID))
+			.willReturn(Optional.empty());
 
 		BusinessException exception =
 			catchThrowableOfType(
@@ -552,7 +548,7 @@ class MyPlaceServiceTest {
 			);
 
 		assertThat(exception.getExceptionType())
-			.isEqualTo(ExceptionType.AUTHORIZATION_DENIED);
+			.isEqualTo(ExceptionType.MY_PLACE_NOT_FOUND);
 	}
 
 	@Test
@@ -565,7 +561,7 @@ class MyPlaceServiceTest {
 			"126.9236"
 		);
 
-		given(myPlaceRepository.findById(1L))
+		given(myPlaceRepository.findByIdAndUser_Id(1L, USER_ID))
 			.willReturn(Optional.of(myPlace));
 
 		myPlaceService.deleteMyPlace(
@@ -578,7 +574,7 @@ class MyPlaceServiceTest {
 
 	@Test
 	void rejectMissingMyPlaceDelete() {
-		given(myPlaceRepository.findById(999L))
+		given(myPlaceRepository.findByIdAndUser_Id(999L, USER_ID))
 			.willReturn(Optional.empty());
 
 		BusinessException exception =
@@ -599,22 +595,8 @@ class MyPlaceServiceTest {
 
 	@Test
 	void rejectOtherUsersMyPlaceDelete() {
-		MyPlace myPlace = createMyPlace(
-			1L,
-			"집",
-			"서울 마포구",
-			"37.5563",
-			"126.9236"
-		);
-
-		ReflectionTestUtils.setField(
-			myPlace,
-			"userId",
-			2L
-		);
-
-		given(myPlaceRepository.findById(1L))
-			.willReturn(Optional.of(myPlace));
+		given(myPlaceRepository.findByIdAndUser_Id(1L, USER_ID))
+			.willReturn(Optional.empty());
 
 		BusinessException exception =
 			catchThrowableOfType(
@@ -626,7 +608,7 @@ class MyPlaceServiceTest {
 			);
 
 		assertThat(exception.getExceptionType())
-			.isEqualTo(ExceptionType.AUTHORIZATION_DENIED);
+			.isEqualTo(ExceptionType.MY_PLACE_NOT_FOUND);
 
 		verify(myPlaceRepository, never())
 			.delete(any(MyPlace.class));
@@ -692,7 +674,7 @@ class MyPlaceServiceTest {
 	) {
 
 		MyPlace myPlace = MyPlace.create(
-			USER_ID,
+			user,
 			myPlaceName,
 			address,
 			new BigDecimal(latitude),

@@ -6,17 +6,13 @@ import java.math.BigDecimal;
 
 import org.junit.jupiter.api.Test;
 
+import com.a508.backend.user.domain.User;
+
 class MyPlaceTest {
 
 	@Test
 	void createWgs84PointWithLongitudeAsXAndLatitudeAsY() {
-		MyPlace myPlace = MyPlace.create(
-			1L,
-			"집",
-			"서울 마포구",
-			new BigDecimal("37.5563"),
-			new BigDecimal("126.9236")
-		);
+		MyPlace myPlace = createMyPlace();
 
 		assertThat(myPlace.getCoordinate().getSRID()).isEqualTo(4326);
 		assertThat(myPlace.getCoordinate().getX()).isEqualTo(126.9236);
@@ -27,13 +23,7 @@ class MyPlaceTest {
 
 	@Test
 	void updateNameAndLocation() {
-		MyPlace myPlace = MyPlace.create(
-			1L,
-			"집",
-			"서울 마포구",
-			new BigDecimal("37.5563"),
-			new BigDecimal("126.9236")
-		);
+		MyPlace myPlace = createMyPlace();
 
 		myPlace.updateName("우리 집");
 		myPlace.updateLocation(
@@ -49,17 +39,15 @@ class MyPlaceTest {
 		assertThat(myPlace.getLongitude()).isEqualByComparingTo("126.9217");
 	}
 
-	@Test
-	void checkOwnership() {
-		MyPlace myPlace = MyPlace.create(
-			1L,
+	private MyPlace createMyPlace() {
+		User user = User.createGoogleGuest("google-sub");
+
+		return MyPlace.create(
+			user,
 			"집",
 			"서울 마포구",
 			new BigDecimal("37.5563"),
 			new BigDecimal("126.9236")
 		);
-
-		assertThat(myPlace.isOwnedBy(1L)).isTrue();
-		assertThat(myPlace.isOwnedBy(2L)).isFalse();
 	}
 }
