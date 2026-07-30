@@ -7,10 +7,10 @@ import org.springframework.stereotype.Component;
 @Profile("local")
 public class TemporaryUserIdProvider implements CurrentUserIdProvider {
 
-    private static final Long TEMPORARY_USER_ID = 1L;
+	private static final Long TEMPORARY_USER_ID = 1L;
 
-    @Override
-    public Long getCurrentUserId() {
-        return TEMPORARY_USER_ID;
-    }
+	@Override
+	public Long getCurrentUserId() {
+		return TEMPORARY_USER_ID;
+	}
 }

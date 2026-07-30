@@ -1,5 +1,11 @@
 package com.a508.backend.mypage.service;
 
+import java.math.BigDecimal;
+import java.util.List;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.a508.backend.global.exception.BusinessException;
 import com.a508.backend.global.exception.ExceptionType;
 import com.a508.backend.mypage.domain.MyPlace;
@@ -7,211 +13,206 @@ import com.a508.backend.mypage.dto.MyPlaceCreateRequest;
 import com.a508.backend.mypage.dto.MyPlaceResult;
 import com.a508.backend.mypage.dto.MyPlaceUpdateRequest;
 import com.a508.backend.mypage.repository.MyPlaceRepository;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.math.BigDecimal;
-import java.util.List;
 
 @Service
 public class MyPlaceService {
 
-    private static final BigDecimal MIN_LATITUDE = BigDecimal.valueOf(-90);
-    private static final BigDecimal MAX_LATITUDE = BigDecimal.valueOf(90);
-    private static final BigDecimal MIN_LONGITUDE = BigDecimal.valueOf(-180);
-    private static final BigDecimal MAX_LONGITUDE = BigDecimal.valueOf(180);
+	private static final BigDecimal MIN_LATITUDE = BigDecimal.valueOf(-90);
+	private static final BigDecimal MAX_LATITUDE = BigDecimal.valueOf(90);
+	private static final BigDecimal MIN_LONGITUDE = BigDecimal.valueOf(-180);
+	private static final BigDecimal MAX_LONGITUDE = BigDecimal.valueOf(180);
 
-    private final MyPlaceRepository myPlaceRepository;
+	private final MyPlaceRepository myPlaceRepository;
 
-    public MyPlaceService(MyPlaceRepository myPlaceRepository) {
-        this.myPlaceRepository = myPlaceRepository;
-    }
+	public MyPlaceService(MyPlaceRepository myPlaceRepository) {
+		this.myPlaceRepository = myPlaceRepository;
+	}
 
-    @Transactional(readOnly = true)
-    public List<MyPlaceResult> getMyPlaces(Long userId) {
-        return myPlaceRepository.findAllByUserIdOrderByIdAsc(userId)
-                .stream()
-                .map(MyPlaceResult::from)
-                .toList();
-    }
+	@Transactional(readOnly = true)
+	public List<MyPlaceResult> getMyPlaces(Long userId) {
+		return myPlaceRepository.findAllByUserIdOrderByIdAsc(userId)
+			.stream()
+			.map(MyPlaceResult::from)
+			.toList();
+	}
 
-    @Transactional
-    public MyPlaceResult createMyPlace(
-            Long userId,
-            MyPlaceCreateRequest request
-    ) {
-        String normalizedPlaceName = request.myPlaceName().trim();
-        String normalizedAddress = request.address().trim();
+	@Transactional
+	public MyPlaceResult createMyPlace(
+		Long userId,
+		MyPlaceCreateRequest request
+	) {
+		String normalizedPlaceName = request.myPlaceName().trim();
+		String normalizedAddress = request.address().trim();
 
-        validateCoordinate(request.latitude(), request.longitude());
-        validateDuplicatePlaceName(userId, normalizedPlaceName);
+		validateCoordinate(request.latitude(), request.longitude());
+		validateDuplicatePlaceName(userId, normalizedPlaceName);
 
-        MyPlace myPlace = MyPlace.create(
-                userId,
-                normalizedPlaceName,
-                normalizedAddress,
-                request.latitude(),
-                request.longitude()
-        );
-        MyPlace savedMyPlace = myPlaceRepository.save(myPlace);
+		MyPlace myPlace = MyPlace.create(
+			userId,
+			normalizedPlaceName,
+			normalizedAddress,
+			request.latitude(),
+			request.longitude()
+		);
+		MyPlace savedMyPlace = myPlaceRepository.save(myPlace);
 
-        return MyPlaceResult.from(savedMyPlace);
-    }
+		return MyPlaceResult.from(savedMyPlace);
+	}
 
-    @Transactional
-    public MyPlaceResult updateMyPlace(
-            Long userId,
-            Long placeId,
-            MyPlaceUpdateRequest request
-    ) {
-        validatePlaceId(placeId);
-        validateUpdateRequest(request);
+	@Transactional
+	public MyPlaceResult updateMyPlace(
+		Long userId,
+		Long placeId,
+		MyPlaceUpdateRequest request
+	) {
+		validatePlaceId(placeId);
+		validateUpdateRequest(request);
 
-        MyPlace myPlace = findMyPlace(placeId);
-        validateOwner(myPlace, userId);
+		MyPlace myPlace = findMyPlace(placeId);
+		validateOwner(myPlace, userId);
 
-        if (request.myPlaceName() != null) {
-            String normalizedPlaceName = request.myPlaceName().trim();
+		if (request.myPlaceName() != null) {
+			String normalizedPlaceName = request.myPlaceName().trim();
 
-            validateDuplicatePlaceNameForUpdate(userId, normalizedPlaceName, placeId);
-            myPlace.updateName(normalizedPlaceName);
-        }
+			validateDuplicatePlaceNameForUpdate(userId, normalizedPlaceName, placeId);
+			myPlace.updateName(normalizedPlaceName);
+		}
 
-        if (hasLocationUpdate(request)) {
-            String normalizedAddress = request.address().trim();
+		if (hasLocationUpdate(request)) {
+			String normalizedAddress = request.address().trim();
 
-            validateCoordinate(request.latitude(), request.longitude());
-            myPlace.updateLocation(
-                    normalizedAddress,
-                    request.latitude(),
-                    request.longitude()
-            );
-        }
+			validateCoordinate(request.latitude(), request.longitude());
+			myPlace.updateLocation(
+				normalizedAddress,
+				request.latitude(),
+				request.longitude()
+			);
+		}
 
-        return MyPlaceResult.from(myPlace);
-    }
+		return MyPlaceResult.from(myPlace);
+	}
 
-    @Transactional
-    public void deleteMyPlace(
-            Long userId,
-            Long placeId
-    ) {
-        validatePlaceId(placeId);
+	@Transactional
+	public void deleteMyPlace(
+		Long userId,
+		Long placeId
+	) {
+		validatePlaceId(placeId);
 
-        MyPlace myPlace = findMyPlace(placeId);
-        validateOwner(myPlace, userId);
-        myPlaceRepository.delete(myPlace);
-    }
+		MyPlace myPlace = findMyPlace(placeId);
+		validateOwner(myPlace, userId);
+		myPlaceRepository.delete(myPlace);
+	}
 
-    private MyPlace findMyPlace(Long placeId) {
-        return myPlaceRepository.findById(placeId)
-                .orElseThrow(
-                        () -> new BusinessException(ExceptionType.MY_PLACE_NOT_FOUND)
-                );
-    }
+	private MyPlace findMyPlace(Long placeId) {
+		return myPlaceRepository.findById(placeId)
+			.orElseThrow(
+				() -> new BusinessException(ExceptionType.MY_PLACE_NOT_FOUND)
+			);
+	}
 
-    private void validateOwner(MyPlace myPlace, Long userId) {
-        if (!myPlace.isOwnedBy(userId)) {
-            throw new BusinessException(ExceptionType.AUTHORIZATION_DENIED);
-        }
-    }
+	private void validateOwner(MyPlace myPlace, Long userId) {
+		if (!myPlace.isOwnedBy(userId)) {
+			throw new BusinessException(ExceptionType.AUTHORIZATION_DENIED);
+		}
+	}
 
-    private void validatePlaceId(Long placeId) {
-        if (placeId == null || placeId <= 0) {
-            throw new BusinessException(ExceptionType.INVALID_PLACE_ID);
-        }
-    }
+	private void validatePlaceId(Long placeId) {
+		if (placeId == null || placeId <= 0) {
+			throw new BusinessException(ExceptionType.INVALID_PLACE_ID);
+		}
+	}
 
-    private void validateUpdateRequest(MyPlaceUpdateRequest request) {
-        boolean noFieldsProvided =
-                request.myPlaceName() == null
-                        && request.address() == null
-                        && request.latitude() == null
-                        && request.longitude() == null;
+	private void validateUpdateRequest(MyPlaceUpdateRequest request) {
+		boolean noFieldsProvided =
+			request.myPlaceName() == null
+				&& request.address() == null
+				&& request.latitude() == null
+				&& request.longitude() == null;
 
-        if (noFieldsProvided) {
-            throw new BusinessException(ExceptionType.EMPTY_PLACE_UPDATE);
-        }
+		if (noFieldsProvided) {
+			throw new BusinessException(ExceptionType.EMPTY_PLACE_UPDATE);
+		}
 
-        validateUpdatePlaceName(request.myPlaceName());
-        validateLocationFields(request);
-    }
+		validateUpdatePlaceName(request.myPlaceName());
+		validateLocationFields(request);
+	}
 
-    private void validateUpdatePlaceName(String myPlaceName) {
-        if (myPlaceName != null && myPlaceName.isBlank()) {
-            throw new BusinessException(ExceptionType.INVALID_PLACE_INPUT);
-        }
-    }
+	private void validateUpdatePlaceName(String myPlaceName) {
+		if (myPlaceName != null && myPlaceName.isBlank()) {
+			throw new BusinessException(ExceptionType.INVALID_PLACE_INPUT);
+		}
+	}
 
-    private void validateLocationFields(MyPlaceUpdateRequest request) {
-        boolean hasAddress = request.address() != null;
-        boolean hasLatitude = request.latitude() != null;
-        boolean hasLongitude = request.longitude() != null;
+	private void validateLocationFields(MyPlaceUpdateRequest request) {
+		boolean hasAddress = request.address() != null;
+		boolean hasLatitude = request.latitude() != null;
+		boolean hasLongitude = request.longitude() != null;
 
-        boolean hasAnyLocationField =
-                hasAddress
-                        || hasLatitude
-                        || hasLongitude;
+		boolean hasAnyLocationField =
+			hasAddress
+				|| hasLatitude
+				|| hasLongitude;
 
-        boolean hasAllLocationFields =
-                hasAddress
-                        && hasLatitude
-                        && hasLongitude;
+		boolean hasAllLocationFields =
+			hasAddress
+				&& hasLatitude
+				&& hasLongitude;
 
-        if (hasAnyLocationField && !hasAllLocationFields) {
-            throw new BusinessException(ExceptionType.INCOMPLETE_PLACE_LOCATION);
-        }
+		if (hasAnyLocationField && !hasAllLocationFields) {
+			throw new BusinessException(ExceptionType.INCOMPLETE_PLACE_LOCATION);
+		}
 
-        if (hasAddress && request.address().isBlank()) {
-            throw new BusinessException(ExceptionType.INVALID_PLACE_INPUT);
-        }
-    }
+		if (hasAddress && request.address().isBlank()) {
+			throw new BusinessException(ExceptionType.INVALID_PLACE_INPUT);
+		}
+	}
 
-    private boolean hasLocationUpdate(MyPlaceUpdateRequest request) {
-        return request.address() != null
-                && request.latitude() != null
-                && request.longitude() != null;
-    }
+	private boolean hasLocationUpdate(MyPlaceUpdateRequest request) {
+		return request.address() != null
+			&& request.latitude() != null
+			&& request.longitude() != null;
+	}
 
-    private void validateCoordinate(
-            BigDecimal latitude,
-            BigDecimal longitude
-    ) {
-        boolean invalidLatitude =
-                latitude.compareTo(MIN_LATITUDE) < 0
-                        || latitude.compareTo(MAX_LATITUDE) > 0;
+	private void validateCoordinate(
+		BigDecimal latitude,
+		BigDecimal longitude
+	) {
+		boolean invalidLatitude =
+			latitude.compareTo(MIN_LATITUDE) < 0
+				|| latitude.compareTo(MAX_LATITUDE) > 0;
 
-        boolean invalidLongitude =
-                longitude.compareTo(MIN_LONGITUDE) < 0
-                        || longitude.compareTo(MAX_LONGITUDE) > 0;
+		boolean invalidLongitude =
+			longitude.compareTo(MIN_LONGITUDE) < 0
+				|| longitude.compareTo(MAX_LONGITUDE) > 0;
 
-        if (invalidLatitude || invalidLongitude) {
-            throw new BusinessException(ExceptionType.INVALID_PLACE_COORDINATE);
-        }
-    }
+		if (invalidLatitude || invalidLongitude) {
+			throw new BusinessException(ExceptionType.INVALID_PLACE_COORDINATE);
+		}
+	}
 
-    private void validateDuplicatePlaceName(Long userId, String myPlaceName) {
-        boolean duplicated =
-                myPlaceRepository.existsByUserIdAndMyPlaceName(userId, myPlaceName);
+	private void validateDuplicatePlaceName(Long userId, String myPlaceName) {
+		boolean duplicated =
+			myPlaceRepository.existsByUserIdAndMyPlaceName(userId, myPlaceName);
 
-        if (duplicated) {
-            throw new BusinessException(ExceptionType.DUPLICATE_PLACE_NAME);
-        }
-    }
+		if (duplicated) {
+			throw new BusinessException(ExceptionType.DUPLICATE_PLACE_NAME);
+		}
+	}
 
-    private void validateDuplicatePlaceNameForUpdate(
-            Long userId,
-            String myPlaceName,
-            Long placeId
-    ) {
-        boolean duplicated = myPlaceRepository.existsByUserIdAndMyPlaceNameAndIdNot(
-                userId,
-                myPlaceName,
-                placeId
-        );
+	private void validateDuplicatePlaceNameForUpdate(
+		Long userId,
+		String myPlaceName,
+		Long placeId
+	) {
+		boolean duplicated = myPlaceRepository.existsByUserIdAndMyPlaceNameAndIdNot(
+			userId,
+			myPlaceName,
+			placeId
+		);
 
-        if (duplicated) {
-            throw new BusinessException(ExceptionType.DUPLICATE_PLACE_NAME);
-        }
-    }
+		if (duplicated) {
+			throw new BusinessException(ExceptionType.DUPLICATE_PLACE_NAME);
+		}
+	}
 }
