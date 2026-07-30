@@ -18,6 +18,7 @@ import Colors from '@/constants/Colors';
 
 const MAX_LENGTH = 20;
 
+// 사용자가 서비스에서 사용할 닉네임을 설정하는 화면
 export default function NicknameSetupScreen() {
   const router = useRouter();
   const [nickname, setNickname] = useState('Dust');

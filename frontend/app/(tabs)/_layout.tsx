@@ -1,10 +1,45 @@
 // 하단 탭바 정의 파일. 이 폴더(app/(tabs)) 안의 화면 5개를 <Tabs>로 감싸고,
 // 탭 아이콘/활성 표시 스타일을 이 파일에서 커스터마이징한다.
 import { Tabs } from 'expo-router';
-import type { ComponentProps } from 'react';
-import { Image, Pressable, StyleSheet, View } from 'react-native';
+import type { ComponentProps, ComponentType } from 'react';
+import { Image, Platform, Pressable, StyleSheet, View, type GestureResponderEvent } from 'react-native';
 
 import Colors from '@/constants/Colors';
+
+// react-native-web의 Pressable은 href를 지원하지만(링크 렌더링용) RN 기본 타입엔 없어서 여기서 확장한다.
+type TabBarButtonProps = ComponentProps<typeof Pressable> & { href?: string | null };
+const WebPressable = Pressable as ComponentType<TabBarButtonProps>;
+
+// 웹에서 탭 링크를 클릭했을 때 브라우저의 전체 페이지 이동(하드 리로드) 대신
+// 앱 내부 라우팅(onPress)만 실행되도록 기본 동작을 막는다.
+// React Navigation 기본 탭 버튼(PlatformPressable)이 하던 걸 그대로 재현한 것.
+function TabBarButton({ href, onPress, ...props }: TabBarButtonProps) {
+  const handlePress = (event: GestureResponderEvent) => {
+    if (Platform.OS === 'web' && href != null) {
+      const nativeEvent = event.nativeEvent as unknown as MouseEvent;
+      const hasModifierKey = nativeEvent.metaKey || nativeEvent.altKey || nativeEvent.ctrlKey || nativeEvent.shiftKey;
+      const isLeftClick = nativeEvent.button == null || nativeEvent.button === 0;
+
+      if (hasModifierKey || !isLeftClick) {
+        // Ctrl/Cmd/Shift+클릭이나 우클릭 등은 브라우저 기본 동작(새 탭 열기 등)에 맡긴다.
+        return;
+      }
+
+      event.preventDefault();
+    }
+
+    onPress?.(event);
+  };
+
+  return (
+    <WebPressable
+      {...props}
+      href={href}
+      onPress={handlePress}
+      android_ripple={{ color: 'transparent' }}
+    />
+  );
+}
 
 // 탭별 on(선택)/off(비선택) 아이콘 이미지 매핑
 const icons = {
@@ -55,11 +90,7 @@ export default function TabLayout() {
         },
         // Expo Router와 Pressable의 ref 타입 차이를 변환해 ref와 기존 투명 리플 동작을 모두 유지한다.
         tabBarButton: ({ ref, ...props }) => (
-          <Pressable
-            {...props}
-            ref={ref as ComponentProps<typeof Pressable>['ref']}
-            android_ripple={{ color: 'transparent' }}
-          />
+          <TabBarButton {...props} ref={ref as ComponentProps<typeof Pressable>['ref']} />
         ),
       }}>
       <Tabs.Screen name="index" options={{ tabBarIcon: ({ focused }) => <TabIcon name="home" focused={focused} /> }} />

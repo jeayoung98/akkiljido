@@ -22,7 +22,7 @@ export default function AppScreen({
   return (
     <>
       {/* expo-status-bar의 hidden 옵션으로 시스템 상태바를 숨겨 카메라 영역 높이까지 화면을 확장합니다. */}
-      <StatusBar hidden translucent />
+      <StatusBar hidden />
       {/* 배경은 상단까지 채우되 제목 등 콘텐츠는 카메라 영역과 겹치지 않도록 여백을 적용합니다. */}
       <SafeAreaView
         style={[styles.safeArea, backgroundStyle, contentSafeAreaStyle]}
