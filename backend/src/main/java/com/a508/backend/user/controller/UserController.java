@@ -20,38 +20,25 @@ import com.a508.backend.user.service.UserProfileService;
 import com.a508.backend.user.service.UserRegistrationService;
 
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/api/v1/users")
+@RequiredArgsConstructor
 public class UserController {
 
 	private final UserRegistrationService userRegistrationService;
 	private final UserProfileService userProfileService;
 
-	public UserController(
-		UserRegistrationService userRegistrationService,
-		UserProfileService userProfileService
-	) {
-		this.userRegistrationService =
-			userRegistrationService;
-
-		this.userProfileService =
-			userProfileService;
-	}
-
 	@GetMapping("/me")
-	public ResponseEntity<ResponseBody<UserProfileResponse>>
-	getMyProfile(
-		@AuthenticationPrincipal
-		AuthenticatedUser authenticatedUser
+	public ResponseEntity<ResponseBody<UserProfileResponse>> getMyProfile(
+		@AuthenticationPrincipal AuthenticatedUser authenticatedUser
 	) {
-		UserProfileResult result =
-			userProfileService.getMyProfile(
-				authenticatedUser.getUserId()
-			);
+		UserProfileResult result = userProfileService.getMyProfile(
+			authenticatedUser.getUserId()
+		);
 
-		UserProfileResponse data =
-			UserProfileResponse.from(result);
+		UserProfileResponse data = UserProfileResponse.from(result);
 
 		return ResponseEntity.ok(
 			ResponseUtil.createSuccessResponse(data)
@@ -60,20 +47,15 @@ public class UserController {
 
 	@PatchMapping("/me/nickname")
 	public ResponseEntity<ResponseBody<NicknameRegistrationResponse>> registerNickname(
-		@AuthenticationPrincipal
-		AuthenticatedUser authenticatedUser,
-
-		@Valid @RequestBody
-		NicknameRegistrationRequest request
+		@AuthenticationPrincipal AuthenticatedUser authenticatedUser,
+		@Valid @RequestBody NicknameRegistrationRequest request
 	) {
-		NicknameRegistrationResult result =
-			userRegistrationService.completeRegistration(
-				authenticatedUser.getUserId(),
-				request.nickname()
-			);
+		NicknameRegistrationResult result = userRegistrationService.completeRegistration(
+			authenticatedUser.getUserId(),
+			request.nickname()
+		);
 
-		NicknameRegistrationResponse data =
-			NicknameRegistrationResponse.from(result);
+		NicknameRegistrationResponse data = NicknameRegistrationResponse.from(result);
 
 		return ResponseEntity.ok(
 			ResponseUtil.createSuccessResponse(data)

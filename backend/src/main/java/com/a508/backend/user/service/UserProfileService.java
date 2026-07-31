@@ -9,25 +9,18 @@ import com.a508.backend.user.domain.User;
 import com.a508.backend.user.dto.UserProfileResult;
 import com.a508.backend.user.repository.UserRepository;
 
+import lombok.RequiredArgsConstructor;
+
 @Service
+@RequiredArgsConstructor
 public class UserProfileService {
 
 	private final UserRepository userRepository;
 
-	public UserProfileService(
-		UserRepository userRepository
-	) {
-		this.userRepository = userRepository;
-	}
-
 	@Transactional(readOnly = true)
 	public UserProfileResult getMyProfile(Long userId) {
 		User user = userRepository.findById(userId)
-			.orElseThrow(
-				() -> new BusinessException(
-					ExceptionType.UNAUTHENTICATED
-				)
-			);
+			.orElseThrow(() -> new BusinessException(ExceptionType.UNAUTHENTICATED));
 
 		return UserProfileResult.from(user);
 	}
