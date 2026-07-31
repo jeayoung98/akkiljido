@@ -19,50 +19,50 @@ import jakarta.validation.constraints.Size;
 @Schema(description = "거래내역 등록 요청")
 public record TransactionHistoryCreateRequest(
 
-        @Schema(description = "거래명", example = "스타벅스")
-        @NotBlank(message = "거래명은 필수입니다.")
-        @Size(max = 10, message = "거래명은 10자 이하여야 합니다.")
-        String name,
+	@Schema(description = "거래명", example = "스타벅스")
+	@NotBlank(message = "거래명은 필수입니다.")
+	@Size(max = 10, message = "거래명은 10자 이하여야 합니다.")
+	String name,
 
-        @Schema(description = "거래 금액", example = "15000")
-        @NotNull(message = "거래 금액은 필수입니다.")
-        Long amount,
+	@Schema(description = "거래 금액", example = "15000")
+	@NotNull(message = "거래 금액은 필수입니다.")
+	Long amount,
 
-        @Schema(description = "거래 유형(수입/지출)", example = "EXPENSE")
-        @NotNull(message = "거래 유형은 필수입니다.")
-        TransactionType type,
+	@Schema(description = "거래 유형(수입/지출)", example = "EXPENSE")
+	@NotNull(message = "거래 유형은 필수입니다.")
+	TransactionType type,
 
-        @Schema(description = "결제 수단", example = "카드")
-        @JsonProperty("payment_method")
-        @NotBlank(message = "결제 수단은 필수입니다.")
-        @Size(max = 10, message = "결제 수단은 10자 이하여야 합니다.")
-        String paymentMethod,
+	@Schema(description = "결제 수단", example = "카드")
+	@JsonProperty("payment_method")
+	@NotBlank(message = "결제 수단은 필수입니다.")
+	@Size(max = 10, message = "결제 수단은 10자 이하여야 합니다.")
+	String paymentMethod,
 
-        @Schema(description = "카테고리 ID", example = "3")
-        @NotNull(message = "카테고리는 필수입니다.")
-        Long category,
+	@Schema(description = "카테고리 ID", example = "3")
+	@NotNull(message = "카테고리는 필수입니다.")
+	Long categoryId,
 
-        @Schema(description = "거래 일시", example = "2026-07-27 15:30:00")
-        @NotNull(message = "거래 일시는 필수입니다.")
-        @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-        LocalDateTime datetime,
+	@Schema(description = "거래 일시", example = "2026-07-27 15:30:00")
+	@NotNull(message = "거래 일시는 필수입니다.")
+	@JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+	LocalDateTime datetime,
 
-        @Schema(description = "주소", example = "서울 강남구 테헤란로")
-        @Size(max = 50, message = "주소는 50자 이하여야 합니다.")
-        String address,
+	@Schema(description = "주소", example = "서울 강남구 테헤란로")
+	@Size(max = 50, message = "주소는 50자 이하여야 합니다.")
+	String address,
 
-        @Schema(description = "위도", example = "37.5006")
-        @DecimalMin(value = "-90.0", message = "위도는 -90 이상이어야 합니다.")
-        @DecimalMax(value = "90.0", message = "위도는 90 이하여야 합니다.")
-        Double latitude,
+	@Schema(description = "위도", example = "37.5006")
+	@DecimalMin(value = "-90.0", message = "위도는 -90 이상이어야 합니다.")
+	@DecimalMax(value = "90.0", message = "위도는 90 이하여야 합니다.")
+	Double latitude,
 
-        @Schema(description = "경도", example = "127.0366")
-        @DecimalMin(value = "-180.0", message = "경도는 -180 이상이어야 합니다.")
-        @DecimalMax(value = "180.0", message = "경도는 180 이하여야 합니다.")
-        Double longitude,
+	@Schema(description = "경도", example = "127.0366")
+	@DecimalMin(value = "-180.0", message = "경도는 -180 이상이어야 합니다.")
+	@DecimalMax(value = "180.0", message = "경도는 180 이하여야 합니다.")
+	Double longitude,
 
-        @Schema(description = "메모", example = "아메리카노")
-        @Size(max = 30, message = "메모는 30자 이하여야 합니다.")
-        String memo
+	@Schema(description = "메모", example = "아메리카노")
+	@Size(max = 30, message = "메모는 30자 이하여야 합니다.")
+	String memo
 ) {
 }

@@ -4,13 +4,18 @@ import java.time.OffsetDateTime;
 
 import org.locationtech.jts.geom.Point;
 
+import com.a508.backend.domain.category.entity.Category;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
 import lombok.AccessLevel;
@@ -38,9 +43,9 @@ public class TransactionHistory {
     @Column(name = "user_id", nullable = false)
     private Long userId;
 
-    // TODO: category 엔티티 구현 후 @ManyToOne 연관관계로 교체
-    @Column(name = "category_id", nullable = false)
-    private Long categoryId;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "category_id", nullable = false)
+    private Category category;
 
     @Column(nullable = false)
     private OffsetDateTime datetime;
@@ -86,12 +91,12 @@ public class TransactionHistory {
     private Point coordinate;
 
     @Builder
-    private TransactionHistory(Long userId, Long categoryId, OffsetDateTime datetime, Long amount,
+    private TransactionHistory(Long userId, Category category, OffsetDateTime datetime, Long amount,
                                TransactionType type, String transactionName, String paymentMethod,
                                String memo, String address, String bCode, String region1DepthName,
                                String region2DepthName, String region3DepthName, Point coordinate) {
         this.userId = userId;
-        this.categoryId = categoryId;
+        this.category = category;
         this.datetime = datetime;
         this.amount = amount;
         this.type = type;
@@ -109,10 +114,10 @@ public class TransactionHistory {
     /**
      * 거래내역의 기본 정보를 수정한다. 법정동 정보(b_code/region_*)는 등록 시점 값을 유지한다.
      */
-    public void update(Long categoryId, OffsetDateTime datetime, Long amount, TransactionType type,
+    public void update(Category category, OffsetDateTime datetime, Long amount, TransactionType type,
                        String transactionName, String paymentMethod, String memo, String address,
                        Point coordinate) {
-        this.categoryId = categoryId;
+        this.category = category;
         this.datetime = datetime;
         this.amount = amount;
         this.type = type;

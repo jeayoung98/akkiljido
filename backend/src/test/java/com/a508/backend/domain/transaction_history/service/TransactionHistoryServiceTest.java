@@ -18,6 +18,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import com.a508.backend.domain.category.entity.Category;
+import com.a508.backend.domain.category.repository.CategoryRepository;
 import com.a508.backend.domain.transaction_history.dto.request.TransactionHistoryCreateRequest;
 import com.a508.backend.domain.transaction_history.dto.request.TransactionHistoryUpdateRequest;
 import com.a508.backend.domain.transaction_history.dto.response.TransactionHistoryResponse;
@@ -30,12 +32,16 @@ import com.a508.backend.global.exception.BusinessException;
 import com.a508.backend.global.exception.ExceptionType;
 import com.a508.backend.global.util.DateTimeUtils;
 import com.a508.backend.global.util.GeometryUtils;
+import com.a508.backend.user.domain.User;
 
 @ExtendWith(MockitoExtension.class)
 class TransactionHistoryServiceTest {
 
 	@Mock
 	private TransactionHistoryRepository transactionHistoryRepository;
+
+	@Mock
+	private CategoryRepository categoryRepository;
 
 	@Mock
 	private KakaoLocalApiClient kakaoLocalApiClient;
@@ -45,6 +51,15 @@ class TransactionHistoryServiceTest {
 
 	private static final Long USER_ID = 1L;
 	private static final LocalDateTime DATETIME = LocalDateTime.of(2026, 7, 27, 15, 30, 0);
+
+	private Category category(Long id) {
+		Category category = Category.builder()
+			.user(User.createGoogleGuest("sub"))
+			.name("음식점")
+			.build();
+		ReflectionTestUtils.setField(category, "id", id);
+		return category;
+	}
 
 	private TransactionHistoryCreateRequest createRequest(Double latitude, Double longitude) {
 		return new TransactionHistoryCreateRequest(
@@ -63,7 +78,7 @@ class TransactionHistoryServiceTest {
 	private TransactionHistory storedEntity(Long id) {
 		TransactionHistory entity = TransactionHistory.builder()
 			.userId(USER_ID)
-			.categoryId(3L)
+			.category(category(3L))
 			.datetime(DateTimeUtils.toServiceOffset(DATETIME))
 			.amount(15000L)
 			.type(TransactionType.EXPENSE)
@@ -86,6 +101,7 @@ class TransactionHistoryServiceTest {
 	void create() {
 		when(kakaoLocalApiClient.coordToRegion(37.5006, 127.0366))
 			.thenReturn(Optional.of(new RegionInfo("1168010100", "서울특별시", "강남구", "역삼동")));
+		when(categoryRepository.getReferenceById(3L)).thenReturn(category(3L));
 		when(transactionHistoryRepository.save(any(TransactionHistory.class)))
 			.thenAnswer(invocation -> {
 				TransactionHistory arg = invocation.getArgument(0);
@@ -103,7 +119,7 @@ class TransactionHistoryServiceTest {
 		TransactionHistory saved = captor.getValue();
 
 		assertThat(saved.getUserId()).isEqualTo(USER_ID);
-		assertThat(saved.getCategoryId()).isEqualTo(3L);
+		assertThat(saved.getCategory().getId()).isEqualTo(3L);
 		assertThat(saved.getType()).isEqualTo(TransactionType.EXPENSE);
 		assertThat(saved.getDatetime()).isEqualTo(DateTimeUtils.toServiceOffset(DATETIME));
 		assertThat(saved.getTransactionName()).isEqualTo("스타벅스");
@@ -121,6 +137,7 @@ class TransactionHistoryServiceTest {
 	@Test
 	@DisplayName("createTransactionHistory 는 좌표가 없으면 카카오 API 를 호출하지 않고 법정동 정보는 비운다")
 	void createWithoutCoordinate() {
+		when(categoryRepository.getReferenceById(3L)).thenReturn(category(3L));
 		when(transactionHistoryRepository.save(any(TransactionHistory.class)))
 			.thenAnswer(invocation -> {
 				TransactionHistory arg = invocation.getArgument(0);
@@ -154,7 +171,8 @@ class TransactionHistoryServiceTest {
 		assertThat(response.amount()).isEqualTo(15000L);
 		assertThat(response.type()).isEqualTo(TransactionType.EXPENSE);
 		assertThat(response.paymentMethod()).isEqualTo("카드");
-		assertThat(response.category()).isEqualTo(3L);
+		assertThat(response.categoryId()).isEqualTo(3L);
+		assertThat(response.categoryName()).isEqualTo("음식점");
 		assertThat(response.datetime()).isEqualTo(DATETIME);
 		assertThat(response.latitude()).isCloseTo(37.5006, Offset.offset(1e-9));
 		assertThat(response.longitude()).isCloseTo(127.0366, Offset.offset(1e-9));
@@ -179,6 +197,7 @@ class TransactionHistoryServiceTest {
 		TransactionHistory entity = storedEntity(10L);
 		when(transactionHistoryRepository.findByIdAndUserId(10L, USER_ID))
 			.thenReturn(Optional.of(entity));
+		when(categoryRepository.getReferenceById(5L)).thenReturn(category(5L));
 
 		LocalDateTime updatedDatetime = LocalDateTime.of(2026, 7, 24, 9, 0, 0);
 		TransactionHistoryUpdateRequest request = new TransactionHistoryUpdateRequest(
@@ -196,7 +215,7 @@ class TransactionHistoryServiceTest {
 		TransactionHistoryResponse response = transactionHistoryService.updateTransactionHistory(USER_ID, 10L, request);
 
 		// 엔티티가 실제로 갱신되었는지
-		assertThat(entity.getCategoryId()).isEqualTo(5L);
+		assertThat(entity.getCategory().getId()).isEqualTo(5L);
 		assertThat(entity.getTransactionName()).isEqualTo("김밥천국");
 		assertThat(entity.getPaymentMethod()).isEqualTo("현금");
 		OffsetDateTime expectedOffset = DateTimeUtils.toServiceOffset(updatedDatetime);
@@ -206,7 +225,7 @@ class TransactionHistoryServiceTest {
 
 		// 응답 매핑
 		assertThat(response.name()).isEqualTo("김밥천국");
-		assertThat(response.category()).isEqualTo(5L);
+		assertThat(response.categoryId()).isEqualTo(5L);
 		assertThat(response.datetime()).isEqualTo(updatedDatetime);
 		assertThat(response.latitude()).isCloseTo(35.1796, Offset.offset(1e-9));
 		assertThat(response.longitude()).isCloseTo(129.0756, Offset.offset(1e-9));

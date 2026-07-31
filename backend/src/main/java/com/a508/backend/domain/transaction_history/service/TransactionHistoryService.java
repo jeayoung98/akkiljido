@@ -3,6 +3,7 @@ package com.a508.backend.domain.transaction_history.service;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.a508.backend.domain.category.repository.CategoryRepository;
 import com.a508.backend.domain.transaction_history.dto.request.TransactionHistoryCreateRequest;
 import com.a508.backend.domain.transaction_history.dto.request.TransactionHistoryUpdateRequest;
 import com.a508.backend.domain.transaction_history.dto.response.TransactionHistoryResponse;
@@ -22,6 +23,7 @@ import lombok.RequiredArgsConstructor;
 public class TransactionHistoryService {
 
 	private final TransactionHistoryRepository transactionHistoryRepository;
+	private final CategoryRepository categoryRepository;
 	private final KakaoLocalApiClient kakaoLocalApiClient;
 
 	@Transactional
@@ -31,7 +33,7 @@ public class TransactionHistoryService {
 		TransactionHistory saved = transactionHistoryRepository.save(
 			TransactionHistory.builder()
 				.userId(userId)
-				.categoryId(request.category())
+				.category(categoryRepository.getReferenceById(request.categoryId()))
 				.datetime(DateTimeUtils.toServiceOffset(request.datetime()))
 				.amount(request.amount())
 				.type(request.type())
@@ -59,7 +61,7 @@ public class TransactionHistoryService {
 		TransactionHistoryUpdateRequest request) {
 		TransactionHistory transaction = getOwnedTransaction(userId, transactionId);
 		transaction.update(
-			request.category(),
+			categoryRepository.getReferenceById(request.categoryId()),
 			DateTimeUtils.toServiceOffset(request.datetime()),
 			request.amount(),
 			request.type(),

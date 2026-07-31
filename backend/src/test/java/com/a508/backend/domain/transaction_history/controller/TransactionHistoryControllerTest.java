@@ -75,6 +75,7 @@ class TransactionHistoryControllerTest {
 			TransactionType.EXPENSE,
 			"카드",
 			3L,
+			"음식점",
 			LocalDateTime.of(2026, 7, 27, 15, 30, 0),
 			"서울 강남구 테헤란로",
 			37.5006,
@@ -118,7 +119,7 @@ class TransactionHistoryControllerTest {
 		assertThat(request.amount()).isEqualTo(15000L);
 		assertThat(request.type()).isEqualTo(TransactionType.EXPENSE);
 		assertThat(request.paymentMethod()).isEqualTo("카드"); // payment_method -> paymentMethod
-		assertThat(request.category()).isEqualTo(3L);
+		assertThat(request.categoryId()).isEqualTo(3L);
 		assertThat(request.datetime()).isEqualTo(LocalDateTime.of(2026, 7, 27, 15, 30, 0));
 		assertThat(request.latitude()).isEqualTo(37.5006);
 		assertThat(request.longitude()).isEqualTo(127.0366);
@@ -158,7 +159,8 @@ class TransactionHistoryControllerTest {
 			.andExpect(jsonPath("$.data.amount").value(15000))
 			.andExpect(jsonPath("$.data.type").value("EXPENSE"))
 			.andExpect(jsonPath("$.data.payment_method").value("카드"))
-			.andExpect(jsonPath("$.data.category").value(3))
+			.andExpect(jsonPath("$.data.categoryId").value(3))
+			.andExpect(jsonPath("$.data.categoryName").value("음식점"))
 			.andExpect(jsonPath("$.data.datetime").value("2026-07-27 15:30:00"))
 			.andExpect(jsonPath("$.data.address").value("서울 강남구 테헤란로"))
 			.andExpect(jsonPath("$.data.latitude").value(closeTo(37.5006, 1e-9)))
@@ -182,7 +184,7 @@ class TransactionHistoryControllerTest {
 	@DisplayName("PATCH 수정은 200 과 갱신된 data 를 반환한다")
 	void update() throws Exception {
 		TransactionHistoryResponse updated = new TransactionHistoryResponse(
-			1L, "김밥천국", 20000L, TransactionType.EXPENSE, "현금", 5L,
+			1L, "김밥천국", 20000L, TransactionType.EXPENSE, "현금", 5L, "음식점",
 			LocalDateTime.of(2026, 7, 24, 9, 0, 0), "서울 강남구 역삼동", 35.1796, 129.0756, "제육덮밥");
 		when(service.updateTransactionHistory(eq(MOCK_USER_ID), eq(1L), any())).thenReturn(updated);
 
@@ -208,7 +210,8 @@ class TransactionHistoryControllerTest {
 			.andExpect(jsonPath("$.success").value(true))
 			.andExpect(jsonPath("$.data.name").value("김밥천국"))
 			.andExpect(jsonPath("$.data.payment_method").value("현금"))
-			.andExpect(jsonPath("$.data.category").value(5))
+			.andExpect(jsonPath("$.data.categoryId").value(5))
+			.andExpect(jsonPath("$.data.categoryName").value("음식점"))
 			.andExpect(jsonPath("$.data.datetime").value("2026-07-24 09:00:00"));
 	}
 

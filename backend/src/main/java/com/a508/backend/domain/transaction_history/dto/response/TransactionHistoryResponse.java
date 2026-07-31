@@ -34,7 +34,10 @@ public record TransactionHistoryResponse(
         String paymentMethod,
 
         @Schema(description = "카테고리 ID", example = "3")
-        Long category,
+        Long categoryId,
+
+        @Schema(description = "카테고리명", example = "음식점")
+        String categoryName,
 
         @Schema(description = "거래 일시", example = "2026-07-27 15:30:00")
         @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
@@ -59,7 +62,8 @@ public record TransactionHistoryResponse(
                 entity.getAmount(),
                 entity.getType(),
                 entity.getPaymentMethod(),
-                entity.getCategoryId(),
+                entity.getCategory().getId(),
+                entity.getCategory().getName(),
                 DateTimeUtils.toServiceLocal(entity.getDatetime()),
                 entity.getAddress(),
                 GeometryUtils.latitudeOf(entity.getCoordinate()),
