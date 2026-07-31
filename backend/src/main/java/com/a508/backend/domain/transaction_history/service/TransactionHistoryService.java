@@ -72,7 +72,7 @@ public class TransactionHistoryService {
 		TransactionHistoryUpdateRequest request) {
 		TransactionHistory transaction = getOwnedTransaction(userId, transactionId);
 		transaction.update(
-			categoryRepository.getReferenceById(request.categoryId()),
+			request.categoryId() != null ? categoryRepository.getReferenceById(request.categoryId()) : null,
 			DateTimeUtils.toServiceOffset(request.datetime()),
 			request.amount(),
 			request.type(),
