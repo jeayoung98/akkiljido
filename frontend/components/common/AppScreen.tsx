@@ -1,6 +1,6 @@
 import React, { type ReactNode } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type AppScreenProps = {
@@ -27,15 +27,26 @@ export default function AppScreen({
       <SafeAreaView
         style={[styles.safeArea, backgroundStyle, contentSafeAreaStyle]}
         edges={['left', 'right']}>
-        {/* 화면 성격에 따라 스크롤 컨테이너와 고정 컨테이너를 선택합니다. */}
-        {scrollable ? (
-          // 콘텐츠가 짧아도 화면 높이를 채워 공통 레이아웃이 유지됩니다.
-          <ScrollView style={[styles.container, backgroundStyle]} contentContainerStyle={styles.scrollContent}>
-            {children}
-          </ScrollView>
-        ) : (
-          <View style={styles.container}>{children}</View>
-        )}
+        {/* 키보드가 올라오면 화면 높이를 줄여 하단의 TextInput·SearchInput 등이 가려지지 않게 합니다. */}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.container}>
+          {/* 화면 성격에 따라 스크롤 컨테이너와 고정 컨테이너를 선택합니다. */}
+          {scrollable ? (
+            // 콘텐츠가 짧아도 화면 높이를 채우고, 자체 스크롤을 가진 자식과의 터치 충돌을 방지합니다.
+            <ScrollView
+              automaticallyAdjustKeyboardInsets
+              style={[styles.container, backgroundStyle]}
+              contentContainerStyle={styles.scrollContent}
+              keyboardDismissMode="on-drag"
+              keyboardShouldPersistTaps="handled"
+              nestedScrollEnabled>
+              {children}
+            </ScrollView>
+          ) : (
+            <View style={styles.container}>{children}</View>
+          )}
+        </KeyboardAvoidingView>
       </SafeAreaView>
     </>
   );
