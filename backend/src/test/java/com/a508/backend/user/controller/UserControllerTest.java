@@ -2,7 +2,6 @@ package com.a508.backend.user.controller;
 
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.*;
-import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -24,16 +23,17 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import com.a508.backend.auth.token.AuthTokens;
+import com.a508.backend.domain.user.controller.UserController;
 import com.a508.backend.global.exception.BusinessException;
 import com.a508.backend.global.exception.ExceptionType;
 import com.a508.backend.global.exception.GlobalExceptionHandler;
 import com.a508.backend.global.security.AuthenticatedUser;
-import com.a508.backend.user.domain.OAuthProvider;
-import com.a508.backend.user.domain.UserRole;
-import com.a508.backend.user.dto.NicknameRegistrationResult;
-import com.a508.backend.user.dto.UserProfileResult;
-import com.a508.backend.user.service.UserProfileService;
-import com.a508.backend.user.service.UserRegistrationService;
+import com.a508.backend.domain.user.domain.OAuthProvider;
+import com.a508.backend.domain.user.domain.UserRole;
+import com.a508.backend.domain.user.dto.NicknameRegistrationResult;
+import com.a508.backend.domain.user.dto.UserProfileResult;
+import com.a508.backend.domain.user.service.UserProfileService;
+import com.a508.backend.domain.user.service.UserRegistrationService;
 
 @ExtendWith(MockitoExtension.class)
 class UserControllerTest {

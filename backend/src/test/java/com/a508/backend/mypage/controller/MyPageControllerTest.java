@@ -3,7 +3,6 @@ package com.a508.backend.mypage.controller;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.*;
-import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 import static org.springframework.test.web.servlet.setup.MockMvcBuilders.*;
@@ -25,14 +24,15 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.method.annotation.AuthenticationPrincipalArgumentResolver;
 import org.springframework.test.web.servlet.MockMvc;
 
+import com.a508.backend.domain.mypage.controller.MyPageController;
 import com.a508.backend.global.exception.BusinessException;
 import com.a508.backend.global.exception.ExceptionType;
 import com.a508.backend.global.exception.GlobalExceptionHandler;
 import com.a508.backend.global.security.AuthenticatedUser;
-import com.a508.backend.mypage.dto.MyPlaceCreateRequest;
-import com.a508.backend.mypage.dto.MyPlaceResult;
-import com.a508.backend.mypage.dto.MyPlaceUpdateRequest;
-import com.a508.backend.mypage.service.MyPlaceService;
+import com.a508.backend.domain.mypage.dto.MyPlaceCreateRequest;
+import com.a508.backend.domain.mypage.dto.MyPlaceResult;
+import com.a508.backend.domain.mypage.dto.MyPlaceUpdateRequest;
+import com.a508.backend.domain.mypage.service.MyPlaceService;
 
 @ExtendWith(MockitoExtension.class)
 class MyPageControllerTest {

@@ -3,7 +3,6 @@ package com.a508.backend.mypage.service;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.*;
-import static org.mockito.Mockito.*;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -17,15 +16,16 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import com.a508.backend.domain.mypage.service.MyPlaceService;
 import com.a508.backend.global.exception.BusinessException;
 import com.a508.backend.global.exception.ExceptionType;
-import com.a508.backend.mypage.domain.MyPlace;
-import com.a508.backend.mypage.dto.MyPlaceCreateRequest;
-import com.a508.backend.mypage.dto.MyPlaceResult;
-import com.a508.backend.mypage.dto.MyPlaceUpdateRequest;
-import com.a508.backend.mypage.repository.MyPlaceRepository;
-import com.a508.backend.user.domain.User;
-import com.a508.backend.user.repository.UserRepository;
+import com.a508.backend.domain.mypage.domain.MyPlace;
+import com.a508.backend.domain.mypage.dto.MyPlaceCreateRequest;
+import com.a508.backend.domain.mypage.dto.MyPlaceResult;
+import com.a508.backend.domain.mypage.dto.MyPlaceUpdateRequest;
+import com.a508.backend.domain.mypage.repository.MyPlaceRepository;
+import com.a508.backend.domain.user.domain.User;
+import com.a508.backend.domain.user.repository.UserRepository;
 
 @ExtendWith(MockitoExtension.class)
 class MyPlaceServiceTest {

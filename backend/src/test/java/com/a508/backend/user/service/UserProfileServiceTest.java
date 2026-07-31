@@ -13,13 +13,14 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import com.a508.backend.domain.user.service.UserProfileService;
 import com.a508.backend.global.exception.BusinessException;
 import com.a508.backend.global.exception.ExceptionType;
-import com.a508.backend.user.domain.OAuthProvider;
-import com.a508.backend.user.domain.User;
-import com.a508.backend.user.domain.UserRole;
-import com.a508.backend.user.dto.UserProfileResult;
-import com.a508.backend.user.repository.UserRepository;
+import com.a508.backend.domain.user.domain.OAuthProvider;
+import com.a508.backend.domain.user.domain.User;
+import com.a508.backend.domain.user.domain.UserRole;
+import com.a508.backend.domain.user.dto.UserProfileResult;
+import com.a508.backend.domain.user.repository.UserRepository;
 
 @ExtendWith(MockitoExtension.class)
 class UserProfileServiceTest {

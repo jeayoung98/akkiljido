@@ -16,8 +16,8 @@ import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.JwtException;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import com.a508.backend.user.domain.User;
-import com.a508.backend.user.domain.UserRole;
+import com.a508.backend.domain.user.domain.User;
+import com.a508.backend.domain.user.domain.UserRole;
 
 class JwtConfigTest {
 

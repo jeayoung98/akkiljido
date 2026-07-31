@@ -3,7 +3,6 @@ package com.a508.backend.user.service;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.*;
-import static org.mockito.Mockito.*;
 
 import java.time.Instant;
 import java.util.Optional;
@@ -20,12 +19,13 @@ import com.a508.backend.auth.token.AuthTokens;
 import com.a508.backend.auth.token.RefreshTokenService;
 import com.a508.backend.auth.token.TokenIssuer;
 import com.a508.backend.domain.category.service.CategoryService;
+import com.a508.backend.domain.user.service.UserRegistrationService;
 import com.a508.backend.global.exception.BusinessException;
 import com.a508.backend.global.exception.ExceptionType;
-import com.a508.backend.user.domain.User;
-import com.a508.backend.user.domain.UserRole;
-import com.a508.backend.user.dto.NicknameRegistrationResult;
-import com.a508.backend.user.repository.UserRepository;
+import com.a508.backend.domain.user.domain.User;
+import com.a508.backend.domain.user.domain.UserRole;
+import com.a508.backend.domain.user.dto.NicknameRegistrationResult;
+import com.a508.backend.domain.user.repository.UserRepository;
 
 @ExtendWith(MockitoExtension.class)
 class UserRegistrationServiceTest {

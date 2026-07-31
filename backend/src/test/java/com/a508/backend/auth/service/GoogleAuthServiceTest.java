@@ -3,7 +3,6 @@ package com.a508.backend.auth.service;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.*;
-import static org.mockito.Mockito.*;
 
 import java.time.Instant;
 import java.util.Optional;
@@ -23,10 +22,10 @@ import com.a508.backend.auth.token.RefreshTokenService;
 import com.a508.backend.auth.token.TokenIssuer;
 import com.a508.backend.global.exception.BusinessException;
 import com.a508.backend.global.exception.ExceptionType;
-import com.a508.backend.user.domain.OAuthProvider;
-import com.a508.backend.user.domain.User;
-import com.a508.backend.user.domain.UserRole;
-import com.a508.backend.user.repository.UserRepository;
+import com.a508.backend.domain.user.domain.OAuthProvider;
+import com.a508.backend.domain.user.domain.User;
+import com.a508.backend.domain.user.domain.UserRole;
+import com.a508.backend.domain.user.repository.UserRepository;
 
 @ExtendWith(MockitoExtension.class)
 class GoogleAuthServiceTest {
@@ -78,7 +77,6 @@ class GoogleAuthServiceTest {
 		// then
 		assertThat(result.role()).isEqualTo(UserRole.GUEST);
 
-
 		assertThat(result.tokens()).isSameAs(issuedTokens);
 
 		verify(userRepository, never()).save(any(User.class));
@@ -115,7 +113,6 @@ class GoogleAuthServiceTest {
 
 		// then
 		assertThat(result.role()).isEqualTo(UserRole.GUEST);
-
 
 		assertThat(result.tokens()).isSameAs(issuedTokens);
 

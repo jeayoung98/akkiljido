@@ -32,7 +32,7 @@ import com.a508.backend.global.exception.BusinessException;
 import com.a508.backend.global.exception.ExceptionType;
 import com.a508.backend.global.util.DateTimeUtils;
 import com.a508.backend.global.util.GeometryUtils;
-import com.a508.backend.user.domain.User;
+import com.a508.backend.domain.user.domain.User;
 
 @ExtendWith(MockitoExtension.class)
 class TransactionHistoryServiceTest {

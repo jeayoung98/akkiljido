@@ -6,7 +6,8 @@ import java.math.BigDecimal;
 
 import org.junit.jupiter.api.Test;
 
-import com.a508.backend.user.domain.User;
+import com.a508.backend.domain.mypage.domain.MyPlace;
+import com.a508.backend.domain.user.domain.User;
 
 class MyPlaceTest {
 

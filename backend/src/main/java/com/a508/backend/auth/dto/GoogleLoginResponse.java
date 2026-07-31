@@ -1,7 +1,7 @@
 package com.a508.backend.auth.dto;
 
 import com.a508.backend.auth.token.AuthTokens;
-import com.a508.backend.user.domain.UserRole;
+import com.a508.backend.domain.user.domain.UserRole;
 
 public record GoogleLoginResponse(UserRole role, String accessToken, String refreshToken, long accessTokenExpiresIn) {
 
