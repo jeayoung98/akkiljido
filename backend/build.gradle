@@ -24,6 +24,7 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+	implementation 'org.hibernate.orm:hibernate-spatial'
 
 	// PostGIS 공간 타입(Point) 매핑을 위한 hibernate-spatial + JTS
 	implementation 'org.hibernate.orm:hibernate-spatial'

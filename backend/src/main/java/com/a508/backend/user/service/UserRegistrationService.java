@@ -30,15 +30,22 @@ public class UserRegistrationService {
 			.orElseThrow(() -> new BusinessException(ExceptionType.UNAUTHENTICATED));
 
 		String normalizedNickname = nickname.trim();
-
 		user.completeRegistration(normalizedNickname);
 
 		categoryService.createDefaultCategories(user);
 
 		AuthTokens tokens = tokenIssuer.issue(user);
 
-		refreshTokenService.saveOrReplace(user, tokens.refreshToken(), tokens.refreshTokenExpiresAt());
+		refreshTokenService.saveOrReplace(
+			user,
+			tokens.refreshToken(),
+			tokens.refreshTokenExpiresAt()
+		);
 
-		return new NicknameRegistrationResult(user.getNickname(), user.getRole(), tokens);
+		return new NicknameRegistrationResult(
+			user.getNickname(),
+			user.getRole(),
+			tokens
+		);
 	}
 }

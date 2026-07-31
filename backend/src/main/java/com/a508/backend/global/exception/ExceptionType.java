@@ -37,6 +37,10 @@ public enum ExceptionType {
 	// category
 	CATEGORY_NOT_FOUND(NOT_FOUND, "CT001", "존재하지 않는 카테고리"),
 
+	// place
+	DUPLICATE_PLACE_NAME(CONFLICT, "P001", "이미 등록된 장소 이름입니다."),
+	MY_PLACE_NOT_FOUND(NOT_FOUND, "P002", "등록된 장소를 찾을 수 없습니다."),
+	
 	;
 
 	private final HttpStatus status;

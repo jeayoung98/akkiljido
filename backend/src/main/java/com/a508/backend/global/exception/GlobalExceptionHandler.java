@@ -1,11 +1,5 @@
 package com.a508.backend.global.exception;
 
-import com.a508.backend.global.response.ResponseBody;
-import com.a508.backend.global.response.ResponseUtil;
-
-import jakarta.persistence.LockTimeoutException;
-import jakarta.persistence.PessimisticLockException;
-
 import org.springframework.dao.CannotAcquireLockException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -16,7 +10,14 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
+import com.a508.backend.global.response.ResponseBody;
+import com.a508.backend.global.response.ResponseUtil;
+
+import jakarta.persistence.LockTimeoutException;
+import jakarta.persistence.PessimisticLockException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -80,6 +81,22 @@ public class GlobalExceptionHandler {
 		HttpRequestMethodNotSupportedException e) {
 		return ResponseEntity.status(ExceptionType.NOT_SUPPORTED_METHOD.getStatus())
 			.body(ResponseUtil.createFailureResponse(ExceptionType.NOT_SUPPORTED_METHOD));
+	}
+
+	@ExceptionHandler(MethodArgumentTypeMismatchException.class)
+	public ResponseEntity<ResponseBody<Void>> methodArgumentTypeMismatchException(
+		MethodArgumentTypeMismatchException e) {
+		String customMessage = e.getName() + " 형식이 올바르지 않습니다.";
+		return ResponseEntity.status(ExceptionType.BINDING_ERROR.getStatus())
+			.body(ResponseUtil.createFailureResponse(ExceptionType.BINDING_ERROR, customMessage));
+	}
+
+	@ExceptionHandler(HandlerMethodValidationException.class)
+	public ResponseEntity<ResponseBody<Void>> handlerMethodValidationException(
+		HandlerMethodValidationException e) {
+		String customMessage = e.getAllErrors().get(0).getDefaultMessage();
+		return ResponseEntity.status(ExceptionType.BINDING_ERROR.getStatus())
+			.body(ResponseUtil.createFailureResponse(ExceptionType.BINDING_ERROR, customMessage));
 	}
 
 	@ExceptionHandler(Exception.class)
