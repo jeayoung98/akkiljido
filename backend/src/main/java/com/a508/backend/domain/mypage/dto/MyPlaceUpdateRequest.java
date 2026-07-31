@@ -1,7 +1,5 @@
 package com.a508.backend.domain.mypage.dto;
 
-import java.math.BigDecimal;
-
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -29,12 +27,12 @@ public record MyPlaceUpdateRequest(
 	@Schema(description = "변경할 위도", example = "37.5563")
 	@DecimalMin(value = "-90.0", message = "위도는 -90 이상이어야 합니다.")
 	@DecimalMax(value = "90.0", message = "위도는 90 이하여야 합니다.")
-	BigDecimal latitude,
+	Double latitude,
 
 	@Schema(description = "변경할 경도", example = "126.9236")
 	@DecimalMin(value = "-180.0", message = "경도는 -180 이상이어야 합니다.")
 	@DecimalMax(value = "180.0", message = "경도는 180 이하여야 합니다.")
-	BigDecimal longitude
+	Double longitude
 ) {
 
 	@JsonIgnore

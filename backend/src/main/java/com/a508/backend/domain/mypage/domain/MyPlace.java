@@ -1,13 +1,9 @@
 package com.a508.backend.domain.mypage.domain;
 
-import java.math.BigDecimal;
-
-import org.locationtech.jts.geom.CoordinateXY;
-import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Point;
-import org.locationtech.jts.geom.PrecisionModel;
 
 import com.a508.backend.domain.user.domain.User;
+import com.a508.backend.global.util.GeometryUtils;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -39,11 +35,6 @@ import lombok.NoArgsConstructor;
 )
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class MyPlace {
-
-	private static final int WGS84_SRID = 4326;
-
-	private static final GeometryFactory GEOMETRY_FACTORY =
-		new GeometryFactory(new PrecisionModel(), WGS84_SRID);
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -91,14 +82,14 @@ public class MyPlace {
 		User user,
 		String myPlaceName,
 		String address,
-		BigDecimal latitude,
-		BigDecimal longitude
+		Double latitude,
+		Double longitude
 	) {
 		return new MyPlace(
 			user,
 			myPlaceName,
 			address,
-			createPoint(latitude, longitude)
+			GeometryUtils.toPoint(latitude, longitude)
 		);
 	}
 
@@ -108,34 +99,18 @@ public class MyPlace {
 
 	public void updateLocation(
 		String address,
-		BigDecimal latitude,
-		BigDecimal longitude
+		Double latitude,
+		Double longitude
 	) {
 		this.address = address;
-		this.coordinate = createPoint(latitude, longitude);
+		this.coordinate = GeometryUtils.toPoint(latitude, longitude);
 	}
 
-	public BigDecimal getLatitude() {
-		return BigDecimal.valueOf(coordinate.getY());
+	public Double getLatitude() {
+		return GeometryUtils.latitudeOf(coordinate);
 	}
 
-	public BigDecimal getLongitude() {
-		return BigDecimal.valueOf(coordinate.getX());
-	}
-
-	private static Point createPoint(
-		BigDecimal latitude,
-		BigDecimal longitude
-	) {
-		CoordinateXY coordinate =
-			new CoordinateXY(
-				longitude.doubleValue(),
-				latitude.doubleValue()
-			);
-
-		Point point = GEOMETRY_FACTORY.createPoint(coordinate);
-		point.setSRID(WGS84_SRID);
-
-		return point;
+	public Double getLongitude() {
+		return GeometryUtils.longitudeOf(coordinate);
 	}
 }

@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.*;
 
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
@@ -54,16 +53,16 @@ class MyPlaceServiceTest {
 			1L,
 			"집",
 			"서울 마포구",
-			"37.5563",
-			"126.9236"
+			37.5563,
+			126.9236
 		);
 
 		MyPlace company = createMyPlace(
 			2L,
 			"회사",
 			"서울 강남구",
-			"37.5007",
-			"127.0365"
+			37.5007,
+			127.0365
 		);
 
 		given(myPlaceRepository.findAllByUser_IdOrderByIdAsc(USER_ID))
@@ -78,9 +77,9 @@ class MyPlaceServiceTest {
 		assertThat(results.get(0).myPlaceName()).isEqualTo("집");
 		assertThat(results.get(0).address()).isEqualTo("서울 마포구");
 		assertThat(results.get(0).latitude())
-			.isEqualByComparingTo("37.5563");
+			.isEqualTo(37.5563);
 		assertThat(results.get(0).longitude())
-			.isEqualByComparingTo("126.9236");
+			.isEqualTo(126.9236);
 
 		assertThat(results.get(1).placeId()).isEqualTo(2L);
 		assertThat(results.get(1).myPlaceName()).isEqualTo("회사");
@@ -103,8 +102,8 @@ class MyPlaceServiceTest {
 			new MyPlaceCreateRequest(
 				" 집 ",
 				" 서울 마포구 ",
-				new BigDecimal("37.5563"),
-				new BigDecimal("126.9236")
+				37.5563,
+				126.9236
 			);
 
 		given(
@@ -140,9 +139,9 @@ class MyPlaceServiceTest {
 		assertThat(result.myPlaceName()).isEqualTo("집");
 		assertThat(result.address()).isEqualTo("서울 마포구");
 		assertThat(result.latitude())
-			.isEqualByComparingTo("37.5563");
+			.isEqualTo(37.5563);
 		assertThat(result.longitude())
-			.isEqualByComparingTo("126.9236");
+			.isEqualTo(126.9236);
 
 		ArgumentCaptor<MyPlace> captor =
 			ArgumentCaptor.forClass(MyPlace.class);
@@ -164,8 +163,8 @@ class MyPlaceServiceTest {
 			new MyPlaceCreateRequest(
 				"집",
 				"서울 마포구",
-				new BigDecimal("37.5563"),
-				new BigDecimal("126.9236")
+				37.5563,
+				126.9236
 			);
 
 		given(
@@ -197,8 +196,8 @@ class MyPlaceServiceTest {
 			1L,
 			"집",
 			"서울 마포구",
-			"37.5563",
-			"126.9236"
+			37.5563,
+			126.9236
 		);
 
 		MyPlaceUpdateRequest request =
@@ -243,16 +242,16 @@ class MyPlaceServiceTest {
 			1L,
 			"집",
 			"서울 마포구",
-			"37.5563",
-			"126.9236"
+			37.5563,
+			126.9236
 		);
 
 		MyPlaceUpdateRequest request =
 			new MyPlaceUpdateRequest(
 				null,
 				" 서울 마포구 연남동 ",
-				new BigDecimal("37.5638"),
-				new BigDecimal("126.9217")
+				37.5638,
+				126.9217
 			);
 
 		given(myPlaceRepository.findByIdAndUser_Id(1L, USER_ID))
@@ -272,10 +271,10 @@ class MyPlaceServiceTest {
 			.isEqualTo("서울 마포구 연남동");
 
 		assertThat(result.latitude())
-			.isEqualByComparingTo("37.5638");
+			.isEqualTo(37.5638);
 
 		assertThat(result.longitude())
-			.isEqualByComparingTo("126.9217");
+			.isEqualTo(126.9217);
 	}
 
 	@Test
@@ -284,8 +283,8 @@ class MyPlaceServiceTest {
 			1L,
 			"집",
 			"서울 마포구",
-			"37.5563",
-			"126.9236"
+			37.5563,
+			126.9236
 		);
 
 		MyPlaceUpdateRequest request =
@@ -384,8 +383,8 @@ class MyPlaceServiceTest {
 			1L,
 			"집",
 			"서울 마포구",
-			"37.5563",
-			"126.9236"
+			37.5563,
+			126.9236
 		);
 
 		given(myPlaceRepository.findByIdAndUser_Id(1L, USER_ID))
@@ -445,16 +444,16 @@ class MyPlaceServiceTest {
 		Long placeId,
 		String myPlaceName,
 		String address,
-		String latitude,
-		String longitude
+		double latitude,
+		double longitude
 	) {
 
 		MyPlace myPlace = MyPlace.create(
 			user,
 			myPlaceName,
 			address,
-			new BigDecimal(latitude),
-			new BigDecimal(longitude)
+			latitude,
+			longitude
 		);
 
 		ReflectionTestUtils.setField(
