@@ -25,8 +25,17 @@ public enum ExceptionType {
 	UNAUTHENTICATED(UNAUTHORIZED, "A001", "인증 정보가 존재하지 않음"),
 	AUTHORIZATION_DENIED(FORBIDDEN, "A002", "권한이 없음"),
 	INVALID_GOOGLE_ID_TOKEN(UNAUTHORIZED, "A003", "유효하지 않은 Google ID 토큰"),
-	INVALID_REFRESH_TOKEN(UNAUTHORIZED, "A004", "유효하지 않은 Refresh Token")
-	//
+	INVALID_REFRESH_TOKEN(UNAUTHORIZED, "A004", "유효하지 않은 Refresh Token"),
+
+	// transaction history
+	TRANSACTION_HISTORY_NOT_FOUND(NOT_FOUND, "T001", "존재하지 않는 거래 내역"),
+	INVALID_SORT_TYPE(BAD_REQUEST, "T002", "정렬 기준이 올바르지 않습니다."),
+	INVALID_TRANSACTION_TYPE(BAD_REQUEST, "T003", "거래 유형이 올바르지 않습니다."),
+	INVALID_DATE_FORMAT(BAD_REQUEST, "T004", "날짜 형식이 올바르지 않습니다."),
+	INVALID_DATE_RANGE(BAD_REQUEST, "T005", "조회 시작일은 종료일보다 이후일 수 없습니다."),
+
+	// category
+	CATEGORY_NOT_FOUND(NOT_FOUND, "CT001", "존재하지 않는 카테고리"),
 
 	;
 
