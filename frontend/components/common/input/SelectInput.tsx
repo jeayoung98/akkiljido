@@ -27,7 +27,10 @@ export type SelectInputProps<T extends string = string> = {
   containerStyle?: StyleProp<ViewStyle>;
 };
 
-/** 목록이 주변 레이아웃을 밀지 않고 입력창 위에 펼쳐지는 공통 선택 컴포넌트입니다. */
+/**
+ * 입력창 아래에서 펼쳐지는 단일 선택 컴포넌트입니다.
+ * 목록은 4개 항목 높이로 제한되며 AppScreen 안에서도 독립적으로 스크롤합니다.
+ */
 export function SelectInput<T extends string = string>({
   options,
   value,
@@ -43,15 +46,16 @@ export function SelectInput<T extends string = string>({
   const hasError = Boolean(errorMessage);
 
   const handleSelect = (selectedValue: T) => {
+    // 선택값을 상위 화면에 전달한 뒤 목록을 닫습니다.
     onChange(selectedValue);
     setIsOpen(false);
   };
 
   return (
-    <View style={[styles.container, isOpen && styles.openContainer, containerStyle]}>
+    <View style={[styles.container, containerStyle]}>
       {label ? <Text style={[styles.label, hasError && styles.errorText]}>{label}</Text> : null}
 
-      <View style={styles.fieldArea}>
+      <View>
         <Pressable
           accessibilityLabel={label ?? placeholder}
           accessibilityRole="button"
@@ -73,6 +77,7 @@ export function SelectInput<T extends string = string>({
 
         {isOpen ? (
           <View style={styles.dropdown}>
+            {/* 목록 높이를 4개 항목으로 제한하고 AppScreen 안에서도 독립적으로 스크롤합니다. */}
             <ScrollView
               bounces={false}
               keyboardShouldPersistTaps="handled"
@@ -111,10 +116,7 @@ export function SelectInput<T extends string = string>({
 
 const styles = StyleSheet.create({
   container: { width: '100%' },
-  // 열린 Select 전체를 형제 컴포넌트보다 위에 배치하며 elevation은 Android를 보완합니다.
-  openContainer: { zIndex: 10, elevation: 10 },
   label: { marginBottom: 6, color: Colors.light.placeholder, fontSize: 13, fontWeight: '600' },
-  fieldArea: { position: 'relative', zIndex: 10, elevation: 10 },
   trigger: {
     minHeight: 52,
     flexDirection: 'row',
@@ -129,23 +131,18 @@ const styles = StyleSheet.create({
   placeholder: { color: Colors.light.placeholder },
   chevron: { marginLeft: 8, color: Colors.light.text, fontSize: 22, fontWeight: '700' },
   dropdown: {
-    // 목록을 레이아웃 흐름에서 분리해 열릴 때 아래 콘텐츠를 밀지 않게 합니다.
-    position: 'absolute',
-    top: '100%',
-    left: 0,
-    right: 0,
     marginTop: 8,
     borderWidth: 1,
     borderColor: Colors.light.border,
     borderRadius: 14,
     backgroundColor: Colors.light.cardBackground,
-    elevation: 12,
+    elevation: 4,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.14,
     shadowRadius: 8,
   },
-  optionScroll: { maxHeight: 224 },
+  optionScroll: { maxHeight: 208 },
   option: { minHeight: 52, justifyContent: 'center', paddingHorizontal: 16 },
   // 선택 여부와 관계없이 행 높이를 유지하고 배경색만 변경합니다.
   selectedOption: { backgroundColor: Colors.light.primary },
