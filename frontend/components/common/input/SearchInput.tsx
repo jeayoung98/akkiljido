@@ -15,6 +15,8 @@ import Colors from '@/constants/Colors';
 export type SearchInputProps = Omit<NativeTextInputProps, 'style'> & {
   containerStyle?: StyleProp<ViewStyle>;
   inputStyle?: StyleProp<TextStyle>;
+  // 전달하면 검색 아이콘도 눌러서 검색을 실행할 수 있다. 안 전달하면 기존처럼 장식용 아이콘으로 남는다.
+  onSearchPress?: () => void;
 };
 
 /** iOS와 Android에서 동일한 삭제 버튼을 제공하는 공통 검색 입력창입니다. */
@@ -25,15 +27,24 @@ export function SearchInput({
   placeholder = '검색어를 입력해 주세요',
   value,
   onChangeText,
+  onSearchPress,
   ...props
 }: SearchInputProps) {
   const hasValue = typeof value === 'string' && value.length > 0;
 
   const handleClear = () => onChangeText?.('');
 
+  const searchIcon = <Ionicons name="search" color={Colors.light.placeholder} size={22} />;
+
   return (
     <View style={[styles.container, !editable && styles.disabled, containerStyle]}>
-      <Ionicons name="search" color={Colors.light.placeholder} size={22} />
+      {onSearchPress ? (
+        <Pressable accessibilityLabel="검색" accessibilityRole="button" hitSlop={8} onPress={onSearchPress}>
+          {searchIcon}
+        </Pressable>
+      ) : (
+        searchIcon
+      )}
 
       <NativeTextInput
         {...props}

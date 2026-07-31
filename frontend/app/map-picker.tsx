@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
@@ -7,7 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '@/components/common/button/Button';
 import { IconButton } from '@/components/common/button/IconButton';
 import BaseCard from '@/components/common/card/BaseCard';
-import { SearchBar } from '@/components/common/input/SearchBar';
+import { SearchInput } from '@/components/common/input/SearchInput';
 import { KakaoMap } from '@/components/map/KakaoMap';
 import Colors from '@/constants/Colors';
 import { useMapPickerStore } from '@/store/mapPickerStore';
@@ -22,6 +23,7 @@ export default function MapPickerScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const setPickedLocation = useMapPickerStore((state) => state.setPickedLocation);
+  const [searchText, setSearchText] = useState('');
   const [results, setResults] = useState<PlaceResult[]>([]);
   // 지도를 직접 탭했을 때만 쓰인다. 검색 결과는 리스트에서 "선택" 누르면 바로 확정되고, 이 state를 거치지 않는다.
   const [selected, setSelected] = useState<PlaceResult | null>(null);
@@ -41,6 +43,19 @@ export default function MapPickerScreen() {
   // 각 카드가 리스트 안에서 세로로 몇 px 위치에 있는지 기록해뒀다가, 핀 클릭 시 그 위치로 스크롤한다.
   const cardOffsets = useRef<number[]>([]);
 
+  // 좌표를 "선택된 상태"로 즉시 반영한다 — 주소는 "주소 확인 중..."으로 먼저 보여주고,
+  // reverseGeocode가 끝나면 실제 주소로 교체한다(패널 자체는 좌표만 있어도 바로 뜨게 하기 위함).
+  const selectLocation = async (coords: { lat: number; lng: number }) => {
+    setSelected({ name: '주소 확인 중...', address: '주소 확인 중...', lat: coords.lat, lng: coords.lng });
+    const address = await reverseGeocode(coords);
+    setSelected({
+      name: address ?? '주소를 찾을 수 없습니다',
+      address: address ?? '주소를 찾을 수 없습니다',
+      lat: coords.lat,
+      lng: coords.lng,
+    });
+  };
+
   // 현재 위치 권한을 요청하고, 허용되면 위치를 가져와 currentLocation에 저장한다.
   // 화면 진입 시 한 번, 그리고 "현재 위치" 버튼을 눌렀을 때도 다시 호출된다.
   const handleLocate = async () => {
@@ -49,20 +64,29 @@ export default function MapPickerScreen() {
       return;
     }
 
-    // 권한이 있어도 기기 위치 서비스 자체가 꺼져 있으면 getCurrentPositionAsync가 멈출 수 있어 먼저 확인한다.
+    // 권한이 있어도 기기 위치 서비스 자체가 꺼져 있으면 위치 조회가 멈출 수 있어 먼저 확인한다.
     const servicesEnabled = await Location.hasServicesEnabledAsync();
     if (!servicesEnabled) {
       return;
     }
 
+    setPreviewCenter(null);
+
+    // 기기에 저장된 마지막 위치를 먼저 빠르게 보여주고(체감 속도 개선), 그동안 정확한 위치를 뒤에서 갱신한다.
+    const lastKnown = await Location.getLastKnownPositionAsync();
+    if (lastKnown) {
+      const coords = { lat: lastKnown.coords.latitude, lng: lastKnown.coords.longitude };
+      setCurrentLocation(coords);
+      selectLocation(coords);
+    }
+
     try {
       const position = await Location.getCurrentPositionAsync({});
-      setCurrentLocation({ lat: position.coords.latitude, lng: position.coords.longitude });
-      // 선택/미리보기 중이던 위치가 있으면 지도가 그쪽으로 가있으니, 내 위치로 돌아가려면 둘 다 비워야 한다.
-      setSelected(null);
-      setPreviewCenter(null);
+      const coords = { lat: position.coords.latitude, lng: position.coords.longitude };
+      setCurrentLocation(coords);
+      selectLocation(coords);
     } catch {
-      // 실패하면 currentLocation은 null로 남고, DEFAULT_CENTER로 대체된다.
+      // 실패해도 위에서 lastKnown으로 이미 뭔가 떴다면 그대로 둔다. 둘 다 없으면 DEFAULT_CENTER로 대체된다.
     }
   };
 
@@ -101,16 +125,10 @@ export default function MapPickerScreen() {
     scrollViewRef.current?.scrollTo({ y: offset, animated: true });
   };
 
-  // 지도를 탭했을 때 호출되는 함수. 탭한 좌표를 주소로 변환해서 selected에 저장한다.
+  // 지도를 탭했을 때 호출되는 함수. 탭한 좌표를 selected로 반영한다.
   // (검색과 달리 리스트에서 고르는 게 아니라 좌표 하나뿐이라, 확정 전에 주소를 보여주고 확인받는 단계가 필요하다.)
-  const handleMapTap = async (coords: { lat: number; lng: number }) => {
-    const address = await reverseGeocode(coords);
-    setSelected({
-      name: address ?? '주소를 찾을 수 없습니다',
-      address: address ?? '주소를 찾을 수 없습니다',
-      lat: coords.lat,
-      lng: coords.lng,
-    });
+  const handleMapTap = (coords: { lat: number; lng: number }) => {
+    selectLocation(coords);
   };
 
   // 지도 탭으로 뜬 확인 카드의 "선택" 버튼을 눌렀을 때 호출되는 함수. 고른 위치를 전역 store에 저장하고 이전 화면으로 돌아간다.
@@ -149,9 +167,12 @@ export default function MapPickerScreen() {
         style={{ flex: 1 }}
       />
 
-      <SearchBar
-        onSearch={handleSearch}
-        style={{ position: 'absolute', top: insets.top + 16, left: 16, right: 16 }}
+      <SearchInput
+        value={searchText}
+        onChangeText={setSearchText}
+        onSubmitEditing={() => handleSearch(searchText)}
+        onSearchPress={() => handleSearch(searchText)}
+        containerStyle={{ position: 'absolute', top: insets.top + 16, left: 16, right: 16 }}
       />
 
       <IconButton
@@ -205,9 +226,24 @@ export default function MapPickerScreen() {
                         { flexDirection: 'row', alignItems: 'center', gap: 8 },
                         highlightedIndex === index && { borderWidth: 2, borderColor: Colors.light.primary },
                       ]}>
-                      <Pressable style={{ flex: 1 }} onPress={() => handlePreviewResult(place, index)}>
-                        <Text>{place.name}</Text>
-                        <Text style={{ color: Colors.light.textSecondary }}>{place.address}</Text>
+                      <Pressable
+                        style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 4 }}
+                        onPress={() => handlePreviewResult(place, index)}>
+                        <View style={{ flex: 1 }}>
+                          <Text>{place.name}</Text>
+                          <Text style={{ color: Colors.light.textSecondary }}>{place.address}</Text>
+                        </View>
+                        <View
+                          style={{
+                            width: 28,
+                            height: 28,
+                            borderRadius: 999,
+                            backgroundColor: Colors.light.primary,
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}>
+                          <Ionicons name="location" size={16} color="#fff" />
+                        </View>
                       </Pressable>
                       <Button
                         variant="green"
