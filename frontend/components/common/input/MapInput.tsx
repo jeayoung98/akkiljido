@@ -6,7 +6,7 @@ import Colors from '@/constants/Colors';
 const PLACEHOLDER = '지도에서 장소를 선택해주세요';
 
 type MapInputProps = {
-  label?: string;
+  label?: string; // 입력창 위에 표시할 제목 
   value?: string; // 선택된 주소
   onPress?: () => void; // 지도 화면으로 이동하는 이벤트
   style?: StyleProp<ViewStyle>;

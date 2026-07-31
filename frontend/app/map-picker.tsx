@@ -2,13 +2,14 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { NativeScrollEvent, NativeSyntheticEvent, Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button } from '@/components/common/button/Button';
 import { IconButton } from '@/components/common/button/IconButton';
 import BaseCard from '@/components/common/card/BaseCard';
 import { SearchInput } from '@/components/common/input/SearchInput';
+import { Scroll } from '@/components/common/Scroll';
 import { KakaoMap } from '@/components/map/KakaoMap';
 import Colors from '@/constants/Colors';
 import { useMapPickerStore } from '@/store/mapPickerStore';
@@ -35,9 +36,6 @@ export default function MapPickerScreen() {
   const [hasSearched, setHasSearched] = useState(false);
   // 현재 위치. 권한 거부/실패 시 null로 남고, 그럴 땐 DEFAULT_CENTER를 대신 쓴다.
   const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number } | null>(null);
-  // 커스텀 스크롤바 계산용: 리스트 전체 내용 높이, 지금 스크롤된 위치.
-  const [contentHeight, setContentHeight] = useState(0);
-  const [scrollY, setScrollY] = useState(0);
 
   const scrollViewRef = useRef<ScrollView>(null);
   // 각 카드가 리스트 안에서 세로로 몇 px 위치에 있는지 기록해뒀다가, 핀 클릭 시 그 위치로 스크롤한다.
@@ -140,20 +138,9 @@ export default function MapPickerScreen() {
     router.back();
   };
 
-  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    setScrollY(event.nativeEvent.contentOffset.y);
-  };
-
   const center = selected
     ? { lat: selected.lat, lng: selected.lng }
     : (previewCenter ?? currentLocation ?? DEFAULT_CENTER);
-
-  // 스크롤 가능한 만큼만(실제 내용이 더 길 때만) 커스텀 스크롤바를 보여준다.
-  const showScrollbar = contentHeight > LIST_HEIGHT;
-  const thumbHeight = showScrollbar ? Math.max((LIST_HEIGHT / contentHeight) * LIST_HEIGHT, 24) : 0;
-  const thumbTop = showScrollbar
-    ? (scrollY / (contentHeight - LIST_HEIGHT)) * (LIST_HEIGHT - thumbHeight)
-    : 0;
 
   return (
     <View style={{ flex: 1 }}>
@@ -206,71 +193,48 @@ export default function MapPickerScreen() {
               검색 결과: {results.length}개
             </Text>
 
-            <View style={{ flexDirection: 'row' }}>
-              <ScrollView
-                ref={scrollViewRef}
-                style={{ maxHeight: LIST_HEIGHT, flex: 1 }}
-                showsVerticalScrollIndicator={false}
-                onScroll={handleScroll}
-                scrollEventThrottle={16}
-                onContentSizeChange={(_, height) => setContentHeight(height)}>
-                {results.map((place, index) => (
-                  <View
-                    key={`${place.lat}-${place.lng}`}
-                    style={{ marginBottom: 8 }}
-                    onLayout={(event) => {
-                      cardOffsets.current[index] = event.nativeEvent.layout.y;
-                    }}>
-                    <BaseCard
-                      style={[
-                        { flexDirection: 'row', alignItems: 'center', gap: 8 },
-                        highlightedIndex === index && { borderWidth: 2, borderColor: Colors.light.primary },
-                      ]}>
-                      <Pressable
-                        style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 4 }}
-                        onPress={() => handlePreviewResult(place, index)}>
-                        <View style={{ flex: 1 }}>
-                          <Text>{place.name}</Text>
-                          <Text style={{ color: Colors.light.textSecondary }}>{place.address}</Text>
-                        </View>
-                        <View
-                          style={{
-                            width: 28,
-                            height: 28,
-                            borderRadius: 999,
-                            backgroundColor: Colors.light.primary,
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                          }}>
-                          <Ionicons name="location" size={16} color="#fff" />
-                        </View>
-                      </Pressable>
-                      <Button
-                        variant="green"
-                        style={{ height: 36, paddingHorizontal: 16 }}
-                        onPress={() => handleSelectResult(place)}>
-                        선택
-                      </Button>
-                    </BaseCard>
-                  </View>
-                ))}
-              </ScrollView>
-
-              {showScrollbar && (
-                <View style={{ width: 4, height: LIST_HEIGHT, marginLeft: 8, backgroundColor: '#fff', borderRadius: 2 }}>
-                  <View
-                    style={{
-                      position: 'absolute',
-                      top: thumbTop,
-                      width: 4,
-                      height: thumbHeight,
-                      backgroundColor: Colors.light.primary,
-                      borderRadius: 2,
-                    }}
-                  />
+            <Scroll ref={scrollViewRef} height={LIST_HEIGHT}>
+              {results.map((place, index) => (
+                <View
+                  key={`${place.lat}-${place.lng}`}
+                  style={{ marginBottom: 8 }}
+                  onLayout={(event) => {
+                    cardOffsets.current[index] = event.nativeEvent.layout.y;
+                  }}>
+                  <BaseCard
+                    style={[
+                      { flexDirection: 'row', alignItems: 'center', gap: 8 },
+                      highlightedIndex === index && { borderWidth: 2, borderColor: Colors.light.primary },
+                    ]}>
+                    <Pressable
+                      style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 4 }}
+                      onPress={() => handlePreviewResult(place, index)}>
+                      <View style={{ flex: 1 }}>
+                        <Text>{place.name}</Text>
+                        <Text style={{ color: Colors.light.textSecondary }}>{place.address}</Text>
+                      </View>
+                      <View
+                        style={{
+                          width: 28,
+                          height: 28,
+                          borderRadius: 999,
+                          backgroundColor: Colors.light.primary,
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}>
+                        <Ionicons name="location" size={16} color="#fff" />
+                      </View>
+                    </Pressable>
+                    <Button
+                      variant="green"
+                      style={{ height: 36, paddingHorizontal: 16 }}
+                      onPress={() => handleSelectResult(place)}>
+                      선택
+                    </Button>
+                  </BaseCard>
                 </View>
-              )}
-            </View>
+              ))}
+            </Scroll>
           </View>
         ) : (
           <BaseCard style={{ position: 'absolute', bottom: 16, left: 16, right: 16 }}>
