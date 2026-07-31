@@ -26,16 +26,16 @@ import lombok.NoArgsConstructor;
 @Getter
 @Entity
 @Table(
-		name = "my_place",
-		uniqueConstraints = {
-				@UniqueConstraint(
-						name = "uk_my_place_user_place_name",
-						columnNames = {
-								"user_id",
-								"place_name"
-						}
-				)
-		}
+	name = "my_place",
+	uniqueConstraints = {
+		@UniqueConstraint(
+			name = "uk_my_place_user_place_name",
+			columnNames = {
+				"user_id",
+				"place_name"
+			}
+		)
+	}
 )
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class MyPlace {
@@ -43,7 +43,7 @@ public class MyPlace {
 	private static final int WGS84_SRID = 4326;
 
 	private static final GeometryFactory GEOMETRY_FACTORY =
-			new GeometryFactory(new PrecisionModel(), WGS84_SRID);
+		new GeometryFactory(new PrecisionModel(), WGS84_SRID);
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -55,31 +55,31 @@ public class MyPlace {
 	private User user;
 
 	@Column(
-			name = "place_name",
-			nullable = false,
-			length = 20
+		name = "place_name",
+		nullable = false,
+		length = 20
 	)
 	private String myPlaceName;
 
 	@Column(
-			name = "address",
-			nullable = false,
-			length = 50
+		name = "address",
+		nullable = false,
+		length = 50
 	)
 	private String address;
 
 	@Column(
-			name = "coordinate",
-			nullable = false,
-			columnDefinition = "geometry(Point, 4326)"
+		name = "coordinate",
+		nullable = false,
+		columnDefinition = "geometry(Point, 4326)"
 	)
 	private Point coordinate;
 
 	private MyPlace(
-			User user,
-			String myPlaceName,
-			String address,
-			Point coordinate
+		User user,
+		String myPlaceName,
+		String address,
+		Point coordinate
 	) {
 		this.user = user;
 		this.myPlaceName = myPlaceName;
@@ -88,17 +88,17 @@ public class MyPlace {
 	}
 
 	public static MyPlace create(
-			User user,
-			String myPlaceName,
-			String address,
-			BigDecimal latitude,
-			BigDecimal longitude
+		User user,
+		String myPlaceName,
+		String address,
+		BigDecimal latitude,
+		BigDecimal longitude
 	) {
 		return new MyPlace(
-				user,
-				myPlaceName,
-				address,
-				createPoint(latitude, longitude)
+			user,
+			myPlaceName,
+			address,
+			createPoint(latitude, longitude)
 		);
 	}
 
@@ -107,9 +107,9 @@ public class MyPlace {
 	}
 
 	public void updateLocation(
-			String address,
-			BigDecimal latitude,
-			BigDecimal longitude
+		String address,
+		BigDecimal latitude,
+		BigDecimal longitude
 	) {
 		this.address = address;
 		this.coordinate = createPoint(latitude, longitude);
@@ -124,14 +124,14 @@ public class MyPlace {
 	}
 
 	private static Point createPoint(
-			BigDecimal latitude,
-			BigDecimal longitude
+		BigDecimal latitude,
+		BigDecimal longitude
 	) {
 		CoordinateXY coordinate =
-				new CoordinateXY(
-						longitude.doubleValue(),
-						latitude.doubleValue()
-				);
+			new CoordinateXY(
+				longitude.doubleValue(),
+				latitude.doubleValue()
+			);
 
 		Point point = GEOMETRY_FACTORY.createPoint(coordinate);
 		point.setSRID(WGS84_SRID);

@@ -18,8 +18,8 @@ public interface MyPlaceRepository extends JpaRepository<MyPlace, Long> {
 	boolean existsByUser_IdAndMyPlaceName(Long userId, String myPlaceName);
 
 	boolean existsByUser_IdAndMyPlaceNameAndIdNot(
-			Long userId,
-			String myPlaceName,
-			Long placeId
+		Long userId,
+		String myPlaceName,
+		Long placeId
 	);
 }
