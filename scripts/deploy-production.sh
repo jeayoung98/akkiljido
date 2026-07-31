@@ -4,13 +4,14 @@ set -eu
 
 : "${CI_COMMIT_SHA:?CI_COMMIT_SHA is required}"
 : "${CI_PIPELINE_ID:?CI_PIPELINE_ID is required}"
+: "${CI_JOB_ID:?CI_JOB_ID is required}"
 : "${CI_PROJECT_DIR:?CI_PROJECT_DIR is required}"
 : "${DEPLOY_HOST:?DEPLOY_HOST is required}"
 : "${DEPLOY_USER:?DEPLOY_USER is required}"
 
 ssh_key="$HOME/.ssh/id_ed25519"
 known_hosts="$HOME/.ssh/known_hosts"
-release_id="${CI_COMMIT_SHA}-${CI_PIPELINE_ID}"
+release_id="${CI_COMMIT_SHA}-${CI_PIPELINE_ID}-${CI_JOB_ID}"
 local_package="${CI_PROJECT_DIR}/deployment-${release_id}.tar.gz"
 remote_package="/tmp/akkiljido-${release_id}.tar.gz"
 release_dir="/opt/akkiljido/releases/${release_id}"
