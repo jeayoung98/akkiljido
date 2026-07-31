@@ -28,15 +28,8 @@ public enum ExceptionType {
 	INVALID_REFRESH_TOKEN(UNAUTHORIZED, "A004", "유효하지 않은 Refresh Token"),
 
 	// place
-	INVALID_PLACE_COORDINATE(BAD_REQUEST, "P001", "유효하지 않은 위치 좌표입니다."),
-	DUPLICATE_PLACE_NAME(CONFLICT, "P002", "이미 등록된 장소 이름입니다."),
-	MY_PLACE_NOT_FOUND(NOT_FOUND, "P003", "등록된 장소를 찾을 수 없습니다."),
-
-	// place validation
-	EMPTY_PLACE_UPDATE(BAD_REQUEST, "C002", "수정할 정보를 입력해 주세요."),
-	INCOMPLETE_PLACE_LOCATION(BAD_REQUEST, "C002", "주소 변경 시 위도와 경도를 함께 입력해야 합니다."),
-	INVALID_PLACE_INPUT(BAD_REQUEST, "C002", "입력값이 올바르지 않습니다."),
-	INVALID_PLACE_ID(BAD_REQUEST, "C002", "장소 ID가 올바르지 않습니다.");
+	DUPLICATE_PLACE_NAME(CONFLICT, "P001", "이미 등록된 장소 이름입니다."),
+	MY_PLACE_NOT_FOUND(NOT_FOUND, "P002", "등록된 장소를 찾을 수 없습니다.");
 
 	private final HttpStatus status;
 	private final String code;
