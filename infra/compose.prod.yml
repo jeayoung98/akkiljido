@@ -52,6 +52,8 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set}
       REDIS_HOST: redis
       REDIS_PORT: "6379"
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:?GOOGLE_CLIENT_ID is required}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
     depends_on:
       postgres:
         condition: service_healthy

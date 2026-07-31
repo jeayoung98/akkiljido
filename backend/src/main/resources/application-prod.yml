@@ -18,3 +18,14 @@ spring:
     redis:
       host: ${REDIS_HOST}
       port: ${REDIS_PORT:6379}
+
+auth:
+  google:
+    allowed-audiences:
+      - ${GOOGLE_CLIENT_ID}
+
+  jwt:
+    issuer: a508-backend
+    secret: ${JWT_SECRET}
+    access-token-ttl: 30m
+    refresh-token-ttl: 14d
