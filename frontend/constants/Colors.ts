@@ -20,6 +20,9 @@ export default {
     placeholder: '#6B8F7A', // 입력창 안내 문구 색
     danger: '#FB2C36', // 위험/삭제 액션, 빨강 버튼 등
     cardBackground: '#FFFFFF',
+    cardMutedBackground: '#F3F8F4', // 옅은 민트색 배경. 아코디언 펼친 영역 등에 사용 (투명도 아닌 실제 옅은 색)
+    cardAccent: '#557A5A', // 아코디언 카드 안의 초록 포인트 텍스트(라벨, chevron 등)
+    cardBodyText: '#2B2F2C', // 아코디언 카드 안의 본문 텍스트
     cardTitle: '#18251E',
     cardDescription: '#789080',
     summaryPrimaryBackground: 'rgba(49, 95, 61, 0.45)',
