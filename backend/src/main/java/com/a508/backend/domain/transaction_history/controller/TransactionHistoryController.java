@@ -8,11 +8,13 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.a508.backend.domain.transaction_history.dto.request.TransactionHistoryCreateRequest;
 import com.a508.backend.domain.transaction_history.dto.request.TransactionHistoryUpdateRequest;
 import com.a508.backend.domain.transaction_history.dto.response.TransactionHistoryResponse;
+import com.a508.backend.domain.transaction_history.dto.response.TransactionListResponse;
 import com.a508.backend.domain.transaction_history.service.TransactionHistoryService;
 import com.a508.backend.global.response.ResponseBody;
 import com.a508.backend.global.response.ResponseUtil;
@@ -38,6 +40,20 @@ public class TransactionHistoryController {
 		@Valid @RequestBody TransactionHistoryCreateRequest request) {
 		TransactionHistoryResponse response = transactionHistoryService.createTransactionHistory(
 			authenticatedUser.getUserId(), request);
+		return ResponseUtil.createSuccessResponse(response);
+	}
+
+	@Operation(summary = "거래내역 목록 조회", description = "정렬/유형/기간/카테고리 조건으로 거래내역을 일자별로 묶어 조회한다.")
+	@GetMapping("/list")
+	public ResponseBody<TransactionListResponse> getTransactionList(
+		@AuthenticationPrincipal AuthenticatedUser authenticatedUser,
+		@RequestParam(required = false) String sort,
+		@RequestParam(required = false) String type,
+		@RequestParam(required = false) String startDate,
+		@RequestParam(required = false) String endDate,
+		@RequestParam(required = false) Long categoryId) {
+		TransactionListResponse response = transactionHistoryService.getTransactionList(
+			authenticatedUser.getUserId(), sort, type, startDate, endDate, categoryId);
 		return ResponseUtil.createSuccessResponse(response);
 	}
 
