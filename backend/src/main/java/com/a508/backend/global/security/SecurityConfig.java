@@ -43,6 +43,8 @@ public class SecurityConfig {
 
 					.requestMatchers(HttpMethod.POST, "/api/v1/auth/logout").hasAnyRole("GUEST", "USER")
 
+					.requestMatchers("/api/v1/transaction/**").hasRole("USER")
+
 					.anyRequest().hasRole("USER"))
 			.oauth2ResourceServer(resourceServer -> resourceServer.jwt(
 				jwt -> jwt.decoder(serviceJwtDecoder).jwtAuthenticationConverter(authenticationConverter)));
