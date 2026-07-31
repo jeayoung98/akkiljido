@@ -10,6 +10,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import com.a508.backend.global.response.ResponseBody;
@@ -85,11 +86,17 @@ public class GlobalExceptionHandler {
 	@ExceptionHandler(MethodArgumentTypeMismatchException.class)
 	public ResponseEntity<ResponseBody<Void>> methodArgumentTypeMismatchException(
 		MethodArgumentTypeMismatchException e) {
-		ExceptionType exceptionType = "placeId".equals(e.getName())
-			? ExceptionType.INVALID_PLACE_ID
-			: ExceptionType.BINDING_ERROR;
+		String customMessage = e.getName() + " 형식이 올바르지 않습니다.";
+		return ResponseEntity.status(ExceptionType.BINDING_ERROR.getStatus())
+			.body(ResponseUtil.createFailureResponse(ExceptionType.BINDING_ERROR, customMessage));
+	}
 
-		return ResponseEntity.status(exceptionType.getStatus()).body(ResponseUtil.createFailureResponse(exceptionType));
+	@ExceptionHandler(HandlerMethodValidationException.class)
+	public ResponseEntity<ResponseBody<Void>> handlerMethodValidationException(
+		HandlerMethodValidationException e) {
+		String customMessage = e.getAllErrors().get(0).getDefaultMessage();
+		return ResponseEntity.status(ExceptionType.BINDING_ERROR.getStatus())
+			.body(ResponseUtil.createFailureResponse(ExceptionType.BINDING_ERROR, customMessage));
 	}
 
 	@ExceptionHandler(Exception.class)
