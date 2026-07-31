@@ -13,6 +13,7 @@ import com.a508.backend.domain.transaction_history.dto.request.TransactionHistor
 import com.a508.backend.domain.transaction_history.dto.request.TransactionHistoryUpdateRequest;
 import com.a508.backend.domain.transaction_history.dto.response.TransactionHistoryResponse;
 import com.a508.backend.domain.transaction_history.dto.response.TransactionListResponse;
+import com.a508.backend.domain.transaction_history.dto.response.TransactionSearchResponse;
 import com.a508.backend.domain.transaction_history.entity.TransactionHistory;
 import com.a508.backend.domain.transaction_history.entity.TransactionSort;
 import com.a508.backend.domain.transaction_history.entity.TransactionType;
@@ -105,6 +106,23 @@ public class TransactionHistoryService {
 			transactionSort.toSort());
 
 		return TransactionListResponse.of(transactions);
+	}
+
+	@Transactional(readOnly = true)
+	public TransactionSearchResponse searchTransactions(
+		Long userId, String query, String sort, String type, String startDate, String endDate, Long categoryId) {
+		TransactionSort transactionSort = TransactionSort.from(sort);
+		TransactionType typeFilter = parseTypeFilter(type);
+		LocalDate start = parseStartDate(startDate);
+		LocalDate end = parseEndDate(endDate);
+		validateDateRange(start, end);
+		validateCategoryOwnership(userId, categoryId);
+
+		List<TransactionHistory> transactions = transactionHistoryRepository.searchTransactions(
+			userId, toStartOfDay(start), toStartOfNextDay(end), typeFilter, categoryId,
+			normalizeQuery(query), transactionSort.toSort());
+
+		return TransactionSearchResponse.of(transactions);
 	}
 
 	/**

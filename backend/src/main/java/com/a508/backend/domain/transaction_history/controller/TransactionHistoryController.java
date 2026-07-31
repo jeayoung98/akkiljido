@@ -15,6 +15,7 @@ import com.a508.backend.domain.transaction_history.dto.request.TransactionHistor
 import com.a508.backend.domain.transaction_history.dto.request.TransactionHistoryUpdateRequest;
 import com.a508.backend.domain.transaction_history.dto.response.TransactionHistoryResponse;
 import com.a508.backend.domain.transaction_history.dto.response.TransactionListResponse;
+import com.a508.backend.domain.transaction_history.dto.response.TransactionSearchResponse;
 import com.a508.backend.domain.transaction_history.service.TransactionHistoryService;
 import com.a508.backend.global.response.ResponseBody;
 import com.a508.backend.global.response.ResponseUtil;
@@ -54,6 +55,22 @@ public class TransactionHistoryController {
 		@RequestParam(required = false) Long categoryId) {
 		TransactionListResponse response = transactionHistoryService.getTransactionList(
 			authenticatedUser.getUserId(), sort, type, startDate, endDate, categoryId);
+		return ResponseUtil.createSuccessResponse(response);
+	}
+
+	// TODO: 페이지네이션 도입 시 page/size 쿼리 파라미터 추가
+	@Operation(summary = "거래내역 검색", description = "검색어와 조건으로 거래내역을 검색한다.")
+	@GetMapping("/search")
+	public ResponseBody<TransactionSearchResponse> searchTransactions(
+		@AuthenticationPrincipal AuthenticatedUser authenticatedUser,
+		@RequestParam(required = false) String query,
+		@RequestParam(required = false) String sort,
+		@RequestParam(required = false) String type,
+		@RequestParam(required = false) String startDate,
+		@RequestParam(required = false) String endDate,
+		@RequestParam(required = false) Long categoryId) {
+		TransactionSearchResponse response = transactionHistoryService.searchTransactions(
+			authenticatedUser.getUserId(), query, sort, type, startDate, endDate, categoryId);
 		return ResponseUtil.createSuccessResponse(response);
 	}
 
