@@ -9,41 +9,38 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 /**
- * 거래내역 수정 요청. 전체 필드를 교체하는 방식으로 등록 요청과 동일한 형태를 가진다.
+ * 거래내역 부분 수정(PATCH) 요청.
+ * PATCH 의미에 맞게 모든 필드는 선택값이다. null(미전송) 필드는 기존 값을 그대로 유지한다.
+ * 문자열 필드는 @Pattern 으로 "값을 보냈다면 공백만으로 채우지 못하도록" 검증한다(null 은 통과).
  */
-@Schema(description = "거래내역 수정 요청")
+@Schema(description = "거래내역 부분 수정(PATCH) 요청. 보내지 않은 필드는 기존 값을 유지한다.")
 public record TransactionHistoryUpdateRequest(
 
 	@Schema(description = "거래명", example = "김밥천국")
-	@NotBlank(message = "거래명은 필수입니다.")
+	@Pattern(regexp = ".*\\S.*", flags = Pattern.Flag.DOTALL, message = "거래명은 공백일 수 없습니다.")
 	@Size(max = 10, message = "거래명은 10자 이하여야 합니다.")
 	String name,
 
 	@Schema(description = "거래 금액", example = "20000")
-	@NotNull(message = "거래 금액은 필수입니다.")
 	Long amount,
 
 	@Schema(description = "거래 유형(수입/지출)", example = "EXPENSE")
-	@NotNull(message = "거래 유형은 필수입니다.")
 	TransactionType type,
 
 	@Schema(description = "결제 수단", example = "현금")
 	@JsonProperty("payment_method")
-	@NotBlank(message = "결제 수단은 필수입니다.")
+	@Pattern(regexp = ".*\\S.*", flags = Pattern.Flag.DOTALL, message = "결제 수단은 공백일 수 없습니다.")
 	@Size(max = 10, message = "결제 수단은 10자 이하여야 합니다.")
 	String paymentMethod,
 
 	@Schema(description = "카테고리 ID", example = "5")
-	@NotNull(message = "카테고리는 필수입니다.")
 	Long categoryId,
 
 	@Schema(description = "거래 일시", example = "2026-07-24 09:00:00")
-	@NotNull(message = "거래 일시는 필수입니다.")
 	@JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
 	LocalDateTime datetime,
 

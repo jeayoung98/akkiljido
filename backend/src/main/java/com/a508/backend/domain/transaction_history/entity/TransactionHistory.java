@@ -112,19 +112,39 @@ public class TransactionHistory {
     }
 
     /**
-     * 거래내역의 기본 정보를 수정한다. 법정동 정보(b_code/region_*)는 등록 시점 값을 유지한다.
+     * 거래내역의 기본 정보를 부분 수정(PATCH)한다.
+     * 각 인자가 null 이면(요청에서 미전송) 기존 값을 그대로 유지한다.
+     * 법정동 정보(b_code/region_*)는 등록 시점 값을 유지한다.
      */
     public void update(Category category, OffsetDateTime datetime, Long amount, TransactionType type,
                        String transactionName, String paymentMethod, String memo, String address,
                        Point coordinate) {
-        this.category = category;
-        this.datetime = datetime;
-        this.amount = amount;
-        this.type = type;
-        this.transactionName = transactionName;
-        this.paymentMethod = paymentMethod;
-        this.memo = memo;
-        this.address = address;
-        this.coordinate = coordinate;
+        if (category != null) {
+            this.category = category;
+        }
+        if (datetime != null) {
+            this.datetime = datetime;
+        }
+        if (amount != null) {
+            this.amount = amount;
+        }
+        if (type != null) {
+            this.type = type;
+        }
+        if (transactionName != null) {
+            this.transactionName = transactionName;
+        }
+        if (paymentMethod != null) {
+            this.paymentMethod = paymentMethod;
+        }
+        if (memo != null) {
+            this.memo = memo;
+        }
+        if (address != null) {
+            this.address = address;
+        }
+        if (coordinate != null) {
+            this.coordinate = coordinate;
+        }
     }
 }
