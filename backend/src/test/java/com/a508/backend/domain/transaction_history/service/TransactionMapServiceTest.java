@@ -8,7 +8,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.util.List;
-import java.util.Optional;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -23,7 +22,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import com.a508.backend.domain.category.entity.Category;
 import com.a508.backend.domain.category.service.CategoryService;
 import com.a508.backend.domain.mypage.domain.MyPlace;
-import com.a508.backend.domain.mypage.repository.MyPlaceRepository;
+import com.a508.backend.domain.mypage.service.MyPlaceService;
 import com.a508.backend.domain.transaction_history.dto.response.MapPlaceListResponse;
 import com.a508.backend.domain.transaction_history.dto.response.MapRegionListResponse;
 import com.a508.backend.domain.transaction_history.dto.response.MyPlaceMapResponse;
@@ -54,7 +53,7 @@ class TransactionMapServiceTest {
 	private TransactionHistoryRepository transactionHistoryRepository;
 
 	@Mock
-	private MyPlaceRepository myPlaceRepository;
+	private MyPlaceService myPlaceService;
 
 	@Mock
 	private CategoryService categoryService;
@@ -237,7 +236,7 @@ class TransactionMapServiceTest {
 	void getMyPlaceMapFiltersByRadius() {
 		LocalDateTime datetime = LocalDateTime.of(2026, 7, 27, 12, 0, 0);
 		// 위도 +0.009 도는 약 1km, +0.045 도는 약 5km 떨어진 지점이다.
-		when(myPlaceRepository.findAllByUser_IdOrderByIdAsc(USER_ID)).thenReturn(List.of(myPlace(1L, "집")));
+		when(myPlaceService.getOwnedMyPlaces(USER_ID)).thenReturn(List.of(myPlace(1L, "집")));
 		when(transactionHistoryRepository.findExpensesWithinArea(eq(USER_ID), any(), any(), any(), isNull()))
 			.thenReturn(List.of(
 				transaction(1L, "가까운가게", 3000L, datetime, CENTER_LATITUDE + 0.009, CENTER_LONGITUDE,
@@ -256,7 +255,7 @@ class TransactionMapServiceTest {
 	@Test
 	@DisplayName("내 장소 상세조회는 같은 좌표/항목/카테고리 결제를 묶어 dateList 로 내려준다")
 	void getMyPlaceDetailGroupsByItem() {
-		when(myPlaceRepository.findByIdAndUser_Id(1L, USER_ID)).thenReturn(Optional.of(myPlace(1L, "집")));
+		when(myPlaceService.getOwnedMyPlace(USER_ID, 1L)).thenReturn(myPlace(1L, "집"));
 		when(transactionHistoryRepository.findExpensesWithinArea(eq(USER_ID), any(), any(), any(), isNull()))
 			.thenReturn(List.of(
 				transaction(1L, "스타벅스", 2460L, LocalDateTime.of(2024, 7, 17, 9, 20, 10),
@@ -279,7 +278,8 @@ class TransactionMapServiceTest {
 	@Test
 	@DisplayName("내 장소 상세조회에서 없는 장소면 MY_PLACE_NOT_FOUND 예외를 던진다")
 	void getMyPlaceDetailNotFound() {
-		when(myPlaceRepository.findByIdAndUser_Id(999L, USER_ID)).thenReturn(Optional.empty());
+		when(myPlaceService.getOwnedMyPlace(USER_ID, 999L))
+			.thenThrow(new BusinessException(ExceptionType.MY_PLACE_NOT_FOUND));
 
 		assertThatThrownBy(() -> transactionMapService.getMyPlaceDetail(USER_ID, 999L, null, null))
 			.isInstanceOf(BusinessException.class)
@@ -300,7 +300,7 @@ class TransactionMapServiceTest {
 	@DisplayName("2km 경계 근처의 거래도 후보 조회 범위에 포함되도록 사각형을 넉넉히 잡는다")
 	void myPlaceCandidateEnvelopeCoversFullRadius() {
 		LocalDate date = LocalDate.of(2026, 7, 27);
-		when(myPlaceRepository.findAllByUser_IdOrderByIdAsc(USER_ID)).thenReturn(List.of(myPlace(1L, "집")));
+		when(myPlaceService.getOwnedMyPlaces(USER_ID)).thenReturn(List.of(myPlace(1L, "집")));
 		when(transactionHistoryRepository.findExpensesWithinArea(eq(USER_ID), any(), any(), any(), isNull()))
 			.thenReturn(List.of());
 

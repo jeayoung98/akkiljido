@@ -8,7 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.a508.backend.domain.category.service.CategoryService;
 import com.a508.backend.domain.mypage.domain.MyPlace;
-import com.a508.backend.domain.mypage.repository.MyPlaceRepository;
+import com.a508.backend.domain.mypage.service.MyPlaceService;
 import com.a508.backend.domain.transaction_history.dto.response.MapPlaceListResponse;
 import com.a508.backend.domain.transaction_history.dto.response.MapRegionListResponse;
 import com.a508.backend.domain.transaction_history.dto.response.MyPlaceMapResponse;
@@ -18,8 +18,6 @@ import com.a508.backend.domain.transaction_history.entity.MapBounds;
 import com.a508.backend.domain.transaction_history.entity.MapDepth;
 import com.a508.backend.domain.transaction_history.entity.TransactionHistory;
 import com.a508.backend.domain.transaction_history.repository.TransactionHistoryRepository;
-import com.a508.backend.global.exception.BusinessException;
-import com.a508.backend.global.exception.ExceptionType;
 import com.a508.backend.global.util.GeometryUtils;
 
 import lombok.RequiredArgsConstructor;
@@ -36,7 +34,7 @@ public class TransactionMapService {
 	private static final double MY_PLACE_RADIUS_METERS = 2_000;
 
 	private final TransactionHistoryRepository transactionHistoryRepository;
-	private final MyPlaceRepository myPlaceRepository;
+	private final MyPlaceService myPlaceService;
 	private final CategoryService categoryService;
 
 	/**
@@ -74,7 +72,7 @@ public class TransactionMapService {
 	public List<MyPlaceMapResponse> getMyPlaceMap(Long userId, String startDate, String endDate) {
 		DateRange dateRange = DateRange.ofThisWeek(startDate, endDate);
 
-		return myPlaceRepository.findAllByUser_IdOrderByIdAsc(userId).stream()
+		return myPlaceService.getOwnedMyPlaces(userId).stream()
 			.map(myPlace -> {
 				long totalAmount = findExpensesNearMyPlace(userId, myPlace, dateRange).stream()
 					.mapToLong(TransactionHistory::getAmount)
@@ -92,8 +90,7 @@ public class TransactionMapService {
 		String endDate) {
 		DateRange dateRange = DateRange.ofThisWeek(startDate, endDate);
 
-		MyPlace myPlace = myPlaceRepository.findByIdAndUser_Id(placeId, userId)
-			.orElseThrow(() -> new BusinessException(ExceptionType.MY_PLACE_NOT_FOUND));
+		MyPlace myPlace = myPlaceService.getOwnedMyPlace(userId, placeId);
 
 		return MyPlaceTransactionListResponse.of(findExpensesNearMyPlace(userId, myPlace, dateRange));
 	}
