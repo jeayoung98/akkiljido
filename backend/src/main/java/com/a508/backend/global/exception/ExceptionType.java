@@ -40,7 +40,11 @@ public enum ExceptionType {
 	// place
 	DUPLICATE_PLACE_NAME(CONFLICT, "P001", "이미 등록된 장소 이름입니다."),
 	MY_PLACE_NOT_FOUND(NOT_FOUND, "P002", "등록된 장소를 찾을 수 없습니다."),
-	
+
+	// geometry(좌표)
+	INVALID_LATITUDE(BAD_REQUEST, "G001", "위도는 -90 이상 90 이하여야 합니다."),
+	INVALID_LONGITUDE(BAD_REQUEST, "G002", "경도는 -180 이상 180 이하여야 합니다."),
+
 	;
 
 	private final HttpStatus status;

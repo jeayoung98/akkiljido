@@ -7,7 +7,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 import static org.springframework.test.web.servlet.setup.MockMvcBuilders.*;
 
-import java.math.BigDecimal;
 import java.util.List;
 
 import org.junit.jupiter.api.AfterEach;
@@ -74,15 +73,15 @@ class MyPageControllerTest {
 						1L,
 						"집",
 						"서울 마포구 서교동",
-						"37.5563",
-						"126.9236"
+						37.5563,
+						126.9236
 					),
 					result(
 						2L,
 						"회사",
 						"서울 강남구 역삼동",
-						"37.5007",
-						"127.0365"
+						37.5007,
+						127.0365
 					)
 				)
 			);
@@ -142,8 +141,8 @@ class MyPageControllerTest {
 				1L,
 				"집",
 				"서울 마포구 서교동",
-				"37.5563",
-				"126.9236"
+				37.5563,
+				126.9236
 			)
 		);
 
@@ -201,10 +200,10 @@ class MyPageControllerTest {
 			.isEqualTo("서울 마포구 서교동");
 
 		assertThat(request.latitude())
-			.isEqualByComparingTo("37.5563");
+			.isEqualTo(37.5563);
 
 		assertThat(request.longitude())
-			.isEqualByComparingTo("126.9236");
+			.isEqualTo(126.9236);
 	}
 
 	@Test
@@ -315,8 +314,8 @@ class MyPageControllerTest {
 				1L,
 				"우리 집",
 				"서울 마포구 서교동",
-				"37.5563",
-				"126.9236"
+				37.5563,
+				126.9236
 			)
 		);
 
@@ -605,15 +604,15 @@ class MyPageControllerTest {
 		Long placeId,
 		String myPlaceName,
 		String address,
-		String latitude,
-		String longitude
+		double latitude,
+		double longitude
 	) {
 		return new MyPlaceResult(
 			placeId,
 			myPlaceName,
 			address,
-			new BigDecimal(latitude),
-			new BigDecimal(longitude)
+			latitude,
+			longitude
 		);
 	}
 }

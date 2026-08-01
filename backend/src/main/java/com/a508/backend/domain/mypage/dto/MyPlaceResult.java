@@ -1,15 +1,13 @@
 package com.a508.backend.domain.mypage.dto;
 
-import java.math.BigDecimal;
-
 import com.a508.backend.domain.mypage.domain.MyPlace;
 
 public record MyPlaceResult(
 	Long placeId,
 	String myPlaceName,
 	String address,
-	BigDecimal latitude,
-	BigDecimal longitude
+	Double latitude,
+	Double longitude
 ) {
 
 	public static MyPlaceResult from(MyPlace myPlace) {
