@@ -12,7 +12,9 @@ import org.springframework.data.repository.query.Param;
 import com.a508.backend.domain.transaction_history.entity.TransactionHistory;
 import com.a508.backend.domain.transaction_history.entity.TransactionType;
 
-public interface TransactionHistoryRepository extends JpaRepository<TransactionHistory, Long> {
+public interface TransactionHistoryRepository
+	extends JpaRepository<TransactionHistory, Long>, TransactionHistoryRepositoryCustom {
+
 	Optional<TransactionHistory> findByIdAndUserId(Long id, Long userId);
 
 	// TODO: 페이지네이션 도입 시 Pageable 을 받아 Page<TransactionHistory> 를 반환하는 오버로드 추가

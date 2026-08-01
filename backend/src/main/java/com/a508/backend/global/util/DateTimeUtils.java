@@ -1,8 +1,15 @@
 package com.a508.backend.global.util;
 
+import java.time.DayOfWeek;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
+import java.time.format.DateTimeParseException;
+import java.time.temporal.TemporalAdjusters;
+
+import com.a508.backend.global.exception.BusinessException;
+import com.a508.backend.global.exception.ExceptionType;
 
 /**
  * API 의 timezone 없는 datetime("yyyy-MM-dd HH:mm:ss")과 DB 의 TIMESTAMPTZ(OffsetDateTime) 사이 변환 유틸.
@@ -29,5 +36,40 @@ public final class DateTimeUtils {
             return null;
         }
         return offsetDateTime.atZoneSameInstant(SERVICE_ZONE).toLocalDateTime();
+    }
+
+    /** 서비스 기준 시간대(KST)의 오늘 날짜. */
+    public static LocalDate today() {
+        return LocalDate.now(SERVICE_ZONE);
+    }
+
+    /** 서비스 기준 시간대(KST)로 이번 주 시작일(월요일). */
+    public static LocalDate mondayOfThisWeek() {
+        return today().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+    }
+
+    /**
+     * 조회용 날짜 문자열("yyyy-MM-dd")을 파싱한다.
+     * 값이 없거나 공백이면 기본값을 사용하고, 형식이 잘못되면 {@link ExceptionType#INVALID_DATE_FORMAT} 예외를 던진다.
+     */
+    public static LocalDate parseDateOrDefault(String value, LocalDate defaultValue) {
+        if (value == null || value.isBlank()) {
+            return defaultValue;
+        }
+        try {
+            return LocalDate.parse(value);
+        } catch (DateTimeParseException e) {
+            throw new BusinessException(ExceptionType.INVALID_DATE_FORMAT);
+        }
+    }
+
+    /** 조회 시작 경계. 해당 일자의 00:00:00(KST). */
+    public static OffsetDateTime startOfDay(LocalDate date) {
+        return date.atStartOfDay(SERVICE_ZONE).toOffsetDateTime();
+    }
+
+    /** 조회 종료 경계(미만 비교용). 다음 날의 00:00:00(KST). */
+    public static OffsetDateTime startOfNextDay(LocalDate date) {
+        return date.plusDays(1).atStartOfDay(SERVICE_ZONE).toOffsetDateTime();
     }
 }

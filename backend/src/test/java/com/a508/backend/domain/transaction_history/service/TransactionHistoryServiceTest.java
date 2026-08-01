@@ -20,6 +20,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import com.a508.backend.domain.category.entity.Category;
 import com.a508.backend.domain.category.repository.CategoryRepository;
+import com.a508.backend.domain.category.service.CategoryService;
 import com.a508.backend.domain.transaction_history.dto.request.TransactionHistoryCreateRequest;
 import com.a508.backend.domain.transaction_history.dto.request.TransactionHistoryUpdateRequest;
 import com.a508.backend.domain.transaction_history.dto.response.TransactionHistoryResponse;
@@ -42,6 +43,9 @@ class TransactionHistoryServiceTest {
 
 	@Mock
 	private CategoryRepository categoryRepository;
+
+	@Mock
+	private CategoryService categoryService;
 
 	@Mock
 	private KakaoLocalApiClient kakaoLocalApiClient;

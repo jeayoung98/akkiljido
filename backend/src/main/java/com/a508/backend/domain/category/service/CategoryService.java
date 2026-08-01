@@ -12,6 +12,8 @@ import com.a508.backend.domain.category.entity.Category;
 import com.a508.backend.domain.category.entity.DefaultCategory;
 import com.a508.backend.domain.category.repository.CategoryRepository;
 import com.a508.backend.domain.user.domain.User;
+import com.a508.backend.global.exception.BusinessException;
+import com.a508.backend.global.exception.ExceptionType;
 
 import lombok.RequiredArgsConstructor;
 
@@ -27,6 +29,19 @@ public class CategoryService {
 			.map(CategoryResponse::from)
 			.toList();
 		return CategoryListResponse.from(categories);
+	}
+
+	/**
+	 * 카테고리 필터가 지정된 경우, 해당 카테고리가 요청 회원 소유인지 검증한다.
+	 * categoryId 가 null 이면 전체 조회이므로 검증하지 않는다.
+	 */
+	@Transactional(readOnly = true)
+	public void validateOwnership(Long userId, Long categoryId) {
+		if (categoryId == null) {
+			return;
+		}
+		categoryRepository.findByIdAndUser_Id(categoryId, userId)
+			.orElseThrow(() -> new BusinessException(ExceptionType.CATEGORY_NOT_FOUND));
 	}
 
 	/**

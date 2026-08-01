@@ -1,19 +1,18 @@
 package com.a508.backend.domain.transaction_history.service;
 
-import java.time.LocalDate;
-import java.time.OffsetDateTime;
-import java.time.format.DateTimeParseException;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.a508.backend.domain.category.repository.CategoryRepository;
+import com.a508.backend.domain.category.service.CategoryService;
 import com.a508.backend.domain.transaction_history.dto.request.TransactionHistoryCreateRequest;
 import com.a508.backend.domain.transaction_history.dto.request.TransactionHistoryUpdateRequest;
 import com.a508.backend.domain.transaction_history.dto.response.TransactionHistoryResponse;
 import com.a508.backend.domain.transaction_history.dto.response.TransactionListResponse;
 import com.a508.backend.domain.transaction_history.dto.response.TransactionSearchResponse;
+import com.a508.backend.domain.transaction_history.entity.DateRange;
 import com.a508.backend.domain.transaction_history.entity.TransactionHistory;
 import com.a508.backend.domain.transaction_history.entity.TransactionSort;
 import com.a508.backend.domain.transaction_history.entity.TransactionType;
@@ -35,6 +34,7 @@ public class TransactionHistoryService {
 
 	private final TransactionHistoryRepository transactionHistoryRepository;
 	private final CategoryRepository categoryRepository;
+	private final CategoryService categoryService;
 	private final KakaoLocalApiClient kakaoLocalApiClient;
 
 	@Transactional
@@ -96,13 +96,11 @@ public class TransactionHistoryService {
 		Long userId, String sort, String type, String startDate, String endDate, Long categoryId) {
 		TransactionSort transactionSort = TransactionSort.from(sort);
 		TransactionType typeFilter = parseTypeFilter(type);
-		LocalDate start = parseStartDate(startDate);
-		LocalDate end = parseEndDate(endDate);
-		validateDateRange(start, end);
-		validateCategoryOwnership(userId, categoryId);
+		DateRange dateRange = DateRange.ofThisMonth(startDate, endDate);
+		categoryService.validateOwnership(userId, categoryId);
 
 		List<TransactionHistory> transactions = transactionHistoryRepository.searchTransactions(
-			userId, toStartOfDay(start), toStartOfNextDay(end), typeFilter, categoryId, null,
+			userId, dateRange.startDateTime(), dateRange.endDateTime(), typeFilter, categoryId, null,
 			transactionSort.toSort());
 
 		return TransactionListResponse.of(transactions);
@@ -113,13 +111,11 @@ public class TransactionHistoryService {
 		Long userId, String query, String sort, String type, String startDate, String endDate, Long categoryId) {
 		TransactionSort transactionSort = TransactionSort.from(sort);
 		TransactionType typeFilter = parseTypeFilter(type);
-		LocalDate start = parseStartDate(startDate);
-		LocalDate end = parseEndDate(endDate);
-		validateDateRange(start, end);
-		validateCategoryOwnership(userId, categoryId);
+		DateRange dateRange = DateRange.ofThisMonth(startDate, endDate);
+		categoryService.validateOwnership(userId, categoryId);
 
 		List<TransactionHistory> transactions = transactionHistoryRepository.searchTransactions(
-			userId, toStartOfDay(start), toStartOfNextDay(end), typeFilter, categoryId,
+			userId, dateRange.startDateTime(), dateRange.endDateTime(), typeFilter, categoryId,
 			normalizeQuery(query), transactionSort.toSort());
 
 		return TransactionSearchResponse.of(transactions);
@@ -139,60 +135,11 @@ public class TransactionHistoryService {
 		}
 	}
 
-	/** 조회 시작일을 파싱한다. 값이 없으면 이번 달 1일이 기본값이다. */
-	private LocalDate parseStartDate(String startDate) {
-		if (startDate == null || startDate.isBlank()) {
-			return LocalDate.now(DateTimeUtils.SERVICE_ZONE).withDayOfMonth(1);
-		}
-		return parseDate(startDate);
-	}
-
-	/** 조회 종료일을 파싱한다. 값이 없으면 오늘이 기본값이다. */
-	private LocalDate parseEndDate(String endDate) {
-		if (endDate == null || endDate.isBlank()) {
-			return LocalDate.now(DateTimeUtils.SERVICE_ZONE);
-		}
-		return parseDate(endDate);
-	}
-
-	private LocalDate parseDate(String date) {
-		try {
-			return LocalDate.parse(date);
-		} catch (DateTimeParseException e) {
-			throw new BusinessException(ExceptionType.INVALID_DATE_FORMAT);
-		}
-	}
-
-	private void validateDateRange(LocalDate start, LocalDate end) {
-		if (start.isAfter(end)) {
-			throw new BusinessException(ExceptionType.INVALID_DATE_RANGE);
-		}
-	}
-
-	/**
-	 * 카테고리 필터가 지정된 경우, 해당 카테고리가 요청 회원 소유인지 검증한다.
-	 */
-	private void validateCategoryOwnership(Long userId, Long categoryId) {
-		if (categoryId == null) {
-			return;
-		}
-		categoryRepository.findByIdAndUser_Id(categoryId, userId)
-			.orElseThrow(() -> new BusinessException(ExceptionType.CATEGORY_NOT_FOUND));
-	}
-
 	private String normalizeQuery(String query) {
 		if (query == null || query.isBlank()) {
 			return null;
 		}
 		return query.trim();
-	}
-
-	private OffsetDateTime toStartOfDay(LocalDate date) {
-		return date.atStartOfDay(DateTimeUtils.SERVICE_ZONE).toOffsetDateTime();
-	}
-
-	private OffsetDateTime toStartOfNextDay(LocalDate date) {
-		return date.plusDays(1).atStartOfDay(DateTimeUtils.SERVICE_ZONE).toOffsetDateTime();
 	}
 
 	/**
