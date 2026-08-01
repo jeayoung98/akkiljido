@@ -32,7 +32,7 @@ public class TransactionHistoryRepositoryImpl implements TransactionHistoryRepos
 			.selectFrom(transactionHistory)
 			.join(transactionHistory.category, category).fetchJoin()
 			.where(
-				transactionHistory.userId.eq(userId),
+				transactionHistory.user.id.eq(userId),
 				transactionHistory.type.eq(TransactionType.EXPENSE),
 				transactionHistory.datetime.goe(startDateTime),
 				transactionHistory.datetime.lt(endDateTime),

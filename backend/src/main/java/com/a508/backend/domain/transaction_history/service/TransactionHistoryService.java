@@ -17,6 +17,7 @@ import com.a508.backend.domain.transaction_history.entity.TransactionHistory;
 import com.a508.backend.domain.transaction_history.entity.TransactionSort;
 import com.a508.backend.domain.transaction_history.entity.TransactionType;
 import com.a508.backend.domain.transaction_history.repository.TransactionHistoryRepository;
+import com.a508.backend.domain.user.repository.UserRepository;
 import com.a508.backend.global.client.kakao.KakaoLocalApiClient;
 import com.a508.backend.global.client.kakao.dto.RegionInfo;
 import com.a508.backend.global.exception.BusinessException;
@@ -33,6 +34,7 @@ public class TransactionHistoryService {
 	private static final String TYPE_ALL = "all";
 
 	private final TransactionHistoryRepository transactionHistoryRepository;
+	private final UserRepository userRepository;
 	private final CategoryService categoryService;
 	private final KakaoLocalApiClient kakaoLocalApiClient;
 
@@ -42,7 +44,9 @@ public class TransactionHistoryService {
 
 		TransactionHistory saved = transactionHistoryRepository.save(
 			TransactionHistory.builder()
-				.userId(userId)
+				// userId 는 검증된 JWT 에서 온 값이라 존재 여부를 다시 확인할 필요가 없다.
+				// 연관관계 설정에는 식별자만 있으면 되므로 SELECT 없이 프록시 참조만 건다.
+				.user(userRepository.getReferenceById(userId))
 				.category(categoryService.getOwnedCategory(userId, request.categoryId()))
 				.datetime(DateTimeUtils.toServiceOffset(request.datetime()))
 				.amount(request.amount())
@@ -155,7 +159,7 @@ public class TransactionHistoryService {
 	}
 
 	private TransactionHistory getOwnedTransaction(Long userId, Long transactionId) {
-		return transactionHistoryRepository.findByIdAndUserId(transactionId, userId)
+		return transactionHistoryRepository.findByIdAndUser_Id(transactionId, userId)
 			.orElseThrow(() -> new BusinessException(ExceptionType.TRANSACTION_HISTORY_NOT_FOUND));
 	}
 }

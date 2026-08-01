@@ -61,9 +61,15 @@ class TransactionMapServiceTest {
 	@InjectMocks
 	private TransactionMapService transactionMapService;
 
+	private User user() {
+		User user = User.createGoogleGuest("sub");
+		ReflectionTestUtils.setField(user, "id", USER_ID);
+		return user;
+	}
+
 	private Category category(Long id, String name) {
 		Category category = Category.builder()
-			.user(User.createGoogleGuest("sub"))
+			.user(user())
 			.name(name)
 			.build();
 		ReflectionTestUtils.setField(category, "id", id);
@@ -73,7 +79,7 @@ class TransactionMapServiceTest {
 	private TransactionHistory transaction(Long id, String name, long amount, LocalDateTime datetime,
 		double latitude, double longitude, String region1, String region2, String region3) {
 		TransactionHistory entity = TransactionHistory.builder()
-			.userId(USER_ID)
+			.user(user())
 			.category(category(3L, "음식점"))
 			.datetime(DateTimeUtils.toServiceOffset(datetime))
 			.amount(amount)
@@ -91,7 +97,7 @@ class TransactionMapServiceTest {
 	}
 
 	private MyPlace myPlace(Long id, String name) {
-		MyPlace myPlace = MyPlace.create(User.createGoogleGuest("sub"), name, "서울 중구 태평로1가 31",
+		MyPlace myPlace = MyPlace.create(user(), name, "서울 중구 태평로1가 31",
 			CENTER_LATITUDE, CENTER_LONGITUDE);
 		ReflectionTestUtils.setField(myPlace, "id", id);
 		return myPlace;
