@@ -5,6 +5,7 @@ import java.time.OffsetDateTime;
 import org.locationtech.jts.geom.Point;
 
 import com.a508.backend.domain.category.entity.Category;
+import com.a508.backend.domain.user.domain.User;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -39,9 +40,9 @@ public class TransactionHistory {
     @Column(name = "transaction_id")
     private Long id;
 
-    // TODO: users 엔티티 구현 후 @ManyToOne 연관관계로 교체
-    @Column(name = "user_id", nullable = false)
-    private Long userId;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "category_id", nullable = false)
@@ -91,11 +92,11 @@ public class TransactionHistory {
     private Point coordinate;
 
     @Builder
-    private TransactionHistory(Long userId, Category category, OffsetDateTime datetime, Long amount,
+    private TransactionHistory(User user, Category category, OffsetDateTime datetime, Long amount,
                                TransactionType type, String transactionName, String paymentMethod,
                                String memo, String address, String bCode, String region1DepthName,
                                String region2DepthName, String region3DepthName, Point coordinate) {
-        this.userId = userId;
+        this.user = user;
         this.category = category;
         this.datetime = datetime;
         this.amount = amount;

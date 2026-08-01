@@ -17,6 +17,7 @@ import com.a508.backend.domain.transaction_history.entity.TransactionHistory;
 import com.a508.backend.domain.transaction_history.entity.TransactionSort;
 import com.a508.backend.domain.transaction_history.entity.TransactionType;
 import com.a508.backend.domain.transaction_history.repository.TransactionHistoryRepository;
+import com.a508.backend.domain.user.service.UserService;
 import com.a508.backend.global.client.kakao.KakaoLocalApiClient;
 import com.a508.backend.global.client.kakao.dto.RegionInfo;
 import com.a508.backend.global.exception.BusinessException;
@@ -33,6 +34,7 @@ public class TransactionHistoryService {
 	private static final String TYPE_ALL = "all";
 
 	private final TransactionHistoryRepository transactionHistoryRepository;
+	private final UserService userService;
 	private final CategoryService categoryService;
 	private final KakaoLocalApiClient kakaoLocalApiClient;
 
@@ -42,7 +44,7 @@ public class TransactionHistoryService {
 
 		TransactionHistory saved = transactionHistoryRepository.save(
 			TransactionHistory.builder()
-				.userId(userId)
+				.user(userService.getUser(userId))
 				.category(categoryService.getOwnedCategory(userId, request.categoryId()))
 				.datetime(DateTimeUtils.toServiceOffset(request.datetime()))
 				.amount(request.amount())
@@ -155,7 +157,7 @@ public class TransactionHistoryService {
 	}
 
 	private TransactionHistory getOwnedTransaction(Long userId, Long transactionId) {
-		return transactionHistoryRepository.findByIdAndUserId(transactionId, userId)
+		return transactionHistoryRepository.findByIdAndUser_Id(transactionId, userId)
 			.orElseThrow(() -> new BusinessException(ExceptionType.TRANSACTION_HISTORY_NOT_FOUND));
 	}
 }

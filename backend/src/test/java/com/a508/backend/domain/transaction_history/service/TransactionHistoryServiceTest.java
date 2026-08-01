@@ -30,6 +30,7 @@ import com.a508.backend.domain.transaction_history.dto.response.TransactionHisto
 import com.a508.backend.domain.transaction_history.entity.TransactionHistory;
 import com.a508.backend.domain.transaction_history.entity.TransactionType;
 import com.a508.backend.domain.transaction_history.repository.TransactionHistoryRepository;
+import com.a508.backend.domain.user.service.UserService;
 import com.a508.backend.global.client.kakao.KakaoLocalApiClient;
 import com.a508.backend.global.client.kakao.dto.RegionInfo;
 import com.a508.backend.global.exception.BusinessException;
@@ -45,6 +46,9 @@ class TransactionHistoryServiceTest {
 	private TransactionHistoryRepository transactionHistoryRepository;
 
 	@Mock
+	private UserService userService;
+
+	@Mock
 	private CategoryService categoryService;
 
 	@Mock
@@ -56,9 +60,15 @@ class TransactionHistoryServiceTest {
 	private static final Long USER_ID = 1L;
 	private static final LocalDateTime DATETIME = LocalDateTime.of(2026, 7, 27, 15, 30, 0);
 
+	private User user() {
+		User user = User.createGoogleGuest("sub");
+		ReflectionTestUtils.setField(user, "id", USER_ID);
+		return user;
+	}
+
 	private Category category(Long id) {
 		Category category = Category.builder()
-			.user(User.createGoogleGuest("sub"))
+			.user(user())
 			.name("음식점")
 			.build();
 		ReflectionTestUtils.setField(category, "id", id);
@@ -81,7 +91,7 @@ class TransactionHistoryServiceTest {
 
 	private TransactionHistory storedEntity(Long id) {
 		TransactionHistory entity = TransactionHistory.builder()
-			.userId(USER_ID)
+			.user(user())
 			.category(category(3L))
 			.datetime(DateTimeUtils.toServiceOffset(DATETIME))
 			.amount(15000L)
@@ -105,6 +115,7 @@ class TransactionHistoryServiceTest {
 	void create() {
 		when(kakaoLocalApiClient.coordToRegion(37.5006, 127.0366))
 			.thenReturn(Optional.of(new RegionInfo("1168010100", "서울특별시", "강남구", "역삼동")));
+		when(userService.getUser(USER_ID)).thenReturn(user());
 		when(categoryService.getOwnedCategory(USER_ID, 3L)).thenReturn(category(3L));
 		when(transactionHistoryRepository.save(any(TransactionHistory.class)))
 			.thenAnswer(invocation -> {
@@ -122,7 +133,7 @@ class TransactionHistoryServiceTest {
 		verify(transactionHistoryRepository).save(captor.capture());
 		TransactionHistory saved = captor.getValue();
 
-		assertThat(saved.getUserId()).isEqualTo(USER_ID);
+		assertThat(saved.getUser().getId()).isEqualTo(USER_ID);
 		assertThat(saved.getCategory().getId()).isEqualTo(3L);
 		assertThat(saved.getType()).isEqualTo(TransactionType.EXPENSE);
 		assertThat(saved.getDatetime()).isEqualTo(DateTimeUtils.toServiceOffset(DATETIME));
@@ -141,6 +152,7 @@ class TransactionHistoryServiceTest {
 	@Test
 	@DisplayName("createTransactionHistory 는 좌표가 없으면 카카오 API 를 호출하지 않고 법정동 정보는 비운다")
 	void createWithoutCoordinate() {
+		when(userService.getUser(USER_ID)).thenReturn(user());
 		when(categoryService.getOwnedCategory(USER_ID, 3L)).thenReturn(category(3L));
 		when(transactionHistoryRepository.save(any(TransactionHistory.class)))
 			.thenAnswer(invocation -> {
@@ -157,6 +169,7 @@ class TransactionHistoryServiceTest {
 		verify(transactionHistoryRepository).save(captor.capture());
 		TransactionHistory saved = captor.getValue();
 
+		assertThat(saved.getUser().getId()).isEqualTo(USER_ID);
 		assertThat(saved.getBCode()).isNull();
 		assertThat(saved.getRegion1DepthName()).isNull();
 		assertThat(saved.getCoordinate()).isNull();
@@ -181,7 +194,7 @@ class TransactionHistoryServiceTest {
 	@DisplayName("updateTransactionHistory 는 다른 회원의 카테고리 ID 로는 수정할 수 없다")
 	void updateWithOtherUsersCategory() {
 		TransactionHistory entity = storedEntity(10L);
-		when(transactionHistoryRepository.findByIdAndUserId(10L, USER_ID)).thenReturn(Optional.of(entity));
+		when(transactionHistoryRepository.findByIdAndUser_Id(10L, USER_ID)).thenReturn(Optional.of(entity));
 		when(categoryService.getOwnedCategory(USER_ID, 5L))
 			.thenThrow(new BusinessException(ExceptionType.CATEGORY_NOT_FOUND));
 
@@ -298,7 +311,7 @@ class TransactionHistoryServiceTest {
 	@Test
 	@DisplayName("findOneTransactionHistoryResponse 은 엔티티를 API 응답 형태로 매핑한다 (datetime 결합, 좌표 분해)")
 	void findOne() {
-		when(transactionHistoryRepository.findByIdAndUserId(10L, USER_ID))
+		when(transactionHistoryRepository.findByIdAndUser_Id(10L, USER_ID))
 			.thenReturn(Optional.of(storedEntity(10L)));
 
 		TransactionHistoryResponse response = transactionHistoryService.findOneTransactionHistoryResponse(USER_ID, 10L);
@@ -319,7 +332,7 @@ class TransactionHistoryServiceTest {
 	@Test
 	@DisplayName("findOneTransactionHistoryResponse 은 소유자 내역이 없으면 TRANSACTION_HISTORY_NOT_FOUND 예외를 던진다")
 	void findOneNotFound() {
-		when(transactionHistoryRepository.findByIdAndUserId(999L, USER_ID))
+		when(transactionHistoryRepository.findByIdAndUser_Id(999L, USER_ID))
 			.thenReturn(Optional.empty());
 
 		assertThatThrownBy(() -> transactionHistoryService.findOneTransactionHistoryResponse(USER_ID, 999L))
@@ -332,7 +345,7 @@ class TransactionHistoryServiceTest {
 	@DisplayName("updateTransactionHistory 는 소유한 엔티티의 필드를 갱신하고 갱신된 응답을 반환한다")
 	void update() {
 		TransactionHistory entity = storedEntity(10L);
-		when(transactionHistoryRepository.findByIdAndUserId(10L, USER_ID))
+		when(transactionHistoryRepository.findByIdAndUser_Id(10L, USER_ID))
 			.thenReturn(Optional.of(entity));
 		when(categoryService.getOwnedCategory(USER_ID, 5L)).thenReturn(category(5L));
 
@@ -372,7 +385,7 @@ class TransactionHistoryServiceTest {
 	@DisplayName("deleteTransactionHistory 는 소유한 엔티티를 삭제한다")
 	void delete() {
 		TransactionHistory entity = storedEntity(10L);
-		when(transactionHistoryRepository.findByIdAndUserId(10L, USER_ID))
+		when(transactionHistoryRepository.findByIdAndUser_Id(10L, USER_ID))
 			.thenReturn(Optional.of(entity));
 
 		transactionHistoryService.deleteTransactionHistory(USER_ID, 10L);
@@ -383,7 +396,7 @@ class TransactionHistoryServiceTest {
 	@Test
 	@DisplayName("deleteTransactionHistory 는 소유자 내역이 없으면 예외를 던지고 삭제를 시도하지 않는다")
 	void deleteNotFound() {
-		when(transactionHistoryRepository.findByIdAndUserId(999L, USER_ID))
+		when(transactionHistoryRepository.findByIdAndUser_Id(999L, USER_ID))
 			.thenReturn(Optional.empty());
 
 		assertThatThrownBy(() -> transactionHistoryService.deleteTransactionHistory(USER_ID, 999L))

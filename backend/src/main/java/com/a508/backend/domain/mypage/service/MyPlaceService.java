@@ -13,7 +13,7 @@ import com.a508.backend.global.exception.ExceptionType;
 import com.a508.backend.domain.mypage.dto.MyPlaceCreateRequest;
 import com.a508.backend.domain.mypage.dto.MyPlaceResult;
 import com.a508.backend.domain.user.domain.User;
-import com.a508.backend.domain.user.repository.UserRepository;
+import com.a508.backend.domain.user.service.UserService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -22,7 +22,7 @@ import lombok.RequiredArgsConstructor;
 public class MyPlaceService {
 
 	private final MyPlaceRepository myPlaceRepository;
-	private final UserRepository userRepository;
+	private final UserService userService;
 
 	@Transactional(readOnly = true)
 	public List<MyPlaceResult> getMyPlaces(Long userId) {
@@ -57,7 +57,7 @@ public class MyPlaceService {
 
 		validateDuplicatePlaceName(userId, normalizedPlaceName);
 
-		User user = findUser(userId);
+		User user = userService.getUser(userId);
 		MyPlace myPlace = MyPlace.create(
 			user,
 			normalizedPlaceName,
@@ -94,11 +94,6 @@ public class MyPlaceService {
 	public void deleteMyPlace(Long userId, Long placeId) {
 		MyPlace myPlace = getOwnedMyPlace(userId, placeId);
 		myPlaceRepository.delete(myPlace);
-	}
-
-	private User findUser(Long userId) {
-		return userRepository.findById(userId)
-			.orElseThrow(() -> new BusinessException(ExceptionType.UNAUTHENTICATED));
 	}
 
 	private void validateDuplicatePlaceName(Long userId, String myPlaceName) {

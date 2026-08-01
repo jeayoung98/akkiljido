@@ -24,7 +24,7 @@ import com.a508.backend.domain.mypage.dto.MyPlaceResult;
 import com.a508.backend.domain.mypage.dto.MyPlaceUpdateRequest;
 import com.a508.backend.domain.mypage.repository.MyPlaceRepository;
 import com.a508.backend.domain.user.domain.User;
-import com.a508.backend.domain.user.repository.UserRepository;
+import com.a508.backend.domain.user.service.UserService;
 
 @ExtendWith(MockitoExtension.class)
 class MyPlaceServiceTest {
@@ -35,14 +35,14 @@ class MyPlaceServiceTest {
 	private MyPlaceRepository myPlaceRepository;
 
 	@Mock
-	private UserRepository userRepository;
+	private UserService userService;
 
 	private MyPlaceService myPlaceService;
 	private User user;
 
 	@BeforeEach
 	void setUp() {
-		myPlaceService = new MyPlaceService(myPlaceRepository, userRepository);
+		myPlaceService = new MyPlaceService(myPlaceRepository, userService);
 		user = User.createGoogleGuest("google-sub");
 		ReflectionTestUtils.setField(user, "id", USER_ID);
 	}
@@ -113,8 +113,8 @@ class MyPlaceServiceTest {
 			)
 		).willReturn(false);
 
-		given(userRepository.findById(USER_ID))
-			.willReturn(Optional.of(user));
+		given(userService.getUser(USER_ID))
+			.willReturn(user);
 
 		given(myPlaceRepository.save(any(MyPlace.class)))
 			.willAnswer(invocation -> {
