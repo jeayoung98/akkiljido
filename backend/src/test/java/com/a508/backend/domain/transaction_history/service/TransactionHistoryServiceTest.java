@@ -8,6 +8,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 
 import org.assertj.core.data.Offset;
@@ -260,6 +261,26 @@ class TransactionHistoryServiceTest {
 			.isEqualTo(ExceptionType.INVALID_SORT_TYPE);
 
 		verifyNoInteractions(transactionHistoryRepository);
+	}
+
+	@Test
+	@DisplayName("서버 기본 로케일이 터키어여도 거래 유형(income) 파싱 결과가 달라지지 않는다")
+	void parsesTypeRegardlessOfDefaultLocale() {
+		// 터키어 로케일에서 "income".toUpperCase() 는 'i' 를 'İ'(점 있는 I)로 바꿔 valueOf 에 실패한다.
+		Locale defaultLocale = Locale.getDefault();
+		Locale.setDefault(Locale.forLanguageTag("tr"));
+		try {
+			when(transactionHistoryRepository.searchTransactions(
+				eq(USER_ID), any(), any(), eq(TransactionType.INCOME), isNull(), isNull(), any(Sort.class)))
+				.thenReturn(List.of());
+
+			transactionHistoryService.getTransactionList(USER_ID, null, "income", null, null, null);
+
+			verify(transactionHistoryRepository).searchTransactions(
+				eq(USER_ID), any(), any(), eq(TransactionType.INCOME), isNull(), isNull(), any(Sort.class));
+		} finally {
+			Locale.setDefault(defaultLocale);
+		}
 	}
 
 	@Test

@@ -1,6 +1,7 @@
 package com.a508.backend.domain.transaction_history.service;
 
 import java.util.List;
+import java.util.Locale;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -122,13 +123,14 @@ public class TransactionHistoryService {
 
 	/**
 	 * 거래 유형 필터를 파싱한다. 값이 없거나 all 이면 전체(필터 없음), 지원하지 않는 값이면 예외를 던진다.
+	 * 대소문자 변환은 서버 기본 로케일과 무관하도록 Locale.ROOT 를 사용한다(터키어 로케일의 i/I 문제 회피).
 	 */
 	private TransactionType parseTypeFilter(String type) {
 		if (type == null || type.isBlank() || type.equalsIgnoreCase(TYPE_ALL)) {
 			return null;
 		}
 		try {
-			return TransactionType.valueOf(type.toUpperCase());
+			return TransactionType.valueOf(type.toUpperCase(Locale.ROOT));
 		} catch (IllegalArgumentException e) {
 			throw new BusinessException(ExceptionType.INVALID_TRANSACTION_TYPE);
 		}

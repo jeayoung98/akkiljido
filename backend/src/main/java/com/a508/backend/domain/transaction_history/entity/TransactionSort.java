@@ -1,5 +1,7 @@
 package com.a508.backend.domain.transaction_history.entity;
 
+import java.util.Locale;
+
 import org.springframework.data.domain.Sort;
 
 import com.a508.backend.global.exception.BusinessException;
@@ -23,12 +25,13 @@ public enum TransactionSort {
 
     /**
      * 정렬 파라미터 문자열을 파싱한다. 값이 없으면 최신순(기본값), 지원하지 않는 값이면 예외를 던진다.
+     * 대소문자 변환은 서버 기본 로케일과 무관하도록 Locale.ROOT 를 사용한다(터키어 로케일의 i/I 문제 회피).
      */
     public static TransactionSort from(String value) {
         if (value == null || value.isBlank()) {
             return LATEST;
         }
-        return switch (value.toLowerCase()) {
+        return switch (value.toLowerCase(Locale.ROOT)) {
             case "latest" -> LATEST;
             case "oldest" -> OLDEST;
             default -> throw new BusinessException(ExceptionType.INVALID_SORT_TYPE);
