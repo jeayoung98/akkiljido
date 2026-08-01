@@ -32,6 +32,17 @@ public class CategoryService {
 	}
 
 	/**
+	 * 요청 회원이 소유한 카테고리를 조회한다. 없거나 다른 회원 소유면 예외를 던진다.
+	 * 거래내역 등록/수정처럼 카테고리를 실제로 참조해야 하는 곳에서 사용한다.
+	 * getReferenceById 와 달리 소유권을 검증하므로, 남의 카테고리 ID 를 넘기는 요청을 막는다.
+	 */
+	@Transactional(readOnly = true)
+	public Category getOwnedCategory(Long userId, Long categoryId) {
+		return categoryRepository.findByIdAndUser_Id(categoryId, userId)
+			.orElseThrow(() -> new BusinessException(ExceptionType.CATEGORY_NOT_FOUND));
+	}
+
+	/**
 	 * 카테고리 필터가 지정된 경우, 해당 카테고리가 요청 회원 소유인지 검증한다.
 	 * categoryId 가 null 이면 전체 조회이므로 검증하지 않는다.
 	 */
@@ -40,8 +51,7 @@ public class CategoryService {
 		if (categoryId == null) {
 			return;
 		}
-		categoryRepository.findByIdAndUser_Id(categoryId, userId)
-			.orElseThrow(() -> new BusinessException(ExceptionType.CATEGORY_NOT_FOUND));
+		getOwnedCategory(userId, categoryId);
 	}
 
 	/**

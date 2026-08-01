@@ -29,6 +29,13 @@ class CategoryServiceTest {
 	@InjectMocks
 	private CategoryService categoryService;
 
+	private Category category() {
+		return Category.builder()
+			.user(User.createGoogleGuest("sub"))
+			.name("음식점")
+			.build();
+	}
+
 	@Test
 	@DisplayName("categoryId 가 null 이면 전체 조회이므로 검증하지 않는다")
 	void skipsValidationWhenCategoryIdIsNull() {
@@ -40,13 +47,29 @@ class CategoryServiceTest {
 	@Test
 	@DisplayName("내 카테고리면 예외 없이 통과한다")
 	void passesWhenCategoryBelongsToUser() {
-		Category category = Category.builder()
-			.user(User.createGoogleGuest("sub"))
-			.name("음식점")
-			.build();
-		when(categoryRepository.findByIdAndUser_Id(3L, USER_ID)).thenReturn(Optional.of(category));
+		when(categoryRepository.findByIdAndUser_Id(3L, USER_ID)).thenReturn(Optional.of(category()));
 
 		assertThatNoException().isThrownBy(() -> categoryService.validateOwnership(USER_ID, 3L));
+	}
+
+	@Test
+	@DisplayName("getOwnedCategory 는 내 카테고리를 반환한다")
+	void returnsOwnedCategory() {
+		Category category = category();
+		when(categoryRepository.findByIdAndUser_Id(3L, USER_ID)).thenReturn(Optional.of(category));
+
+		assertThat(categoryService.getOwnedCategory(USER_ID, 3L)).isSameAs(category);
+	}
+
+	@Test
+	@DisplayName("getOwnedCategory 는 다른 회원의 카테고리면 CATEGORY_NOT_FOUND 예외를 던진다")
+	void getOwnedCategoryThrowsWhenNotOwned() {
+		when(categoryRepository.findByIdAndUser_Id(99L, USER_ID)).thenReturn(Optional.empty());
+
+		assertThatThrownBy(() -> categoryService.getOwnedCategory(USER_ID, 99L))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getExceptionType())
+			.isEqualTo(ExceptionType.CATEGORY_NOT_FOUND);
 	}
 
 	@Test

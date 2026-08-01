@@ -5,7 +5,6 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.a508.backend.domain.category.repository.CategoryRepository;
 import com.a508.backend.domain.category.service.CategoryService;
 import com.a508.backend.domain.transaction_history.dto.request.TransactionHistoryCreateRequest;
 import com.a508.backend.domain.transaction_history.dto.request.TransactionHistoryUpdateRequest;
@@ -33,7 +32,6 @@ public class TransactionHistoryService {
 	private static final String TYPE_ALL = "all";
 
 	private final TransactionHistoryRepository transactionHistoryRepository;
-	private final CategoryRepository categoryRepository;
 	private final CategoryService categoryService;
 	private final KakaoLocalApiClient kakaoLocalApiClient;
 
@@ -44,7 +42,7 @@ public class TransactionHistoryService {
 		TransactionHistory saved = transactionHistoryRepository.save(
 			TransactionHistory.builder()
 				.userId(userId)
-				.category(categoryRepository.getReferenceById(request.categoryId()))
+				.category(categoryService.getOwnedCategory(userId, request.categoryId()))
 				.datetime(DateTimeUtils.toServiceOffset(request.datetime()))
 				.amount(request.amount())
 				.type(request.type())
@@ -72,7 +70,7 @@ public class TransactionHistoryService {
 		TransactionHistoryUpdateRequest request) {
 		TransactionHistory transaction = getOwnedTransaction(userId, transactionId);
 		transaction.update(
-			request.categoryId() != null ? categoryRepository.getReferenceById(request.categoryId()) : null,
+			request.categoryId() != null ? categoryService.getOwnedCategory(userId, request.categoryId()) : null,
 			DateTimeUtils.toServiceOffset(request.datetime()),
 			request.amount(),
 			request.type(),

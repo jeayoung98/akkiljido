@@ -19,7 +19,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import com.a508.backend.domain.category.entity.Category;
-import com.a508.backend.domain.category.repository.CategoryRepository;
 import com.a508.backend.domain.category.service.CategoryService;
 import com.a508.backend.domain.transaction_history.dto.request.TransactionHistoryCreateRequest;
 import com.a508.backend.domain.transaction_history.dto.request.TransactionHistoryUpdateRequest;
@@ -40,9 +39,6 @@ class TransactionHistoryServiceTest {
 
 	@Mock
 	private TransactionHistoryRepository transactionHistoryRepository;
-
-	@Mock
-	private CategoryRepository categoryRepository;
 
 	@Mock
 	private CategoryService categoryService;
@@ -105,7 +101,7 @@ class TransactionHistoryServiceTest {
 	void create() {
 		when(kakaoLocalApiClient.coordToRegion(37.5006, 127.0366))
 			.thenReturn(Optional.of(new RegionInfo("1168010100", "서울특별시", "강남구", "역삼동")));
-		when(categoryRepository.getReferenceById(3L)).thenReturn(category(3L));
+		when(categoryService.getOwnedCategory(USER_ID, 3L)).thenReturn(category(3L));
 		when(transactionHistoryRepository.save(any(TransactionHistory.class)))
 			.thenAnswer(invocation -> {
 				TransactionHistory arg = invocation.getArgument(0);
@@ -141,7 +137,7 @@ class TransactionHistoryServiceTest {
 	@Test
 	@DisplayName("createTransactionHistory 는 좌표가 없으면 카카오 API 를 호출하지 않고 법정동 정보는 비운다")
 	void createWithoutCoordinate() {
-		when(categoryRepository.getReferenceById(3L)).thenReturn(category(3L));
+		when(categoryService.getOwnedCategory(USER_ID, 3L)).thenReturn(category(3L));
 		when(transactionHistoryRepository.save(any(TransactionHistory.class)))
 			.thenAnswer(invocation -> {
 				TransactionHistory arg = invocation.getArgument(0);
@@ -160,6 +156,41 @@ class TransactionHistoryServiceTest {
 		assertThat(saved.getBCode()).isNull();
 		assertThat(saved.getRegion1DepthName()).isNull();
 		assertThat(saved.getCoordinate()).isNull();
+	}
+
+	@Test
+	@DisplayName("createTransactionHistory 는 다른 회원의 카테고리 ID 로는 등록할 수 없다")
+	void createWithOtherUsersCategory() {
+		when(categoryService.getOwnedCategory(USER_ID, 3L))
+			.thenThrow(new BusinessException(ExceptionType.CATEGORY_NOT_FOUND));
+
+		assertThatThrownBy(() -> transactionHistoryService.createTransactionHistory(
+			USER_ID, createRequest(null, null)))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getExceptionType())
+			.isEqualTo(ExceptionType.CATEGORY_NOT_FOUND);
+
+		verify(transactionHistoryRepository, never()).save(any());
+	}
+
+	@Test
+	@DisplayName("updateTransactionHistory 는 다른 회원의 카테고리 ID 로는 수정할 수 없다")
+	void updateWithOtherUsersCategory() {
+		TransactionHistory entity = storedEntity(10L);
+		when(transactionHistoryRepository.findByIdAndUserId(10L, USER_ID)).thenReturn(Optional.of(entity));
+		when(categoryService.getOwnedCategory(USER_ID, 5L))
+			.thenThrow(new BusinessException(ExceptionType.CATEGORY_NOT_FOUND));
+
+		TransactionHistoryUpdateRequest request = new TransactionHistoryUpdateRequest(
+			null, null, null, null, 5L, null, null, null, null, null);
+
+		assertThatThrownBy(() -> transactionHistoryService.updateTransactionHistory(USER_ID, 10L, request))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getExceptionType())
+			.isEqualTo(ExceptionType.CATEGORY_NOT_FOUND);
+
+		// 예외로 롤백되지만, 검증이 update() 호출보다 먼저 일어나는지 확인한다.
+		assertThat(entity.getCategory().getId()).isEqualTo(3L);
 	}
 
 	@Test
@@ -201,7 +232,7 @@ class TransactionHistoryServiceTest {
 		TransactionHistory entity = storedEntity(10L);
 		when(transactionHistoryRepository.findByIdAndUserId(10L, USER_ID))
 			.thenReturn(Optional.of(entity));
-		when(categoryRepository.getReferenceById(5L)).thenReturn(category(5L));
+		when(categoryService.getOwnedCategory(USER_ID, 5L)).thenReturn(category(5L));
 
 		LocalDateTime updatedDatetime = LocalDateTime.of(2026, 7, 24, 9, 0, 0);
 		TransactionHistoryUpdateRequest request = new TransactionHistoryUpdateRequest(
