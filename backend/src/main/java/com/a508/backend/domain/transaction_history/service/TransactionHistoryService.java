@@ -92,31 +92,32 @@ public class TransactionHistoryService {
 	@Transactional(readOnly = true)
 	public TransactionListResponse getTransactionList(
 		Long userId, String sort, String type, String startDate, String endDate, Long categoryId) {
-		TransactionSort transactionSort = TransactionSort.from(sort);
-		TransactionType typeFilter = parseTypeFilter(type);
-		DateRange dateRange = DateRange.ofThisMonth(startDate, endDate);
-		categoryService.validateOwnership(userId, categoryId);
-
-		List<TransactionHistory> transactions = transactionHistoryRepository.searchTransactions(
-			userId, dateRange.startDateTime(), dateRange.endDateTime(), typeFilter, categoryId, null,
-			transactionSort.toSort());
-
-		return TransactionListResponse.of(transactions);
+		return TransactionListResponse.of(
+			findTransactions(userId, null, sort, type, startDate, endDate, categoryId));
 	}
 
 	@Transactional(readOnly = true)
 	public TransactionSearchResponse searchTransactions(
+		Long userId, String query, String sort, String type, String startDate, String endDate, Long categoryId) {
+		return TransactionSearchResponse.of(
+			findTransactions(userId, query, sort, type, startDate, endDate, categoryId));
+	}
+
+	/**
+	 * 목록 조회와 검색이 공유하는 조회 로직. 검색어(query)만 다르고 나머지 필터·정렬·검증은 동일하다.
+	 *
+	 * @param query 정규화된 검색어. null 이면 검색어 필터 없이 전체 조회
+	 */
+	private List<TransactionHistory> findTransactions(
 		Long userId, String query, String sort, String type, String startDate, String endDate, Long categoryId) {
 		TransactionSort transactionSort = TransactionSort.from(sort);
 		TransactionType typeFilter = parseTypeFilter(type);
 		DateRange dateRange = DateRange.ofThisMonth(startDate, endDate);
 		categoryService.validateOwnership(userId, categoryId);
 
-		List<TransactionHistory> transactions = transactionHistoryRepository.searchTransactions(
+		return transactionHistoryRepository.searchTransactions(
 			userId, dateRange.startDateTime(), dateRange.endDateTime(), typeFilter, categoryId,
 			normalizeQuery(query), transactionSort.toSort());
-
-		return TransactionSearchResponse.of(transactions);
 	}
 
 	/**

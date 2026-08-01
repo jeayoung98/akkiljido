@@ -4,8 +4,10 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.Optional;
 
 import org.assertj.core.data.Offset;
@@ -16,6 +18,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Sort;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import com.a508.backend.domain.category.entity.Category;
@@ -191,6 +194,84 @@ class TransactionHistoryServiceTest {
 
 		// 예외로 롤백되지만, 검증이 update() 호출보다 먼저 일어나는지 확인한다.
 		assertThat(entity.getCategory().getId()).isEqualTo(3L);
+	}
+
+	@Test
+	@DisplayName("getTransactionList 는 검색어 없이(null) 조회하고 기본값(최신순, 이번 달 1일~오늘)을 적용한다")
+	void getTransactionList() {
+		when(transactionHistoryRepository.searchTransactions(
+			eq(USER_ID), any(), any(), isNull(), isNull(), isNull(), any(Sort.class)))
+			.thenReturn(List.of(storedEntity(10L)));
+
+		transactionHistoryService.getTransactionList(USER_ID, null, null, null, null, null);
+
+		verify(transactionHistoryRepository).searchTransactions(
+			eq(USER_ID),
+			eq(DateTimeUtils.startOfDay(DateTimeUtils.today().withDayOfMonth(1))),
+			eq(DateTimeUtils.startOfNextDay(DateTimeUtils.today())),
+			isNull(),
+			isNull(),
+			isNull(),
+			eq(Sort.by(Sort.Direction.DESC, "datetime")));
+		verify(categoryService).validateOwnership(USER_ID, null);
+	}
+
+	@Test
+	@DisplayName("searchTransactions 는 검색어를 trim 해서 넘기고, 필터/정렬 처리는 목록 조회와 동일하다")
+	void searchTransactions() {
+		when(transactionHistoryRepository.searchTransactions(
+			eq(USER_ID), any(), any(), eq(TransactionType.EXPENSE), eq(3L), eq("스타벅스"), any(Sort.class)))
+			.thenReturn(List.of(storedEntity(10L)));
+
+		transactionHistoryService.searchTransactions(
+			USER_ID, "  스타벅스  ", "oldest", "expense", "2026-07-01", "2026-07-27", 3L);
+
+		verify(transactionHistoryRepository).searchTransactions(
+			eq(USER_ID),
+			eq(DateTimeUtils.startOfDay(LocalDate.of(2026, 7, 1))),
+			eq(DateTimeUtils.startOfDay(LocalDate.of(2026, 7, 28))),
+			eq(TransactionType.EXPENSE),
+			eq(3L),
+			eq("스타벅스"),
+			eq(Sort.by(Sort.Direction.ASC, "datetime")));
+		verify(categoryService).validateOwnership(USER_ID, 3L);
+	}
+
+	@Test
+	@DisplayName("검색어가 공백뿐이면 검색어 필터 없이(null) 조회한다")
+	void searchTransactionsWithBlankQuery() {
+		when(transactionHistoryRepository.searchTransactions(
+			eq(USER_ID), any(), any(), isNull(), isNull(), isNull(), any(Sort.class)))
+			.thenReturn(List.of());
+
+		transactionHistoryService.searchTransactions(USER_ID, "   ", null, null, null, null, null);
+
+		verify(transactionHistoryRepository).searchTransactions(
+			eq(USER_ID), any(), any(), isNull(), isNull(), isNull(), any(Sort.class));
+	}
+
+	@Test
+	@DisplayName("지원하지 않는 정렬 기준이면 INVALID_SORT_TYPE 예외를 던진다")
+	void getTransactionListWithInvalidSort() {
+		assertThatThrownBy(() -> transactionHistoryService.getTransactionList(
+			USER_ID, "random", null, null, null, null))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getExceptionType())
+			.isEqualTo(ExceptionType.INVALID_SORT_TYPE);
+
+		verifyNoInteractions(transactionHistoryRepository);
+	}
+
+	@Test
+	@DisplayName("지원하지 않는 거래 유형이면 INVALID_TRANSACTION_TYPE 예외를 던진다")
+	void getTransactionListWithInvalidType() {
+		assertThatThrownBy(() -> transactionHistoryService.getTransactionList(
+			USER_ID, null, "random", null, null, null))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getExceptionType())
+			.isEqualTo(ExceptionType.INVALID_TRANSACTION_TYPE);
+
+		verifyNoInteractions(transactionHistoryRepository);
 	}
 
 	@Test
