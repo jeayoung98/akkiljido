@@ -13,7 +13,7 @@ import com.a508.backend.global.exception.ExceptionType;
 import com.a508.backend.domain.mypage.dto.MyPlaceCreateRequest;
 import com.a508.backend.domain.mypage.dto.MyPlaceResult;
 import com.a508.backend.domain.user.domain.User;
-import com.a508.backend.domain.user.repository.UserRepository;
+import com.a508.backend.domain.user.service.UserService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -22,14 +22,32 @@ import lombok.RequiredArgsConstructor;
 public class MyPlaceService {
 
 	private final MyPlaceRepository myPlaceRepository;
-	private final UserRepository userRepository;
+	private final UserService userService;
 
 	@Transactional(readOnly = true)
 	public List<MyPlaceResult> getMyPlaces(Long userId) {
-		return myPlaceRepository.findAllByUser_IdOrderByIdAsc(userId)
+		return getOwnedMyPlaces(userId)
 			.stream()
 			.map(MyPlaceResult::from)
 			.toList();
+	}
+
+	/**
+	 * 요청 회원이 등록한 장소 목록을 엔티티로 조회한다.
+	 * 좌표 등 엔티티 자체가 필요한 다른 도메인(예: 거래내역 지도 조회)에서 사용한다.
+	 */
+	@Transactional(readOnly = true)
+	public List<MyPlace> getOwnedMyPlaces(Long userId) {
+		return myPlaceRepository.findAllByUser_IdOrderByIdAsc(userId);
+	}
+
+	/**
+	 * 요청 회원이 소유한 장소를 조회한다. 없거나 다른 회원 소유면 MY_PLACE_NOT_FOUND 예외를 던진다.
+	 */
+	@Transactional(readOnly = true)
+	public MyPlace getOwnedMyPlace(Long userId, Long placeId) {
+		return myPlaceRepository.findByIdAndUser_Id(placeId, userId)
+			.orElseThrow(() -> new BusinessException(ExceptionType.MY_PLACE_NOT_FOUND));
 	}
 
 	@Transactional
@@ -39,7 +57,7 @@ public class MyPlaceService {
 
 		validateDuplicatePlaceName(userId, normalizedPlaceName);
 
-		User user = findUser(userId);
+		User user = userService.getUser(userId);
 		MyPlace myPlace = MyPlace.create(
 			user,
 			normalizedPlaceName,
@@ -53,7 +71,7 @@ public class MyPlaceService {
 
 	@Transactional
 	public MyPlaceResult updateMyPlace(Long userId, Long placeId, MyPlaceUpdateRequest request) {
-		MyPlace myPlace = findMyPlace(placeId, userId);
+		MyPlace myPlace = getOwnedMyPlace(userId, placeId);
 
 		if (request.myPlaceName() != null) {
 			String normalizedPlaceName = request.myPlaceName().trim();
@@ -74,18 +92,8 @@ public class MyPlaceService {
 
 	@Transactional
 	public void deleteMyPlace(Long userId, Long placeId) {
-		MyPlace myPlace = findMyPlace(placeId, userId);
+		MyPlace myPlace = getOwnedMyPlace(userId, placeId);
 		myPlaceRepository.delete(myPlace);
-	}
-
-	private User findUser(Long userId) {
-		return userRepository.findById(userId)
-			.orElseThrow(() -> new BusinessException(ExceptionType.UNAUTHENTICATED));
-	}
-
-	private MyPlace findMyPlace(Long placeId, Long userId) {
-		return myPlaceRepository.findByIdAndUser_Id(placeId, userId)
-			.orElseThrow(() -> new BusinessException(ExceptionType.MY_PLACE_NOT_FOUND));
 	}
 
 	private void validateDuplicatePlaceName(Long userId, String myPlaceName) {

@@ -4,8 +4,11 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
+import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 
 import org.assertj.core.data.Offset;
@@ -16,16 +19,18 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Sort;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import com.a508.backend.domain.category.entity.Category;
-import com.a508.backend.domain.category.repository.CategoryRepository;
+import com.a508.backend.domain.category.service.CategoryService;
 import com.a508.backend.domain.transaction_history.dto.request.TransactionHistoryCreateRequest;
 import com.a508.backend.domain.transaction_history.dto.request.TransactionHistoryUpdateRequest;
 import com.a508.backend.domain.transaction_history.dto.response.TransactionHistoryResponse;
 import com.a508.backend.domain.transaction_history.entity.TransactionHistory;
 import com.a508.backend.domain.transaction_history.entity.TransactionType;
 import com.a508.backend.domain.transaction_history.repository.TransactionHistoryRepository;
+import com.a508.backend.domain.user.service.UserService;
 import com.a508.backend.global.client.kakao.KakaoLocalApiClient;
 import com.a508.backend.global.client.kakao.dto.RegionInfo;
 import com.a508.backend.global.exception.BusinessException;
@@ -41,7 +46,10 @@ class TransactionHistoryServiceTest {
 	private TransactionHistoryRepository transactionHistoryRepository;
 
 	@Mock
-	private CategoryRepository categoryRepository;
+	private UserService userService;
+
+	@Mock
+	private CategoryService categoryService;
 
 	@Mock
 	private KakaoLocalApiClient kakaoLocalApiClient;
@@ -52,9 +60,15 @@ class TransactionHistoryServiceTest {
 	private static final Long USER_ID = 1L;
 	private static final LocalDateTime DATETIME = LocalDateTime.of(2026, 7, 27, 15, 30, 0);
 
+	private User user() {
+		User user = User.createGoogleGuest("sub");
+		ReflectionTestUtils.setField(user, "id", USER_ID);
+		return user;
+	}
+
 	private Category category(Long id) {
 		Category category = Category.builder()
-			.user(User.createGoogleGuest("sub"))
+			.user(user())
 			.name("음식점")
 			.build();
 		ReflectionTestUtils.setField(category, "id", id);
@@ -77,7 +91,7 @@ class TransactionHistoryServiceTest {
 
 	private TransactionHistory storedEntity(Long id) {
 		TransactionHistory entity = TransactionHistory.builder()
-			.userId(USER_ID)
+			.user(user())
 			.category(category(3L))
 			.datetime(DateTimeUtils.toServiceOffset(DATETIME))
 			.amount(15000L)
@@ -101,7 +115,8 @@ class TransactionHistoryServiceTest {
 	void create() {
 		when(kakaoLocalApiClient.coordToRegion(37.5006, 127.0366))
 			.thenReturn(Optional.of(new RegionInfo("1168010100", "서울특별시", "강남구", "역삼동")));
-		when(categoryRepository.getReferenceById(3L)).thenReturn(category(3L));
+		when(userService.getUser(USER_ID)).thenReturn(user());
+		when(categoryService.getOwnedCategory(USER_ID, 3L)).thenReturn(category(3L));
 		when(transactionHistoryRepository.save(any(TransactionHistory.class)))
 			.thenAnswer(invocation -> {
 				TransactionHistory arg = invocation.getArgument(0);
@@ -118,7 +133,7 @@ class TransactionHistoryServiceTest {
 		verify(transactionHistoryRepository).save(captor.capture());
 		TransactionHistory saved = captor.getValue();
 
-		assertThat(saved.getUserId()).isEqualTo(USER_ID);
+		assertThat(saved.getUser().getId()).isEqualTo(USER_ID);
 		assertThat(saved.getCategory().getId()).isEqualTo(3L);
 		assertThat(saved.getType()).isEqualTo(TransactionType.EXPENSE);
 		assertThat(saved.getDatetime()).isEqualTo(DateTimeUtils.toServiceOffset(DATETIME));
@@ -137,7 +152,8 @@ class TransactionHistoryServiceTest {
 	@Test
 	@DisplayName("createTransactionHistory 는 좌표가 없으면 카카오 API 를 호출하지 않고 법정동 정보는 비운다")
 	void createWithoutCoordinate() {
-		when(categoryRepository.getReferenceById(3L)).thenReturn(category(3L));
+		when(userService.getUser(USER_ID)).thenReturn(user());
+		when(categoryService.getOwnedCategory(USER_ID, 3L)).thenReturn(category(3L));
 		when(transactionHistoryRepository.save(any(TransactionHistory.class)))
 			.thenAnswer(invocation -> {
 				TransactionHistory arg = invocation.getArgument(0);
@@ -153,15 +169,149 @@ class TransactionHistoryServiceTest {
 		verify(transactionHistoryRepository).save(captor.capture());
 		TransactionHistory saved = captor.getValue();
 
+		assertThat(saved.getUser().getId()).isEqualTo(USER_ID);
 		assertThat(saved.getBCode()).isNull();
 		assertThat(saved.getRegion1DepthName()).isNull();
 		assertThat(saved.getCoordinate()).isNull();
 	}
 
 	@Test
+	@DisplayName("createTransactionHistory 는 다른 회원의 카테고리 ID 로는 등록할 수 없다")
+	void createWithOtherUsersCategory() {
+		when(categoryService.getOwnedCategory(USER_ID, 3L))
+			.thenThrow(new BusinessException(ExceptionType.CATEGORY_NOT_FOUND));
+
+		assertThatThrownBy(() -> transactionHistoryService.createTransactionHistory(
+			USER_ID, createRequest(null, null)))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getExceptionType())
+			.isEqualTo(ExceptionType.CATEGORY_NOT_FOUND);
+
+		verify(transactionHistoryRepository, never()).save(any());
+	}
+
+	@Test
+	@DisplayName("updateTransactionHistory 는 다른 회원의 카테고리 ID 로는 수정할 수 없다")
+	void updateWithOtherUsersCategory() {
+		TransactionHistory entity = storedEntity(10L);
+		when(transactionHistoryRepository.findByIdAndUser_Id(10L, USER_ID)).thenReturn(Optional.of(entity));
+		when(categoryService.getOwnedCategory(USER_ID, 5L))
+			.thenThrow(new BusinessException(ExceptionType.CATEGORY_NOT_FOUND));
+
+		TransactionHistoryUpdateRequest request = new TransactionHistoryUpdateRequest(
+			null, null, null, null, 5L, null, null, null, null, null);
+
+		assertThatThrownBy(() -> transactionHistoryService.updateTransactionHistory(USER_ID, 10L, request))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getExceptionType())
+			.isEqualTo(ExceptionType.CATEGORY_NOT_FOUND);
+
+		// 예외로 롤백되지만, 검증이 update() 호출보다 먼저 일어나는지 확인한다.
+		assertThat(entity.getCategory().getId()).isEqualTo(3L);
+	}
+
+	@Test
+	@DisplayName("getTransactionList 는 검색어 없이(null) 조회하고 기본값(최신순, 이번 달 1일~오늘)을 적용한다")
+	void getTransactionList() {
+		when(transactionHistoryRepository.searchTransactions(
+			eq(USER_ID), any(), any(), isNull(), isNull(), isNull(), any(Sort.class)))
+			.thenReturn(List.of(storedEntity(10L)));
+
+		transactionHistoryService.getTransactionList(USER_ID, null, null, null, null, null);
+
+		verify(transactionHistoryRepository).searchTransactions(
+			eq(USER_ID),
+			eq(DateTimeUtils.startOfDay(DateTimeUtils.today().withDayOfMonth(1))),
+			eq(DateTimeUtils.startOfNextDay(DateTimeUtils.today())),
+			isNull(),
+			isNull(),
+			isNull(),
+			eq(Sort.by(Sort.Direction.DESC, "datetime")));
+		verify(categoryService).validateOwnership(USER_ID, null);
+	}
+
+	@Test
+	@DisplayName("searchTransactions 는 검색어를 trim 해서 넘기고, 필터/정렬 처리는 목록 조회와 동일하다")
+	void searchTransactions() {
+		when(transactionHistoryRepository.searchTransactions(
+			eq(USER_ID), any(), any(), eq(TransactionType.EXPENSE), eq(3L), eq("스타벅스"), any(Sort.class)))
+			.thenReturn(List.of(storedEntity(10L)));
+
+		transactionHistoryService.searchTransactions(
+			USER_ID, "  스타벅스  ", "oldest", "expense", "2026-07-01", "2026-07-27", 3L);
+
+		verify(transactionHistoryRepository).searchTransactions(
+			eq(USER_ID),
+			eq(DateTimeUtils.startOfDay(LocalDate.of(2026, 7, 1))),
+			eq(DateTimeUtils.startOfDay(LocalDate.of(2026, 7, 28))),
+			eq(TransactionType.EXPENSE),
+			eq(3L),
+			eq("스타벅스"),
+			eq(Sort.by(Sort.Direction.ASC, "datetime")));
+		verify(categoryService).validateOwnership(USER_ID, 3L);
+	}
+
+	@Test
+	@DisplayName("검색어가 공백뿐이면 검색어 필터 없이(null) 조회한다")
+	void searchTransactionsWithBlankQuery() {
+		when(transactionHistoryRepository.searchTransactions(
+			eq(USER_ID), any(), any(), isNull(), isNull(), isNull(), any(Sort.class)))
+			.thenReturn(List.of());
+
+		transactionHistoryService.searchTransactions(USER_ID, "   ", null, null, null, null, null);
+
+		verify(transactionHistoryRepository).searchTransactions(
+			eq(USER_ID), any(), any(), isNull(), isNull(), isNull(), any(Sort.class));
+	}
+
+	@Test
+	@DisplayName("지원하지 않는 정렬 기준이면 INVALID_SORT_TYPE 예외를 던진다")
+	void getTransactionListWithInvalidSort() {
+		assertThatThrownBy(() -> transactionHistoryService.getTransactionList(
+			USER_ID, "random", null, null, null, null))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getExceptionType())
+			.isEqualTo(ExceptionType.INVALID_SORT_TYPE);
+
+		verifyNoInteractions(transactionHistoryRepository);
+	}
+
+	@Test
+	@DisplayName("서버 기본 로케일이 터키어여도 거래 유형(income) 파싱 결과가 달라지지 않는다")
+	void parsesTypeRegardlessOfDefaultLocale() {
+		// 터키어 로케일에서 "income".toUpperCase() 는 'i' 를 'İ'(점 있는 I)로 바꿔 valueOf 에 실패한다.
+		Locale defaultLocale = Locale.getDefault();
+		Locale.setDefault(Locale.forLanguageTag("tr"));
+		try {
+			when(transactionHistoryRepository.searchTransactions(
+				eq(USER_ID), any(), any(), eq(TransactionType.INCOME), isNull(), isNull(), any(Sort.class)))
+				.thenReturn(List.of());
+
+			transactionHistoryService.getTransactionList(USER_ID, null, "income", null, null, null);
+
+			verify(transactionHistoryRepository).searchTransactions(
+				eq(USER_ID), any(), any(), eq(TransactionType.INCOME), isNull(), isNull(), any(Sort.class));
+		} finally {
+			Locale.setDefault(defaultLocale);
+		}
+	}
+
+	@Test
+	@DisplayName("지원하지 않는 거래 유형이면 INVALID_TRANSACTION_TYPE 예외를 던진다")
+	void getTransactionListWithInvalidType() {
+		assertThatThrownBy(() -> transactionHistoryService.getTransactionList(
+			USER_ID, null, "random", null, null, null))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getExceptionType())
+			.isEqualTo(ExceptionType.INVALID_TRANSACTION_TYPE);
+
+		verifyNoInteractions(transactionHistoryRepository);
+	}
+
+	@Test
 	@DisplayName("findOneTransactionHistoryResponse 은 엔티티를 API 응답 형태로 매핑한다 (datetime 결합, 좌표 분해)")
 	void findOne() {
-		when(transactionHistoryRepository.findByIdAndUserId(10L, USER_ID))
+		when(transactionHistoryRepository.findByIdAndUser_Id(10L, USER_ID))
 			.thenReturn(Optional.of(storedEntity(10L)));
 
 		TransactionHistoryResponse response = transactionHistoryService.findOneTransactionHistoryResponse(USER_ID, 10L);
@@ -182,7 +332,7 @@ class TransactionHistoryServiceTest {
 	@Test
 	@DisplayName("findOneTransactionHistoryResponse 은 소유자 내역이 없으면 TRANSACTION_HISTORY_NOT_FOUND 예외를 던진다")
 	void findOneNotFound() {
-		when(transactionHistoryRepository.findByIdAndUserId(999L, USER_ID))
+		when(transactionHistoryRepository.findByIdAndUser_Id(999L, USER_ID))
 			.thenReturn(Optional.empty());
 
 		assertThatThrownBy(() -> transactionHistoryService.findOneTransactionHistoryResponse(USER_ID, 999L))
@@ -195,9 +345,9 @@ class TransactionHistoryServiceTest {
 	@DisplayName("updateTransactionHistory 는 소유한 엔티티의 필드를 갱신하고 갱신된 응답을 반환한다")
 	void update() {
 		TransactionHistory entity = storedEntity(10L);
-		when(transactionHistoryRepository.findByIdAndUserId(10L, USER_ID))
+		when(transactionHistoryRepository.findByIdAndUser_Id(10L, USER_ID))
 			.thenReturn(Optional.of(entity));
-		when(categoryRepository.getReferenceById(5L)).thenReturn(category(5L));
+		when(categoryService.getOwnedCategory(USER_ID, 5L)).thenReturn(category(5L));
 
 		LocalDateTime updatedDatetime = LocalDateTime.of(2026, 7, 24, 9, 0, 0);
 		TransactionHistoryUpdateRequest request = new TransactionHistoryUpdateRequest(
@@ -235,7 +385,7 @@ class TransactionHistoryServiceTest {
 	@DisplayName("deleteTransactionHistory 는 소유한 엔티티를 삭제한다")
 	void delete() {
 		TransactionHistory entity = storedEntity(10L);
-		when(transactionHistoryRepository.findByIdAndUserId(10L, USER_ID))
+		when(transactionHistoryRepository.findByIdAndUser_Id(10L, USER_ID))
 			.thenReturn(Optional.of(entity));
 
 		transactionHistoryService.deleteTransactionHistory(USER_ID, 10L);
@@ -246,7 +396,7 @@ class TransactionHistoryServiceTest {
 	@Test
 	@DisplayName("deleteTransactionHistory 는 소유자 내역이 없으면 예외를 던지고 삭제를 시도하지 않는다")
 	void deleteNotFound() {
-		when(transactionHistoryRepository.findByIdAndUserId(999L, USER_ID))
+		when(transactionHistoryRepository.findByIdAndUser_Id(999L, USER_ID))
 			.thenReturn(Optional.empty());
 
 		assertThatThrownBy(() -> transactionHistoryService.deleteTransactionHistory(USER_ID, 999L))

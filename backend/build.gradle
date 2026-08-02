@@ -14,6 +14,10 @@ java {
 	}
 }
 
+ext {
+	querydslVersion = '5.1.0'
+}
+
 repositories {
 	mavenCentral()
 }
@@ -24,7 +28,6 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
-	implementation 'org.hibernate.orm:hibernate-spatial'
 
 	// PostGIS 공간 타입(Point) 매핑을 위한 hibernate-spatial + JTS
 	implementation 'org.hibernate.orm:hibernate-spatial'
@@ -33,6 +36,12 @@ dependencies {
 	implementation 'org.projectlombok:lombok:1.18.46'
 	compileOnly 'org.projectlombok:lombok:1.18.46'
 	annotationProcessor 'org.projectlombok:lombok:1.18.46'
+
+	// QueryDSL. 지도 조회의 동적 조건(기간/카테고리)과 PostGIS 공간 조건을 함께 조합하기 위해 사용한다.
+	implementation "com.querydsl:querydsl-jpa:${querydslVersion}:jakarta"
+	annotationProcessor "com.querydsl:querydsl-apt:${querydslVersion}:jakarta"
+	annotationProcessor 'jakarta.annotation:jakarta.annotation-api'
+	annotationProcessor 'jakarta.persistence:jakarta.persistence-api'
 
 	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.2'
 
