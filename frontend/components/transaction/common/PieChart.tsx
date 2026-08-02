@@ -7,10 +7,12 @@ import { getAnalysisColor } from '@/components/transaction/common/analysisColors
 export type PieChartSlice = {
   /**
    * 색상을 조각/범례에 일관되게 배정하기 위한 key로도 씁니다.
-   * 이름은 categoryId지만 카테고리 전용은 아닙니다 — percent만 있으면 어떤 데이터든 그릴 수
-   * 있어서, 장소 분석(placeId)처럼 categories가 아닌 응답에도 그대로 씁니다.
+   * 카테고리 분석 API는 categoryId, 장소 분석 API는 placeId로 필드명이 서로 달라서,
+   * 이 컴포넌트는 둘 중 아무 이름도 쓰지 않고 그냥 id로 받습니다. 화면에서 매핑해서 넘겨주세요
+   * (예: data.categories.map(c => ({ id: c.categoryId, percent: c.percent }))
+   *      data.categories.map(c => ({ id: c.placeId, percent: c.percent }))).
    */
-  categoryId: string | number;
+  id: string | number;
   /** 분석 API의 percent(0~100, 반올림된 값)를 그대로 넣어주면 됩니다. */
   percent: number;
 };
@@ -73,7 +75,7 @@ export function PieChart({ data, size = 160, style }: PieChartProps) {
             // SVG arc는 180도가 넘는 부채꼴을 그릴 때 largeArcFlag를 1로 줘야 큰 쪽으로 돈다.
             const largeArcFlag = slice.endAngle - slice.startAngle > 180 ? 1 : 0;
             const path = `M ${cx} ${cy} L ${start.x} ${start.y} A ${r} ${r} 0 ${largeArcFlag} 1 ${end.x} ${end.y} Z`;
-            return <Path d={path} fill={slice.color} key={slice.categoryId ?? index} />;
+            return <Path d={path} fill={slice.color} key={slice.id ?? index} />;
           })
         )}
       </Svg>
