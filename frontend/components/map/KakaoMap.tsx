@@ -1,3 +1,4 @@
+import { forwardRef, useImperativeHandle, useRef } from 'react';
 import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
 
@@ -8,8 +9,18 @@ export type LatLng = {
   lng: number;
 };
 
+// RN에서 지도를 명령형으로 조작할 때 쓰는 핸들. ref로 접근한다.
+export type KakaoMapHandle = {
+  zoomIn: () => void;
+  zoomOut: () => void;
+  // 특정 레벨(1~14)로 바로 이동한다. 줌 4단계처럼 정해진 레벨로 점프할 때 쓴다.
+  setLevel: (level: number) => void;
+};
+
 type KakaoMapProps = {
   initialCenter: LatLng;
+  // 카카오맵 줌 레벨(1~14, 작을수록 확대). 기본 3.
+  initialLevel?: number;
   // 내 위치. 있으면 파란 동그라미로 표시한다(핀 아님). 없으면 아무것도 안 보인다.
   myLocation?: LatLng;
   // 검색 결과 등 여러 개 찍을 핀 목록.
@@ -19,6 +30,8 @@ type KakaoMapProps = {
   onSelectLocation?: (coords: LatLng) => void;
   // pins 배열의 핀 하나를 눌렀을 때, 그 핀이 pins 배열에서 몇 번째인지 알려준다.
   onPinPress?: (index: number) => void;
+  // 지도 확대/축소 레벨이 바뀔 때마다 알려준다(줌 버튼으로 바꾼 경우 + 사용자가 직접 핀치줌한 경우 둘 다 포함).
+  onLevelChange?: (level: number) => void;
   style?: StyleProp<ViewStyle>;
 };
 
@@ -37,7 +50,13 @@ const SELECTED_PIN_COLOR = '#63A061';
 
 // 지도 탭/핀 클릭 결과를 postMessage로 RN에 전달하는 카카오맵 페이지.
 // 내 위치(파란 원), 검색 결과 핀들, 선택된 핀을 각각 다르게 그린다.
-function buildMapHtml({ initialCenter, myLocation, pins = [], selectedPin }: Omit<KakaoMapProps, 'onSelectLocation' | 'onPinPress' | 'style'>) {
+function buildMapHtml({
+  initialCenter,
+  initialLevel = 3,
+  myLocation,
+  pins = [],
+  selectedPin,
+}: Omit<KakaoMapProps, 'onSelectLocation' | 'onPinPress' | 'style'>) {
   return `
 <!DOCTYPE html>
 <html>
@@ -61,7 +80,7 @@ function buildMapHtml({ initialCenter, myLocation, pins = [], selectedPin }: Omi
   <script>
     const map = new kakao.maps.Map(document.getElementById('map'), {
       center: new kakao.maps.LatLng(${initialCenter.lat}, ${initialCenter.lng}),
-      level: 3,
+      level: ${initialLevel},
     });
 
     const pinImageSize = new kakao.maps.Size(24, 34);
@@ -115,33 +134,61 @@ function buildMapHtml({ initialCenter, myLocation, pins = [], selectedPin }: Omi
         JSON.stringify({ type: 'tap', lat: latlng.getLat(), lng: latlng.getLng() })
       );
     });
+
+    // 줌 버튼으로 바꾼 경우, 핀치줌한 경우 둘 다 여기로 들어와서 RN에 현재 레벨을 알려준다.
+    kakao.maps.event.addListener(map, 'zoom_changed', function () {
+      window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'level', level: map.getLevel() }));
+    });
   </script>
 </body>
 </html>
 `;
 }
 
-export function KakaoMap({ initialCenter, myLocation, pins, selectedPin, onSelectLocation, onPinPress, style }: KakaoMapProps) {
+export const KakaoMap = forwardRef<KakaoMapHandle, KakaoMapProps>(function KakaoMap(
+  { initialCenter, initialLevel, myLocation, pins, selectedPin, onSelectLocation, onPinPress, onLevelChange, style },
+  ref
+) {
+  const webViewRef = useRef<WebView>(null);
+
+  // RN → WebView 방향 통신: injectJavaScript로 WebView 안의 map 객체에 직접 명령을 실행시킨다.
+  // buildMapHtml의 <script>에서 선언한 top-level const map은 이후에 주입되는 스크립트에서도 그대로 보인다.
+  useImperativeHandle(ref, () => ({
+    zoomIn: () => {
+      webViewRef.current?.injectJavaScript('map.setLevel(map.getLevel() - 1); true;');
+    },
+    zoomOut: () => {
+      webViewRef.current?.injectJavaScript('map.setLevel(map.getLevel() + 1); true;');
+    },
+    setLevel: (level) => {
+      webViewRef.current?.injectJavaScript(`map.setLevel(${level}); true;`);
+    },
+  }));
+
+  // WebView → RN 방향 통신: 지도 안에서 일어난 일(핀 클릭, 탭, 줌 변경)을 postMessage로 받는다.
   const handleMessage = (event: WebViewMessageEvent) => {
     const message = JSON.parse(event.nativeEvent.data);
     if (message.type === 'pin') {
       onPinPress?.(message.index);
     } else if (message.type === 'tap') {
       onSelectLocation?.({ lat: message.lat, lng: message.lng });
+    } else if (message.type === 'level') {
+      onLevelChange?.(message.level);
     }
   };
 
   return (
     <View style={[styles.container, style]}>
       <WebView
+        ref={webViewRef}
         originWhitelist={['*']}
-        source={{ html: buildMapHtml({ initialCenter, myLocation, pins, selectedPin }) }}
+        source={{ html: buildMapHtml({ initialCenter, initialLevel, myLocation, pins, selectedPin }) }}
         onMessage={handleMessage}
         javaScriptEnabled
       />
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {

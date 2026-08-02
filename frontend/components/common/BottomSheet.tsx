@@ -3,12 +3,21 @@
 // 원래는 RN 기본 PanResponder로 만들었는데, react-native-screens(탭/스택 네비게이션)의 네이티브 제스처와
 // 충돌해서 네이티브 기기에서 드래그가 제대로 인식되지 않는 문제가 있어 이 조합으로 다시 만들었다.
 // 드래그 중에는 손가락을 따라 모든 높이로 움직이고, 손을 떼면 그 자리에서 그대로 멈춘다(스냅 없음).
-import { useEffect, useState, type ReactNode } from 'react';
-import { Dimensions, Modal, Pressable, StyleSheet, View } from 'react-native';
-import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
-import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import { useEffect, useState, type ReactNode } from "react";
+import { Dimensions, Modal, Pressable, StyleSheet, View } from "react-native";
+import {
+  Gesture,
+  GestureDetector,
+  GestureHandlerRootView,
+} from "react-native-gesture-handler";
+import Animated, {
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from "react-native-reanimated";
 
-import Colors from '@/constants/Colors';
+import Colors from "@/constants/Colors";
 
 type CommonBottomSheetProps = {
   visible: boolean;
@@ -37,7 +46,7 @@ type NonModalBottomSheetProps = CommonBottomSheetProps & {
 // 이 제약이 사라져서(무의미한 조합도 통과됨) 판별 유니언으로 나눴다.
 type BottomSheetProps = ModalBottomSheetProps | NonModalBottomSheetProps;
 
-const SCREEN_HEIGHT = Dimensions.get('window').height;
+const SCREEN_HEIGHT = Dimensions.get("window").height;
 const DEFAULT_MIN_HEIGHT = 0.4;
 const DEFAULT_MAX_HEIGHT = 0.85;
 const DISMISS_THRESHOLD = 80; // 최소 높이보다 이만큼(px) 더 내리면 닫힘으로 판단
@@ -46,7 +55,7 @@ const FLICK_VELOCITY_THRESHOLD = 800; // 이 속도(px/s)보다 빠르게 아래
 const SPRING_CONFIG = { damping: 20, stiffness: 200, overshootClamping: true };
 // 최대 높이보다 더 위로 드래그했을 때, 시트 배경을 화면 아래로 이만큼 여유 있게 걸쳐두어
 // 빈 틈으로 뒤 배경이 비치지 않게 한다(손을 떼면 어차피 최대 높이로 다시 clamp됨).
-const OVERDRAG_BUFFER = 300;
+const OVERDRAG_BUFFER = 600;
 
 export default function BottomSheet(props: BottomSheetProps) {
   const {
@@ -61,7 +70,8 @@ export default function BottomSheet(props: BottomSheetProps) {
   } = props;
   const modal = props.modal ?? true;
   // modal=false면 애초에 배경(Pressable)이 없어서 이 값 자체가 의미 없다.
-  const closeOnBackdropPress = props.modal === false ? false : (props.closeOnBackdropPress ?? true);
+  const closeOnBackdropPress =
+    props.modal === false ? false : (props.closeOnBackdropPress ?? true);
 
   // 비율(0~1)로 받은 높이들을 실제 픽셀로 변환한다.
   const minHeightPx = minHeight * SCREEN_HEIGHT;
@@ -82,7 +92,10 @@ export default function BottomSheet(props: BottomSheetProps) {
   useEffect(() => {
     if (visible) {
       setMounted(true);
-      translateY.value = withSpring(maxHeightPx - initialHeightPx, SPRING_CONFIG);
+      translateY.value = withSpring(
+        maxHeightPx - initialHeightPx,
+        SPRING_CONFIG,
+      );
     } else {
       translateY.value = withSpring(maxHeightPx, SPRING_CONFIG, (finished) => {
         if (finished) {
@@ -107,7 +120,8 @@ export default function BottomSheet(props: BottomSheetProps) {
 
       // 최소 높이보다 충분히 더 내렸거나, 아래로 빠르게 튕기면(거리가 조금 부족해도) 닫는다.
       const lowestTranslateY = maxHeightPx - minHeightPx;
-      const draggedPastThreshold = released > lowestTranslateY + DISMISS_THRESHOLD;
+      const draggedPastThreshold =
+        released > lowestTranslateY + DISMISS_THRESHOLD;
       const flickedDown = event.velocityY > FLICK_VELOCITY_THRESHOLD;
       if (dismissOnDragDown && (draggedPastThreshold || flickedDown)) {
         translateY.value = withSpring(maxHeightPx, SPRING_CONFIG);
@@ -131,7 +145,12 @@ export default function BottomSheet(props: BottomSheetProps) {
   // 시트 자체(핸들+내용)는 modal 여부와 무관하게 똑같다. 감싸는 컨테이너만 달라진다.
   const sheet = (
     <Animated.View
-      style={[styles.sheet, { height: maxHeightPx + OVERDRAG_BUFFER, bottom: -OVERDRAG_BUFFER }, sheetStyle]}>
+      style={[
+        styles.sheet,
+        { height: maxHeightPx + OVERDRAG_BUFFER, bottom: -OVERDRAG_BUFFER },
+        sheetStyle,
+      ]}
+    >
       {draggable && (
         <GestureDetector gesture={panGesture}>
           <View style={styles.handleArea}>
@@ -145,7 +164,12 @@ export default function BottomSheet(props: BottomSheetProps) {
 
   if (modal) {
     return (
-      <Modal transparent visible={mounted} animationType="none" onRequestClose={handleClose}>
+      <Modal
+        transparent
+        visible={mounted}
+        animationType="none"
+        onRequestClose={handleClose}
+      >
         {/* Modal은 별도의 네이티브 화면으로 뜨기 때문에 앱 루트의 GestureHandlerRootView가 안 닿는다.
             제스처를 쓰려면 Modal 안에서 한 번 더 감싸야 한다. */}
         <GestureHandlerRootView style={styles.overlay}>
@@ -172,29 +196,29 @@ export default function BottomSheet(props: BottomSheetProps) {
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.35)',
-    justifyContent: 'flex-end',
+    backgroundColor: "rgba(0,0,0,0.35)",
+    justifyContent: "flex-end",
   },
   nonModalOverlay: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    justifyContent: 'flex-end',
+    justifyContent: "flex-end",
   },
   sheet: {
     backgroundColor: Colors.light.cardBackground,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    position: 'absolute',
+    position: "absolute",
     left: 0,
     right: 0,
     bottom: 0,
   },
   handleArea: {
     paddingVertical: 10,
-    alignItems: 'center',
+    alignItems: "center",
   },
   handle: {
     width: 40,
