@@ -1,13 +1,12 @@
-import { forwardRef, useImperativeHandle, useRef } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
 
-const KAKAO_JS_KEY = process.env.EXPO_PUBLIC_KAKAO_JS_KEY;
+import { buildMapHtml, type LatLng, type MapMarker } from './kakaoMapHtml';
 
-export type LatLng = {
-  lat: number;
-  lng: number;
-};
+// LatLng/MapMarker는 지도 HTML 생성 모듈(kakaoMapHtml.ts)이 원래 소유한 타입이지만,
+// 기존에 '@/components/map/KakaoMap'에서 가져다 쓰던 화면들이 그대로 동작하도록 여기서도 다시 내보낸다.
+export type { LatLng, MapMarker };
 
 // RN에서 지도를 명령형으로 조작할 때 쓰는 핸들. ref로 접근한다.
 export type KakaoMapHandle = {
@@ -22,10 +21,12 @@ export type KakaoMapHandle = {
 
 type KakaoMapProps = {
   initialCenter: LatLng;
-  // 카카오맵 줌 레벨(1~14, 작을수록 확대). 기본 3.
+  // 카카오맵 줌 레벨(1~14, 작을수록 확대). 기본 3. 지도 생성 시점에만 쓰이고, 이후엔 setLevel로만 바뀐다.
   initialLevel?: number;
   // 내 위치. 있으면 파란 동그라미로 표시한다(핀 아님). 없으면 아무것도 안 보인다.
   myLocation?: LatLng;
+  // 이름+금액이 적힌 말풍선 마커 목록 (지도 탭의 가게별/클러스터 마커용).
+  markers?: MapMarker[];
   // 검색 결과 등 여러 개 찍을 핀 목록.
   pins?: LatLng[];
   // 지도를 탭했거나 결과 하나를 선택했을 때, 그 위치에 찍을 핀 하나. pins와 모양은 같고 색만 다르다.
@@ -33,129 +34,42 @@ type KakaoMapProps = {
   onSelectLocation?: (coords: LatLng) => void;
   // pins 배열의 핀 하나를 눌렀을 때, 그 핀이 pins 배열에서 몇 번째인지 알려준다.
   onPinPress?: (index: number) => void;
+  // markers 배열의 말풍선 하나를 눌렀을 때, 그 마커의 id를 알려준다.
+  onMarkerPress?: (id: string) => void;
   // 지도 확대/축소 레벨이 바뀔 때마다 알려준다(줌 버튼으로 바꾼 경우 + 사용자가 직접 핀치줌한 경우 둘 다 포함).
   onLevelChange?: (level: number) => void;
   style?: StyleProp<ViewStyle>;
 };
 
-// 같은 모양(물방울 핀)에 색만 다르게 만든 SVG 마커 이미지를 data URI로 만든다.
-function pinImage(color: string) {
-  const svg = `<svg width="24" height="34" viewBox="0 0 24 34" xmlns="http://www.w3.org/2000/svg">
-    <path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 22 12 22s12-13 12-22c0-6.6-5.4-12-12-12z" fill="${color}"/>
-    <circle cx="12" cy="12" r="5" fill="#fff"/>
-  </svg>`;
-  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
-}
-
-// 검색 결과 핀(파랑)과 선택된 핀(초록)은 모양은 같고 색만 다르게 구분한다.
-const PIN_COLOR = '#4285F4';
-const SELECTED_PIN_COLOR = '#63A061';
-
-// 지도 탭/핀 클릭 결과를 postMessage로 RN에 전달하는 카카오맵 페이지.
-// 내 위치(파란 원), 검색 결과 핀들, 선택된 핀을 각각 다르게 그린다.
-function buildMapHtml({
-  initialCenter,
-  initialLevel = 3,
-  myLocation,
-  pins = [],
-  selectedPin,
-}: Omit<KakaoMapProps, 'onSelectLocation' | 'onPinPress' | 'style'>) {
-  return `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <style>
-    html, body, #map { width: 100%; height: 100%; margin: 0; padding: 0; }
-    .my-location-dot {
-      width: 16px;
-      height: 16px;
-      border-radius: 50%;
-      background: #4285F4;
-      border: 2px solid #fff;
-      box-shadow: 0 0 4px rgba(0,0,0,0.4);
-    }
-  </style>
-</head>
-<body>
-  <div id="map"></div>
-  <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=${KAKAO_JS_KEY}"></script>
-  <script>
-    const map = new kakao.maps.Map(document.getElementById('map'), {
-      center: new kakao.maps.LatLng(${initialCenter.lat}, ${initialCenter.lng}),
-      level: ${initialLevel},
-    });
-
-    const pinImageSize = new kakao.maps.Size(24, 34);
-    const pinImage = new kakao.maps.MarkerImage('${pinImage(PIN_COLOR)}', pinImageSize);
-    const selectedPinImage = new kakao.maps.MarkerImage('${pinImage(SELECTED_PIN_COLOR)}', pinImageSize);
-
-    ${
-      myLocation
-        ? `
-    const myLocationOverlay = new kakao.maps.CustomOverlay({
-      position: new kakao.maps.LatLng(${myLocation.lat}, ${myLocation.lng}),
-      content: '<div class="my-location-dot"></div>',
-    });
-    myLocationOverlay.setMap(map);
-    `
-        : ''
-    }
-
-    ${pins
-      .map(
-        (pin, index) => `
-    (function () {
-      const marker = new kakao.maps.Marker({
-        position: new kakao.maps.LatLng(${pin.lat}, ${pin.lng}),
-        image: pinImage,
-        map: map,
-      });
-      kakao.maps.event.addListener(marker, 'click', function () {
-        window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'pin', index: ${index} }));
-      });
-    })();
-    `
-      )
-      .join('')}
-
-    ${
-      selectedPin
-        ? `
-    new kakao.maps.Marker({
-      position: new kakao.maps.LatLng(${selectedPin.lat}, ${selectedPin.lng}),
-      image: selectedPinImage,
-      map: map,
-    });
-    `
-        : ''
-    }
-
-    kakao.maps.event.addListener(map, 'click', function (mouseEvent) {
-      const latlng = mouseEvent.latLng;
-      window.ReactNativeWebView.postMessage(
-        JSON.stringify({ type: 'tap', lat: latlng.getLat(), lng: latlng.getLng() })
-      );
-    });
-
-    // 줌 버튼으로 바꾼 경우, 핀치줌한 경우 둘 다 여기로 들어와서 RN에 현재 레벨을 알려준다.
-    kakao.maps.event.addListener(map, 'zoom_changed', function () {
-      window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'level', level: map.getLevel() }));
-    });
-  </script>
-</body>
-</html>
-`;
-}
-
 export const KakaoMap = forwardRef<KakaoMapHandle, KakaoMapProps>(function KakaoMap(
-  { initialCenter, initialLevel, myLocation, pins, selectedPin, onSelectLocation, onPinPress, onLevelChange, style },
+  {
+    initialCenter,
+    initialLevel,
+    myLocation,
+    markers,
+    pins,
+    selectedPin,
+    onSelectLocation,
+    onPinPress,
+    onMarkerPress,
+    onLevelChange,
+    style,
+  },
   ref
 ) {
   const webViewRef = useRef<WebView>(null);
+  // 지도(+ setMapMarkers 등 페이지 내 함수들)가 준비됐는지. 준비되기 전에 injectJavaScript를 호출하면
+  // 아직 정의되지 않은 함수를 부르는 셈이라 에러가 난다.
+  const [isReady, setIsReady] = useState(false);
 
-  // RN → WebView 방향 통신: injectJavaScript로 WebView 안의 map 객체에 직접 명령을 실행시킨다.
-  // buildMapHtml의 <script>에서 선언한 top-level const map은 이후에 주입되는 스크립트에서도 그대로 보인다.
+  // 지도 생성에 필요한 중심좌표/레벨만 최초 1회 HTML에 굽는다. 이후 props가 바뀌어도 다시 계산하지 않는다
+  // (markers/pins처럼 자주 바뀌는 값까지 여기 포함되면, 바뀔 때마다 HTML이 새로 만들어져서
+  //  WebView가 통째로 리로드되고 지도 중심·줌 레벨이 초기값으로 되돌아가 버린다).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const html = useMemo(() => buildMapHtml({ initialCenter, initialLevel }), []);
+
+  // RN → WebView 방향 통신: injectJavaScript로 WebView 안의 map 객체(또는 kakaoMapHtml.ts가 정의해둔
+  // setXxx 함수들)에 직접 명령을 실행시킨다.
   useImperativeHandle(ref, () => ({
     zoomIn: () => {
       webViewRef.current?.injectJavaScript('map.setLevel(map.getLevel() - 1); true;');
@@ -173,11 +87,41 @@ export const KakaoMap = forwardRef<KakaoMapHandle, KakaoMapProps>(function Kakao
     },
   }));
 
-  // WebView → RN 방향 통신: 지도 안에서 일어난 일(핀 클릭, 탭, 줌 변경)을 postMessage로 받는다.
+  // 지도가 준비된 뒤로는, markers/pins/selectedPin/myLocation이 바뀔 때마다(그리고 준비된 직후 한 번)
+  // 각자 담당 함수를 호출해서 갱신한다. HTML을 다시 만들지 않으므로 리로드도, 상태 초기화도 없다.
+  useEffect(() => {
+    if (isReady) {
+      webViewRef.current?.injectJavaScript(`setMapMarkers(${JSON.stringify(markers ?? [])}); true;`);
+    }
+  }, [isReady, markers]);
+
+  useEffect(() => {
+    if (isReady) {
+      webViewRef.current?.injectJavaScript(`setMapPins(${JSON.stringify(pins ?? [])}); true;`);
+    }
+  }, [isReady, pins]);
+
+  useEffect(() => {
+    if (isReady) {
+      webViewRef.current?.injectJavaScript(`setSelectedPin(${JSON.stringify(selectedPin ?? null)}); true;`);
+    }
+  }, [isReady, selectedPin]);
+
+  useEffect(() => {
+    if (isReady) {
+      webViewRef.current?.injectJavaScript(`setMyLocation(${JSON.stringify(myLocation ?? null)}); true;`);
+    }
+  }, [isReady, myLocation]);
+
+  // WebView → RN 방향 통신: 지도 안에서 일어난 일(준비 완료, 핀 클릭, 탭, 줌 변경)을 postMessage로 받는다.
   const handleMessage = (event: WebViewMessageEvent) => {
     const message = JSON.parse(event.nativeEvent.data);
-    if (message.type === 'pin') {
+    if (message.type === 'ready') {
+      setIsReady(true);
+    } else if (message.type === 'pin') {
       onPinPress?.(message.index);
+    } else if (message.type === 'marker') {
+      onMarkerPress?.(message.id);
     } else if (message.type === 'tap') {
       onSelectLocation?.({ lat: message.lat, lng: message.lng });
     } else if (message.type === 'level') {
@@ -190,7 +134,7 @@ export const KakaoMap = forwardRef<KakaoMapHandle, KakaoMapProps>(function Kakao
       <WebView
         ref={webViewRef}
         originWhitelist={['*']}
-        source={{ html: buildMapHtml({ initialCenter, initialLevel, myLocation, pins, selectedPin }) }}
+        source={{ html }}
         onMessage={handleMessage}
         javaScriptEnabled
       />

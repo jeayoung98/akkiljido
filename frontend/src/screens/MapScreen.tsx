@@ -1,5 +1,5 @@
 import * as Location from 'expo-location';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -7,24 +7,19 @@ import BottomSheet from '@/components/common/BottomSheet';
 import { IconButton } from '@/components/common/button/IconButton';
 import InfoListItem from '@/components/common/card/InfoListItem';
 import { SearchInput } from '@/components/common/input/SearchInput';
-import { KakaoMap, type KakaoMapHandle, type LatLng } from '@/components/map/KakaoMap';
+import { KakaoMap, type KakaoMapHandle, type LatLng, type MapMarker } from '@/components/map/KakaoMap';
 import { MapZoom } from '@/components/map/MapZoom';
 import Colors from '@/constants/Colors';
+import { MY_PLACES, toMapDepthResponse, toMapPlaceListResponse } from '@/mocks/transactions';
 import { searchPlaces, type PlaceResult } from '@/utils/kakaoSearch';
 import { getZoomStage, STAGE_TARGET_LEVEL } from '@/utils/kakaoZoomStage';
 
 const INITIAL_LEVEL = 4;
 
-const DEFAULT_CENTER: LatLng = { lat: 37.5665, lng: 126.978 };
+// 김하은(더미 페르소나)의 생활권인 강남역 부근을 기본값으로 삼아서, GPS 권한이 없어도 더미 마커가 바로 보이게 한다.
+const DEFAULT_CENTER: LatLng = { lat: 37.4979, lng: 127.0276 };
 const SEARCH_BAR_HEIGHT = 52;
 const LOCATE_BUTTON_HEIGHT = 44;
-
-// "내 장소" 더미 목록. 실제 API 연동 전까지 임시로 쓴다.
-const DUMMY_PLACES = [
-  { name: '집', address: '서울 마포구 서교동 123-4' },
-  { name: '회사', address: '서울 강남구 역삼동 456-7' },
-  { name: '학교', address: '서울 서대문구 신촌동 789' },
-];
 
 // 지도 탭 화면. 검색·필터·내 위치·내 장소 목록을 잡아두고,
 // 줌 컨트롤/마커 라벨/클러스터링은 이 화면이 자리 잡은 뒤에 이어서 붙인다.
@@ -105,6 +100,31 @@ export default function MapScreen() {
     mapRef.current?.setLevel(STAGE_TARGET_LEVEL[nextStage]);
   };
 
+  // 4단계(개별)면 가게별 말풍선(테두리=카테고리 지정색), 1~3단계면 구역별 말풍선(테두리=브랜드 그린 고정)을 그린다.
+  const markers: MapMarker[] = useMemo(() => {
+    if (currentStage === 4) {
+      const { data } = toMapPlaceListResponse();
+      return data.placeList.map((place) => ({
+        id: `${place.latitude},${place.longitude}`,
+        lat: place.latitude!,
+        lng: place.longitude!,
+        label: place.name,
+        amount: place.amount,
+        color: Colors.category[place.transactionList[0]?.categoryId ?? 11],
+      }));
+    }
+
+    const { data } = toMapDepthResponse(currentStage as 1 | 2 | 3);
+    return data.transactionList.map((region) => ({
+      id: region.depthName,
+      lat: region.latitude,
+      lng: region.longitude,
+      label: region.depthName,
+      amount: region.amount,
+      color: Colors.light.primary,
+    }));
+  }, [currentStage]);
+
   return (
     <View style={{ flex: 1 }}>
       <KakaoMap
@@ -112,6 +132,7 @@ export default function MapScreen() {
         initialCenter={center}
         initialLevel={INITIAL_LEVEL}
         myLocation={currentLocation ?? undefined}
+        markers={markers}
         selectedPin={searchedPlace ? { lat: searchedPlace.lat, lng: searchedPlace.lng } : undefined}
         onLevelChange={setCurrentLevel}
         style={{ flex: 1 }}
@@ -181,11 +202,11 @@ export default function MapScreen() {
             fontSize: 15,
             fontWeight: '700',
           }}>
-          내 장소 {DUMMY_PLACES.length}개
+          내 장소 {MY_PLACES.length}개
         </Text>
         <View style={{ paddingHorizontal: 16 }}>
-          {DUMMY_PLACES.map((place) => (
-            <InfoListItem key={place.name} title={place.name} description={place.address} />
+          {MY_PLACES.map((place) => (
+            <InfoListItem key={place.placeId} title={place.name} description={place.address} />
           ))}
         </View>
       </BottomSheet>
