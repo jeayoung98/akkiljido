@@ -17,6 +17,10 @@ public interface TransactionHistoryRepository
 
 	Optional<TransactionHistory> findByIdAndUser_Id(Long id, Long userId);
 
+	/** 특정 기간의 사용자 거래내역을 거래 일시 오름차순으로 조회한다. */
+	List<TransactionHistory> findAllByUser_IdAndDatetimeGreaterThanEqualAndDatetimeLessThanOrderByDatetimeAsc(
+			Long userId, OffsetDateTime startDateTime, OffsetDateTime endDateTime);
+
 	// TODO: 페이지네이션 도입 시 Pageable 을 받아 Page<TransactionHistory> 를 반환하는 오버로드 추가
 	// category 를 함께 fetch 하여 목록/검색 응답의 카테고리명을 단일 쿼리로 조회한다(N+1 방지).
 	@Query("select t from TransactionHistory t "
