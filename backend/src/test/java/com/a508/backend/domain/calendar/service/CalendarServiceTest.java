@@ -14,15 +14,19 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import com.a508.backend.domain.calendar.dto.response.CalendarDateResponse;
+import com.a508.backend.domain.calendar.dto.response.DailyCalendarResponse;
 import com.a508.backend.domain.calendar.dto.response.MonthlyCalendarResponse;
 import com.a508.backend.domain.transaction_history.entity.TransactionHistory;
 import com.a508.backend.domain.transaction_history.entity.TransactionType;
 import com.a508.backend.domain.transaction_history.repository.TransactionHistoryRepository;
+import com.a508.backend.global.exception.BusinessException;
+import com.a508.backend.global.exception.ExceptionType;
 import com.a508.backend.global.util.DateTimeUtils;
 
-/** 월 단위 캘린더 조회 서비스의 날짜별 입출금 집계를 검증한다. */
+/** 월·일 단위 캘린더 조회 서비스의 입출금 집계와 날짜 검증을 확인한다. */
 @ExtendWith(MockitoExtension.class)
 class CalendarServiceTest {
 
@@ -71,7 +75,7 @@ class CalendarServiceTest {
     }
 
     @Test
-    @DisplayName("거래가 존재하지 않으면 빈 날짜 목록을 반환한다")
+    @DisplayName("월에 거래가 존재하지 않으면 빈 날짜 목록을 반환한다")
     void getMonthlyCalendarWithNoTransactions() {
         OffsetDateTime startDateTime = DateTimeUtils.startOfDay(LocalDate.of(2024, 7, 1));
         OffsetDateTime endDateTime = DateTimeUtils.startOfDay(LocalDate.of(2024, 8, 1));
@@ -115,14 +119,116 @@ class CalendarServiceTest {
                 });
     }
 
+    @Test
+    @DisplayName("선택한 날짜의 수입은 더하고 지출은 빼서 순금액을 계산한다")
+    void getDailyCalendar() {
+        LocalDate selectedDate = LocalDate.of(2024, 7, 17);
+        OffsetDateTime startDateTime = DateTimeUtils.startOfDay(selectedDate);
+        OffsetDateTime endDateTime = DateTimeUtils.startOfNextDay(selectedDate);
+
+        List<TransactionHistory> transactions = List.of(
+                createTransaction(1L, LocalDateTime.of(2024, 7, 17, 9, 0),
+                        "급여", 50000L, TransactionType.INCOME),
+                createTransaction(2L, LocalDateTime.of(2024, 7, 17, 12, 0),
+                        "스타벅스", 4100L, TransactionType.EXPENSE),
+                createTransaction(3L, LocalDateTime.of(2024, 7, 17, 18, 0),
+                        "장보기", 82400L, TransactionType.EXPENSE));
+
+        when(transactionHistoryRepository
+                .findAllByUser_IdAndDatetimeGreaterThanEqualAndDatetimeLessThanOrderByDatetimeAsc(
+                        USER_ID, startDateTime, endDateTime))
+                .thenReturn(transactions);
+
+        DailyCalendarResponse response = calendarService.getDailyCalendar(USER_ID, 2024, 7, 17);
+
+        assertThat(response.date()).isEqualTo(selectedDate);
+        assertThat(response.amount()).isEqualTo(-36500L);
+        assertThat(response.transactionList()).hasSize(3);
+
+        assertThat(response.transactionList().get(0).transactionId()).isEqualTo(1L);
+        assertThat(response.transactionList().get(0).name()).isEqualTo("급여");
+        assertThat(response.transactionList().get(0).amount()).isEqualTo(50000L);
+        assertThat(response.transactionList().get(0).type()).isEqualTo(TransactionType.INCOME);
+
+        assertThat(response.transactionList().get(1).transactionId()).isEqualTo(2L);
+        assertThat(response.transactionList().get(1).name()).isEqualTo("스타벅스");
+        assertThat(response.transactionList().get(1).amount()).isEqualTo(4100L);
+        assertThat(response.transactionList().get(1).type()).isEqualTo(TransactionType.EXPENSE);
+
+        verify(transactionHistoryRepository)
+                .findAllByUser_IdAndDatetimeGreaterThanEqualAndDatetimeLessThanOrderByDatetimeAsc(
+                        USER_ID, startDateTime, endDateTime);
+    }
+
+    @Test
+    @DisplayName("선택한 날짜에 거래가 없으면 순금액 0과 빈 거래 목록을 반환한다")
+    void getDailyCalendarWithNoTransactions() {
+        LocalDate selectedDate = LocalDate.of(2024, 7, 17);
+        OffsetDateTime startDateTime = DateTimeUtils.startOfDay(selectedDate);
+        OffsetDateTime endDateTime = DateTimeUtils.startOfNextDay(selectedDate);
+
+        when(transactionHistoryRepository
+                .findAllByUser_IdAndDatetimeGreaterThanEqualAndDatetimeLessThanOrderByDatetimeAsc(
+                        USER_ID, startDateTime, endDateTime))
+                .thenReturn(List.of());
+
+        DailyCalendarResponse response = calendarService.getDailyCalendar(USER_ID, 2024, 7, 17);
+
+        assertThat(response.date()).isEqualTo(selectedDate);
+        assertThat(response.amount()).isZero();
+        assertThat(response.transactionList()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 날짜를 요청하면 캘린더 날짜 오류를 던진다")
+    void rejectInvalidCalendarDate() {
+        assertThatThrownBy(() -> calendarService.getDailyCalendar(USER_ID, 2025, 2, 30))
+                .isInstanceOfSatisfying(BusinessException.class,
+                        exception -> assertThat(exception.getExceptionType())
+                                .isEqualTo(ExceptionType.INVALID_CALENDAR_DATE));
+
+        verifyNoInteractions(transactionHistoryRepository);
+    }
+
+    @Test
+    @DisplayName("윤년의 2월 29일은 유효한 날짜로 조회한다")
+    void acceptLeapDay() {
+        LocalDate selectedDate = LocalDate.of(2024, 2, 29);
+        OffsetDateTime startDateTime = DateTimeUtils.startOfDay(selectedDate);
+        OffsetDateTime endDateTime = DateTimeUtils.startOfNextDay(selectedDate);
+
+        when(transactionHistoryRepository
+                .findAllByUser_IdAndDatetimeGreaterThanEqualAndDatetimeLessThanOrderByDatetimeAsc(
+                        USER_ID, startDateTime, endDateTime))
+                .thenReturn(List.of());
+
+        DailyCalendarResponse response = calendarService.getDailyCalendar(USER_ID, 2024, 2, 29);
+
+        assertThat(response.date()).isEqualTo(selectedDate);
+        verify(transactionHistoryRepository)
+                .findAllByUser_IdAndDatetimeGreaterThanEqualAndDatetimeLessThanOrderByDatetimeAsc(
+                        USER_ID, startDateTime, endDateTime);
+    }
+
     private TransactionHistory createTransaction(
             LocalDateTime datetime, Long amount, TransactionType type) {
-        return TransactionHistory.builder()
+        return createTransaction(null, datetime, "거래", amount, type);
+    }
+
+    private TransactionHistory createTransaction(
+            Long id, LocalDateTime datetime, String name, Long amount, TransactionType type) {
+        TransactionHistory transaction = TransactionHistory.builder()
                 .datetime(DateTimeUtils.toServiceOffset(datetime))
                 .amount(amount)
                 .type(type)
-                .transactionName("거래")
+                .transactionName(name)
                 .paymentMethod("카드")
                 .build();
+
+        if (id != null) {
+            ReflectionTestUtils.setField(transaction, "id", id);
+        }
+
+        return transaction;
     }
 }
