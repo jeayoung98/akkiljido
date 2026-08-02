@@ -55,12 +55,18 @@ export default function MapScreen() {
 
     const lastKnown = await Location.getLastKnownPositionAsync();
     if (lastKnown) {
-      setCurrentLocation({ lat: lastKnown.coords.latitude, lng: lastKnown.coords.longitude });
+      const coords = { lat: lastKnown.coords.latitude, lng: lastKnown.coords.longitude };
+      setCurrentLocation(coords);
+      // 좌표값이 이전과 같으면 initialCenter가 안 바뀌어서 지도가 재로딩 안 될 수 있으니,
+      // 명령형으로 직접 지도 중심을 옮겨서 항상 확실히 이동시킨다.
+      mapRef.current?.setCenter(coords);
     }
 
     try {
       const position = await Location.getCurrentPositionAsync({});
-      setCurrentLocation({ lat: position.coords.latitude, lng: position.coords.longitude });
+      const coords = { lat: position.coords.latitude, lng: position.coords.longitude };
+      setCurrentLocation(coords);
+      mapRef.current?.setCenter(coords);
     } catch {
       // 실패해도 lastKnown으로 이미 떴다면 그대로 두고, 둘 다 없으면 DEFAULT_CENTER로 대체된다.
     }

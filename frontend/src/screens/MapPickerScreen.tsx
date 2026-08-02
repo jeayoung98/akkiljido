@@ -10,7 +10,7 @@ import { IconButton } from '@/components/common/button/IconButton';
 import BaseCard from '@/components/common/card/BaseCard';
 import { SearchInput } from '@/components/common/input/SearchInput';
 import { Scroll } from '@/components/common/Scroll';
-import { KakaoMap } from '@/components/map/KakaoMap';
+import { KakaoMap, type KakaoMapHandle } from '@/components/map/KakaoMap';
 import Colors from '@/constants/Colors';
 import { useMapPickerStore } from '@/store/mapPickerStore';
 import { reverseGeocode } from '@/utils/kakaoGeocode';
@@ -37,6 +37,7 @@ export default function MapPickerScreen() {
   // 현재 위치. 권한 거부/실패 시 null로 남고, 그럴 땐 DEFAULT_CENTER를 대신 쓴다.
   const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number } | null>(null);
 
+  const mapRef = useRef<KakaoMapHandle>(null);
   const scrollViewRef = useRef<ScrollView>(null);
   // 각 카드가 리스트 안에서 세로로 몇 px 위치에 있는지 기록해뒀다가, 핀 클릭 시 그 위치로 스크롤한다.
   const cardOffsets = useRef<number[]>([]);
@@ -76,6 +77,9 @@ export default function MapPickerScreen() {
       const coords = { lat: lastKnown.coords.latitude, lng: lastKnown.coords.longitude };
       setCurrentLocation(coords);
       selectLocation(coords);
+      // 좌표값이 이전과 같으면 initialCenter가 안 바뀌어서 지도가 재로딩 안 될 수 있으니,
+      // 명령형으로 직접 지도 중심을 옮겨서 항상 확실히 이동시킨다.
+      mapRef.current?.setCenter(coords);
     }
 
     try {
@@ -83,6 +87,7 @@ export default function MapPickerScreen() {
       const coords = { lat: position.coords.latitude, lng: position.coords.longitude };
       setCurrentLocation(coords);
       selectLocation(coords);
+      mapRef.current?.setCenter(coords);
     } catch {
       // 실패해도 위에서 lastKnown으로 이미 뭔가 떴다면 그대로 둔다. 둘 다 없으면 DEFAULT_CENTER로 대체된다.
     }
@@ -99,13 +104,21 @@ export default function MapPickerScreen() {
     setHasSearched(true);
     setSelected(null);
     setHighlightedIndex(null);
-    setPreviewCenter(places.length > 0 ? { lat: places[0].lat, lng: places[0].lng } : null);
+    if (places.length > 0) {
+      const coords = { lat: places[0].lat, lng: places[0].lng };
+      setPreviewCenter(coords);
+      mapRef.current?.setCenter(coords);
+    } else {
+      setPreviewCenter(null);
+    }
   };
 
   // 결과 카드에서 선택 버튼 제외한 부분을 눌렀을 때. 지도만 그 위치로 옮기고, 그 카드를 강조 표시한다.
   const handlePreviewResult = (place: PlaceResult, index: number) => {
-    setPreviewCenter({ lat: place.lat, lng: place.lng });
+    const coords = { lat: place.lat, lng: place.lng };
+    setPreviewCenter(coords);
     setHighlightedIndex(index);
+    mapRef.current?.setCenter(coords);
   };
 
   // 결과 카드의 "선택" 버튼을 눌렀을 때. 중간 확인 단계 없이 바로 이 위치를 확정하고 이전 화면으로 돌아간다.
@@ -145,6 +158,7 @@ export default function MapPickerScreen() {
   return (
     <View style={{ flex: 1 }}>
       <KakaoMap
+        ref={mapRef}
         initialCenter={center}
         myLocation={currentLocation ?? undefined}
         pins={results.map((place) => ({ lat: place.lat, lng: place.lng }))}

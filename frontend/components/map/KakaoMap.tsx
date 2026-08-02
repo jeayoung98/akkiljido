@@ -15,6 +15,9 @@ export type KakaoMapHandle = {
   zoomOut: () => void;
   // 특정 레벨(1~14)로 바로 이동한다. 줌 4단계처럼 정해진 레벨로 점프할 때 쓴다.
   setLevel: (level: number) => void;
+  // 지도 중심을 특정 좌표로 옮긴다. "내 위치로 이동" 버튼처럼, 좌표값이 이전과 같아서
+  // HTML이 재생성되지 않는 경우에도(=WebView가 재로딩을 안 하는 경우에도) 확실히 이동시키기 위해 쓴다.
+  setCenter: (coords: LatLng) => void;
 };
 
 type KakaoMapProps = {
@@ -162,6 +165,11 @@ export const KakaoMap = forwardRef<KakaoMapHandle, KakaoMapProps>(function Kakao
     },
     setLevel: (level) => {
       webViewRef.current?.injectJavaScript(`map.setLevel(${level}); true;`);
+    },
+    setCenter: (coords) => {
+      webViewRef.current?.injectJavaScript(
+        `map.setCenter(new kakao.maps.LatLng(${coords.lat}, ${coords.lng})); true;`
+      );
     },
   }));
 
