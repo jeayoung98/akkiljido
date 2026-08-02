@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.a508.backend.domain.analysis.dto.response.CategoryAnalysisResponse;
+import com.a508.backend.domain.analysis.dto.response.MyPlaceAnalysisResponse;
 import com.a508.backend.domain.analysis.service.AnalysisService;
 import com.a508.backend.global.response.ResponseBody;
 import com.a508.backend.global.response.ResponseUtil;
@@ -47,5 +48,24 @@ public class AnalysisController {
 
         return ResponseUtil.createSuccessResponse(response);
     }
-}
 
+    /** 선택한 연도와 월을 기준으로 등록한 내 장소별 반경 2km 내 지출을 조회한다. */
+    @Operation(summary = "월별 내 장소 지출 조회",
+            description = "선택한 연도와 월의 총지출과 등록한 내 장소별 반경 2km 내 지출 금액 및 비율을 조회한다.")
+    @GetMapping("/my-place")
+    public ResponseBody<MyPlaceAnalysisResponse> getMyPlaceAnalysis(
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
+            @Parameter(description = "조회 연도", example = "2024")
+            @Min(value = 1, message = "연도는 1 이상이어야 합니다.")
+            @Max(value = 9999, message = "연도는 9999 이하여야 합니다.")
+            @RequestParam(name = "year") int year,
+            @Parameter(description = "조회 월", example = "7")
+            @Min(value = 1, message = "월은 1 이상이어야 합니다.")
+            @Max(value = 12, message = "월은 12 이하여야 합니다.")
+            @RequestParam(name = "month") int month) {
+        MyPlaceAnalysisResponse response =
+                analysisService.getMyPlaceAnalysis(authenticatedUser.getUserId(), year, month);
+
+        return ResponseUtil.createSuccessResponse(response);
+    }
+}
