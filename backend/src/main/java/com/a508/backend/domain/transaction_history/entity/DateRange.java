@@ -28,6 +28,14 @@ public record DateRange(LocalDate start, LocalDate end) {
 	}
 
 	/**
+	 * 오늘을 포함한 최근 n일. 조회 기간이 고정이라 쿼리 파라미터를 받지 않는 화면(예: 홈)에서 쓴다.
+	 */
+	public static DateRange ofRecentDays(int days) {
+		LocalDate today = DateTimeUtils.today();
+		return new DateRange(today.minusDays(days - 1L), today);
+	}
+
+	/**
 	 * 종료일의 기본값은 항상 오늘이다.
 	 * 형식이 잘못되면 {@link ExceptionType#INVALID_DATE_FORMAT},
 	 * 시작일이 종료일보다 뒤면 {@link ExceptionType#INVALID_DATE_RANGE} 예외를 던진다.

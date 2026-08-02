@@ -155,6 +155,16 @@ public final class GeometryUtils {
     }
 
     /**
+     * Point 를 만들지 않고 좌표 범위만 검증한다.
+     * 좌표를 쿼리 파라미터로만 사용하는 조회 API(예: 내 주변 지출)에서 쓴다.
+     *
+     * @throws BusinessException 위도/경도가 유효 범위를 벗어난 경우(INVALID_LATITUDE / INVALID_LONGITUDE)
+     */
+    public static void validateCoordinate(double latitude, double longitude) {
+        validateRange(latitude, longitude);
+    }
+
+    /**
      * 좌표 범위 검증. 요청 DTO 의 @DecimalMin/@DecimalMax 로 이미 걸러지므로,
      * 여기서는 내부 호출 실수를 잡는 최후 방어선 역할만 한다.
      * 공통 예외 양식(BusinessException + ExceptionType)을 따라 GlobalExceptionHandler 가 400 으로 응답하게 한다.

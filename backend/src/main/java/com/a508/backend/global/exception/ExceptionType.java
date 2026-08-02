@@ -52,10 +52,16 @@ public enum ExceptionType {
 	INVALID_LATITUDE(BAD_REQUEST, "G001", "위도는 -90 이상 90 이하여야 합니다."),
 	INVALID_LONGITUDE(BAD_REQUEST, "G002", "경도는 -180 이상 180 이하여야 합니다."),
 
+<<<<<<< HEAD
 	// FCM
 	// TODO: 테스트 알림 API 삭제 시 FCM_PUSH_TOKEN_NOT_FOUND의 사용 여부를 확인하고 함께 정리한다.
 	FCM_PUSH_TOKEN_NOT_FOUND(NOT_FOUND, "F001", "등록된 FCM 푸시 토큰이 없습니다."),
 	FCM_NOT_CONFIGURED(SERVICE_UNAVAILABLE, "F002", "FCM 서버 설정이 완료되지 않았습니다."),
+=======
+	// home
+	INVALID_RADIUS(BAD_REQUEST, "H001", "반경은 1m 이상 50000m 이하여야 합니다."),
+	INVALID_CATEGORY_LIMIT(BAD_REQUEST, "H002", "카테고리 개수는 1 이상 20 이하여야 합니다."),
+>>>>>>> 07edbe2 (✨ feat: 홈 화면 카테고리별 지출·내 주변 지출 조회 API 추가 #S15P11A508-124)
 
 	;
 
