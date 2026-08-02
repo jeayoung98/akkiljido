@@ -18,7 +18,12 @@ import { TransactionTabBar, type TransactionTab } from '@/components/transaction
 import TransactionGroup, { type TransactionGroupItem } from '@/components/transaction/TransactionGroup';
 import TransactionItem from '@/components/transaction/TransactionItem';
 import Colors from '@/constants/Colors';
-import { MOCK_TRANSACTIONS, type TransactionRecord } from '@/mocks/transactions';
+import {
+  getMockDayDetail,
+  getMockMonthDateList,
+  MOCK_TRANSACTIONS,
+  type TransactionRecord,
+} from '@/mocks/transactions';
 
 const toDateKey = (datetime: string) => datetime.slice(0, 10);
 
@@ -63,26 +68,20 @@ function toGroupItems(records: TransactionRecord[]): TransactionGroupItem[] {
 
 const formatDateLabel = (dateKey: string) => dateKey.replaceAll('-', '.');
 
-function getDailyTotals(records: TransactionRecord[], dateKey: string) {
-  const dayRecords = records.filter((record) => toDateKey(record.datetime) === dateKey);
-  const income = dayRecords
-    .filter((record) => record.type === 'income')
-    .reduce((sum, record) => sum + record.amount, 0);
-  const expense = dayRecords
-    .filter((record) => record.type === 'expense')
-    .reduce((sum, record) => sum + record.amount, 0);
-  return { income, expense, records: dayRecords };
-}
+type MonthCell = { day: number; dateKey: string; inCurrentMonth: boolean };
 
-// 달력 한 화면(7의 배수)을 채우기 위해 이전/다음 달 날짜까지 포함한 날짜 배열을 만듭니다.
-function getMonthCells(month: Date) {
+// 달력 한 화면(7의 배수)을 채우기 위해 이전/다음 달 날짜까지 포함한 날짜 배열을 만들고,
+// 7개씩 주 단위로 미리 잘라서 반환합니다. flexWrap에 맡기면 화면 폭에 따라 한 줄에
+// 7개보다 많이 들어갈 수 있어서(웹이나 넓은 기기), 렌더링에서 줄바꿈을 신경 쓰지 않도록
+// 여기서 항상 정확히 7개짜리 줄로 나눠 줍니다.
+function getMonthWeeks(month: Date): MonthCell[][] {
   const year = month.getFullYear();
   const m = month.getMonth();
   const firstWeekday = new Date(year, m, 1).getDay();
   const daysInMonth = new Date(year, m + 1, 0).getDate();
   const daysInPrevMonth = new Date(year, m, 0).getDate();
 
-  const cells: { day: number; dateKey: string; inCurrentMonth: boolean }[] = [];
+  const cells: MonthCell[] = [];
 
   for (let i = firstWeekday - 1; i >= 0; i--) {
     const day = daysInPrevMonth - i;
@@ -102,7 +101,11 @@ function getMonthCells(month: Date) {
     trailingDay += 1;
   }
 
-  return cells;
+  const weeks: MonthCell[][] = [];
+  for (let i = 0; i < cells.length; i += 7) {
+    weeks.push(cells.slice(i, i + 7));
+  }
+  return weeks;
 }
 
 const WEEKDAY_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
@@ -124,11 +127,28 @@ export default function ListScreen() {
     return MOCK_TRANSACTIONS.filter((record) => record.name.toLowerCase().includes(query));
   }, [searchQuery]);
 
-  const monthCells = useMemo(() => getMonthCells(month), [month]);
-  const selectedDayTotals = useMemo(
-    () => getDailyTotals(MOCK_TRANSACTIONS, selectedDateKey),
-    [selectedDateKey],
+  const monthWeeks = useMemo(() => getMonthWeeks(month), [month]);
+
+  // 캘린더 월별 조회 API(dateList) 모양을 그대로 흉내 낸 목업이라, day(숫자) -> 합계를
+  // 바로 찾을 수 있게 Map으로 한 번 더 감싼다. 실제 API로 바꿀 때도 이 부분만 fetch로 교체하면 된다.
+  const monthDateList = useMemo(
+    () => getMockMonthDateList(month.getFullYear(), month.getMonth() + 1),
+    [month],
   );
+  const monthTotalsByDay = useMemo(() => {
+    const map = new Map<number, { expense: number; income: number }>();
+    for (const summary of monthDateList) {
+      map.set(summary.date, { expense: summary.expense, income: summary.income });
+    }
+    return map;
+  }, [monthDateList]);
+
+  // 일단위 입출금 조회 API(GET .../calendar/day?year&month&day)와 같은 모양의 목업.
+  // 이 API는 categoryName을 안 주므로, 캘린더 탭의 하루 목록엔 카테고리 아이콘을 붙이지 않는다.
+  const selectedDayDetail = useMemo(() => {
+    const [year, monthNumber, day] = selectedDateKey.split('-').map(Number);
+    return getMockDayDetail(year, monthNumber, day);
+  }, [selectedDateKey]);
 
   const analysisData = useMemo(() => {
     const monthKey = `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, '0')}`;
@@ -191,11 +211,16 @@ export default function ListScreen() {
             <IconButton color={Colors.light.text} name="close" onPress={handleCloseSearch} />
           </View>
         ) : (
+          // 검색·필터는 리스트 탭에서만 의미가 있어서, 캘린더·분석 탭에서는 아이콘 자체를 숨긴다.
           <AppHeader
-            rightActions={[
-              { icon: 'search', key: 'search', onPress: () => setIsSearching(true) },
-              { icon: 'filter', key: 'filter', onPress: handleFilterPress },
-            ]}
+            rightActions={
+              tab === 'list'
+                ? [
+                    { icon: 'search', key: 'search', onPress: () => setIsSearching(true) },
+                    { icon: 'filter', key: 'filter', onPress: handleFilterPress },
+                  ]
+                : []
+            }
             title="내역"
           />
         )}
@@ -262,33 +287,44 @@ export default function ListScreen() {
                   </View>
 
                   <View style={styles.calendarGrid}>
-                    {monthCells.map((cell) => {
-                      const totals = getDailyTotals(MOCK_TRANSACTIONS, cell.dateKey);
-                      return (
-                        <CalendarDayCell
-                          day={cell.day}
-                          disabled={!cell.inCurrentMonth}
-                          expenseAmount={totals.expense || undefined}
-                          incomeAmount={totals.income || undefined}
-                          key={cell.dateKey}
-                          onPress={cell.inCurrentMonth ? () => setSelectedDateKey(cell.dateKey) : undefined}
-                          selected={cell.dateKey === selectedDateKey}
-                        />
-                      );
-                    })}
+                    {/* week 단위로 미리 잘라 놓은 배열을 그대로 행으로 그려서, 화면 폭이 넓어도
+                        한 줄에 7개보다 많이 들어가는 일이 없게 한다. */}
+                    {monthWeeks.map((week, weekIndex) => (
+                      <View key={weekIndex} style={styles.calendarWeekRow}>
+                        {week.map((cell) => {
+                          const totals = monthTotalsByDay.get(cell.day);
+                          return (
+                            <CalendarDayCell
+                              day={cell.day}
+                              disabled={!cell.inCurrentMonth}
+                              expenseAmount={cell.inCurrentMonth ? totals?.expense || undefined : undefined}
+                              incomeAmount={cell.inCurrentMonth ? totals?.income || undefined : undefined}
+                              key={cell.dateKey}
+                              onPress={cell.inCurrentMonth ? () => setSelectedDateKey(cell.dateKey) : undefined}
+                              selected={cell.dateKey === selectedDateKey}
+                            />
+                          );
+                        })}
+                      </View>
+                    ))}
                   </View>
 
                   <Text style={styles.selectedDateTitle}>{formatDateLabel(selectedDateKey)}</Text>
-                  {selectedDayTotals.records.length === 0 ? (
+                  {selectedDayDetail.transactionList.length === 0 ? (
                     <EmptyState message="이 날짜엔 거래 내역이 없습니다." />
                   ) : (
                     <View style={styles.card}>
-                      {selectedDayTotals.records.map((record, index) => (
-                        <View key={record.transactionId}>
+                      {selectedDayDetail.transactionList.map((item, index) => (
+                        <View key={item.transactionId}>
                           {index > 0 ? <View style={styles.divider} /> : null}
-                          <TransactionRow
-                            onPress={() => handleOpenDetail(String(record.transactionId))}
-                            record={record}
+                          {/* categoryName은 아직 실제 API 스펙에 없는 필드라 목업에 우선 넣어둔 상태다.
+                              (mocks/transactions.ts의 DayTransactionSummary 주석 참고) */}
+                          <TransactionItem
+                            amount={item.amount}
+                            leading={<CategoryIcon categoryName={item.categoryName} size={20} />}
+                            onPress={() => handleOpenDetail(String(item.transactionId))}
+                            title={item.name}
+                            type={item.type}
                           />
                         </View>
                       ))}
@@ -387,7 +423,6 @@ const styles = StyleSheet.create({
   weekdayRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingHorizontal: 4,
   },
   weekdayLabel: {
     width: 44,
@@ -397,8 +432,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   calendarGrid: {
+    gap: 4,
+  },
+  calendarWeekRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     justifyContent: 'space-between',
   },
   selectedDateTitle: {

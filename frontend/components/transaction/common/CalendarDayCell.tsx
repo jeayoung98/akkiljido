@@ -76,6 +76,10 @@ const styles = StyleSheet.create({
     // 웹(flexbox)에서는 minWidth 기본값이 콘텐츠 크기라, 긴 금액 텍스트가 있으면 width:44를
     // 무시하고 칸이 넓어져 옆 칸을 밀어낸다. 0으로 낮춰서 width가 실제 상한이 되게 한다.
     minWidth: 0,
+    // 수입·소비 금액 줄 수(0~2줄)에 따라 칸 높이가 들쭉날쭉해지지 않도록, 두 줄이 다 있는
+    // 경우를 기준으로 높이를 고정한다. 금액이 없는 날은 그만큼 아래쪽이 비어 보일 뿐, 요일
+    // 배지 위치와 줄 간격은 항상 같다.
+    height: 64,
     alignItems: 'center',
     gap: 2,
     paddingVertical: 4,
