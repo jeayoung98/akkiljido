@@ -6,6 +6,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.a508.backend.domain.calendar.dto.response.DailyCalendarResponse;
 import com.a508.backend.domain.calendar.dto.response.MonthlyCalendarResponse;
 import com.a508.backend.domain.calendar.service.CalendarService;
 import com.a508.backend.global.response.ResponseBody;
@@ -44,6 +45,30 @@ public class CalendarController {
             @RequestParam(name = "month") int month) {
         MonthlyCalendarResponse response =
                 calendarService.getMonthlyCalendar(authenticatedUser.getUserId(), year, month);
+
+        return ResponseUtil.createSuccessResponse(response);
+    }
+
+    /** 선택한 날짜의 순수입·지출 합계와 거래내역 목록을 조회한다. */
+    @Operation(summary = "일 단위 입출금 조회",
+            description = "선택한 날짜를 기준으로 순수입·지출 합계와 거래내역 목록을 조회한다.")
+    @GetMapping("/day")
+    public ResponseBody<DailyCalendarResponse> getDailyCalendar(
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
+            @Parameter(description = "조회 연도", example = "2024")
+            @Min(value = 1, message = "연도는 1 이상이어야 합니다.")
+            @Max(value = 9999, message = "연도는 9999 이하여야 합니다.")
+            @RequestParam(name = "year") int year,
+            @Parameter(description = "조회 월", example = "7")
+            @Min(value = 1, message = "월은 1 이상이어야 합니다.")
+            @Max(value = 12, message = "월은 12 이하여야 합니다.")
+            @RequestParam(name = "month") int month,
+            @Parameter(description = "조회 일", example = "17")
+            @Min(value = 1, message = "일은 1 이상이어야 합니다.")
+            @Max(value = 31, message = "일은 31 이하여야 합니다.")
+            @RequestParam(name = "day") int day) {
+        DailyCalendarResponse response =
+                calendarService.getDailyCalendar(authenticatedUser.getUserId(), year, month, day);
 
         return ResponseUtil.createSuccessResponse(response);
     }
