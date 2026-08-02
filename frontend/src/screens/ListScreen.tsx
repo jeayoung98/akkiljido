@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Alert, StyleSheet, Text, View } from 'react-native';
@@ -6,6 +7,7 @@ import AppScreen from '@/components/common/AppScreen';
 import { AppHeader } from '@/components/common/header/AppHeader';
 import { IconButton } from '@/components/common/button/IconButton';
 import { SearchInput } from '@/components/common/input/SearchInput';
+import SegmentedControl from '@/components/common/segmented-control/SegmentedControl';
 import { AnalysisCard } from '@/components/transaction/common/AnalysisCard';
 import { AnalysisLegend } from '@/components/transaction/common/AnalysisLegend';
 import { CalendarDayCell } from '@/components/transaction/common/CalendarDayCell';
@@ -21,6 +23,7 @@ import Colors from '@/constants/Colors';
 import {
   getMockDayDetail,
   getMockMonthDateList,
+  getMockPlaceAnalysis,
   MOCK_TRANSACTIONS,
   type TransactionRecord,
 } from '@/mocks/transactions';
@@ -110,6 +113,21 @@ function getMonthWeeks(month: Date): MonthCell[][] {
 
 const WEEKDAY_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
 
+type AnalysisMode = 'category' | 'place';
+
+const ANALYSIS_MODE_OPTIONS = [
+  { label: '카테고리 분석', value: 'category' },
+  { label: '장소 분석', value: 'place' },
+] as const;
+
+// 장소 분석 범례는 카테고리처럼 색 점 대신 장소 종류를 나타내는 아이콘을 쓴다.
+const PLACE_ICON_BY_NAME: Record<string, keyof typeof Ionicons.glyphMap> = {
+  회사: 'business',
+  집: 'home',
+  학교: 'school',
+};
+const DEFAULT_PLACE_ICON: keyof typeof Ionicons.glyphMap = 'location';
+
 /** 내역 화면: 리스트/캘린더/분석 탭과 검색을 담당합니다. 필터는 바텀시트가 나오면 이어서 붙일 예정입니다. */
 export default function ListScreen() {
   const [tab, setTab] = useState<TransactionTab>('list');
@@ -117,6 +135,7 @@ export default function ListScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [month, setMonth] = useState(() => new Date(2026, 6, 1));
   const [selectedDateKey, setSelectedDateKey] = useState('2026-07-17');
+  const [analysisMode, setAnalysisMode] = useState<AnalysisMode>('category');
 
   const dateGroups = useMemo(() => groupByDate(MOCK_TRANSACTIONS), []);
 
@@ -176,6 +195,29 @@ export default function ListScreen() {
 
     return { totalAmount, categories };
   }, [month]);
+
+  // 장소 분석 목업은 카테고리 분석과 같은 이달 총 소비 금액을 장소별로 나눠서 보여준다.
+  // (mocks/transactions.ts의 getMockPlaceAnalysis 주석 참고: 실제 장소 분석 API 나오기 전 placeholder)
+  // getMockPlaceAnalysis 자체는 월과 무관하게 고정값을 주기 때문에, 그 달에 소비가 없으면
+  // (analysisData.totalAmount === 0) 여기서도 빈 배열을 돌려줘야 카테고리 분석과 똑같이
+  // "이달 소비 내역이 없습니다"가 뜬다.
+  const placeAnalysisItems = useMemo(() => {
+    if (analysisData.totalAmount === 0) return [];
+
+    return getMockPlaceAnalysis().map((item) => ({
+      id: item.placeId,
+      name: item.myPlaceName,
+      amount: item.amount,
+      percent: item.percent,
+      icon: (
+        <Ionicons
+          color={Colors.light.textSecondary}
+          name={PLACE_ICON_BY_NAME[item.myPlaceName] ?? DEFAULT_PLACE_ICON}
+          size={14}
+        />
+      ),
+    }));
+  }, [analysisData.totalAmount]);
 
   const handleOpenDetail = (transactionId: string) => {
     router.push({ pathname: '/transaction/[id]', params: { id: transactionId } });
@@ -342,18 +384,38 @@ export default function ListScreen() {
                     style={styles.monthPickerSpacing}
                   />
 
-                  <AnalysisCard amount={analysisData.totalAmount} label="이달 총 소비">
-                    {analysisData.categories.length === 0 ? (
-                      <EmptyState message="이달 소비 내역이 없습니다." />
-                    ) : (
-                      <>
-                        <View style={styles.chartRow}>
-                          <PieChart data={analysisData.categories} />
-                        </View>
-                        <AnalysisLegend items={analysisData.categories} style={styles.legendSpacing} />
-                      </>
-                    )}
-                  </AnalysisCard>
+                  <SegmentedControl onChange={setAnalysisMode} options={ANALYSIS_MODE_OPTIONS} value={analysisMode} />
+
+                  {analysisMode === 'category' ? (
+                    <AnalysisCard amount={analysisData.totalAmount} label="이달 총 소비">
+                      {analysisData.categories.length === 0 ? (
+                        <EmptyState message="이달 소비 내역이 없습니다." />
+                      ) : (
+                        <>
+                          <View style={styles.chartRow}>
+                            <PieChart data={analysisData.categories} />
+                          </View>
+                          <AnalysisLegend items={analysisData.categories} style={styles.legendSpacing} />
+                        </>
+                      )}
+                    </AnalysisCard>
+                  ) : (
+                    <AnalysisCard amount={analysisData.totalAmount} label="내 장소별 소비">
+                      {placeAnalysisItems.length === 0 ? (
+                        <EmptyState message="등록한 장소 주변 소비 내역이 없습니다." />
+                      ) : (
+                        <>
+                          <Text style={styles.placeDescription}>
+                            등록한 장소 주변 소비만 묶고, 범위 밖 소비는 기타로 분류했어요.
+                          </Text>
+                          <View style={styles.chartRow}>
+                            <PieChart data={placeAnalysisItems} />
+                          </View>
+                          <AnalysisLegend items={placeAnalysisItems} style={styles.legendSpacing} />
+                        </>
+                      )}
+                    </AnalysisCard>
+                  )}
                 </View>
               ) : null}
             </>
@@ -448,6 +510,12 @@ const styles = StyleSheet.create({
   },
   legendSpacing: {
     marginTop: 16,
+  },
+  placeDescription: {
+    marginBottom: 16,
+    color: Colors.light.textSecondary,
+    fontSize: 12,
+    lineHeight: 18,
   },
   monthPickerSpacing: {
     marginBottom: 0,

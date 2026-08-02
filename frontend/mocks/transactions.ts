@@ -191,3 +191,29 @@ export function getMockDayDetail(year: number, month: number, day: number): DayD
     })),
   };
 }
+
+// 분석 탭의 "장소 분석" 응답(placeId/myPlaceName) 모양입니다.
+export type PlaceAnalysisItem = {
+  placeId: number;
+  myPlaceName: string;
+  amount: number;
+  percent: number;
+};
+
+// TODO: "등록한 내 장소 반경 내 소비 집계" API가 아직 없어서, 예시 장소 4곳(회사/집/학교/기타)에
+// 이번 달 소비 총액을 나눠 담은 목업입니다. 실제 API가 나오면 이 함수를 걷어내고 그 응답을
+// 그대로 쓰면 됩니다. (월과 무관하게 항상 같은 값을 돌려주는 것도 이 때문입니다.)
+export function getMockPlaceAnalysis(): PlaceAnalysisItem[] {
+  const items = [
+    { placeId: 1, myPlaceName: '회사', amount: 40000 },
+    { placeId: 2, myPlaceName: '집', amount: 25000 },
+    { placeId: 3, myPlaceName: '학교', amount: 15000 },
+    { placeId: 4, myPlaceName: '기타', amount: 9300 },
+  ];
+  const totalAmount = items.reduce((sum, item) => sum + item.amount, 0);
+
+  return items.map((item) => ({
+    ...item,
+    percent: totalAmount === 0 ? 0 : Math.round((item.amount / totalAmount) * 100),
+  }));
+}
