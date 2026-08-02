@@ -1,4 +1,5 @@
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useCallback, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import AppScreen from '@/components/common/AppScreen';
@@ -28,6 +29,16 @@ function formatPlace(address: string) {
 export default function TransactionDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
 
+  // 수정 화면에서 저장 후 router.back()으로 돌아오면, 이 화면은 계속 마운트돼 있던 상태라
+  // 다시 렌더링될 이유가 없어서 방금 바꿔치기한 값이 안 보일 수 있다. 포커스를 받을 때마다
+  // 더미 state를 갱신해서 강제로 다시 렌더링하고, 그 김에 MOCK_TRANSACTIONS도 새로 읽는다.
+  const [, forceRefresh] = useState(0);
+  useFocusEffect(
+    useCallback(() => {
+      forceRefresh((tick) => tick + 1);
+    }, []),
+  );
+
   const transaction = MOCK_TRANSACTIONS.find((record) => String(record.transactionId) === id);
 
   if (!transaction) {
@@ -42,8 +53,7 @@ export default function TransactionDetailScreen() {
   }
 
   const handleEdit = () => {
-    // TODO: 수정 화면은 아직 없어서 임시 안내만 표시합니다.
-    Alert.alert('수정', '수정 화면은 곧 연결될 예정이에요.');
+    router.push({ pathname: '/transaction/[id]/edit', params: { id } });
   };
 
   const handleDelete = () => {
