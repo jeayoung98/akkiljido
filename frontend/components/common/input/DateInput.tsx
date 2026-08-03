@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Modal, Pressable, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import { Calendar, DateData, LocaleConfig } from 'react-native-calendars';
-import { Ionicons } from '@expo/vector-icons';
 
 import { TextButton } from '@/components/common/button/TextButton';
 import Colors from '@/constants/Colors';
@@ -20,11 +19,6 @@ type DateInputProps = {
   value?: Date;
   onChange: (date: Date) => void;
   style?: StyleProp<ViewStyle>;
-  /** 필터처럼 짧은 입력 칸이 필요한 경우 사용합니다. */
-  compact?: boolean;
-  /** 기본 한글 날짜 대신 YYYY-MM-DD 형식이 필요한 경우 사용합니다. */
-  displayFormat?: 'localized' | 'iso';
-  showCalendarIcon?: boolean;
 };
 
 function toDateString(date: Date) {
@@ -34,20 +28,12 @@ function toDateString(date: Date) {
   return `${y}-${m}-${d}`;
 }
 
-function formatDisplay(date: Date, displayFormat: 'localized' | 'iso') {
-  if (displayFormat === 'iso') return toDateString(date);
-  return `${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일`;
-}
-
 // 날짜 하나를 고르는 입력창. 누르면 자체적으로 달력 팝업을 띄우고, 고르면 팝업을 닫는다.
 export function DateInput({
   label,
   value,
   onChange,
   style,
-  compact = false,
-  displayFormat = 'localized',
-  showCalendarIcon = false,
 }: DateInputProps) {
   const [visible, setVisible] = useState(false);
 
@@ -63,12 +49,9 @@ export function DateInput({
 
   return (
     <>
-      <Pressable style={[styles.field, compact && styles.compactField, style]} onPress={() => setVisible(true)}>
+      <Pressable style={[styles.field, style]} onPress={() => setVisible(true)}>
         {label ? <Text style={styles.label}>{label}</Text> : null}
-        <View style={styles.valueRow}>
-          {value ? <Text style={styles.value}>{formatDisplay(value, displayFormat)}</Text> : null}
-          {showCalendarIcon ? <Ionicons color={Colors.light.text} name="calendar-outline" size={19} /> : null}
-        </View>
+        {value ? <Text style={styles.value}>{`${value.getFullYear()}년 ${value.getMonth() + 1}월 ${value.getDate()}일`}</Text> : null}
       </Pressable>
 
       {visible && (
@@ -118,13 +101,6 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     minHeight: 90,
   },
-  compactField: {
-    minHeight: 48,
-    justifyContent: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 0,
-    borderRadius: 18,
-  },
   label: {
     fontSize: 15,
     fontWeight: '600',
@@ -133,11 +109,6 @@ const styles = StyleSheet.create({
   value: {
     fontSize: 15,
     color: Colors.light.text,
-  },
-  valueRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
   },
   backdrop: {
     flex: 1,

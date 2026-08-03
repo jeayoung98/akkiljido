@@ -604,19 +604,13 @@ export default function ListScreen() {
             {periodFilter === 'custom' ? (
               <View style={styles.dateRange}>
                 <DateInput
-                  compact
-                  displayFormat="iso"
                   onChange={setCustomStartDate}
-                  showCalendarIcon
                   style={styles.dateRangeInput}
                   value={customStartDate}
                 />
                 <Text style={styles.dateRangeSeparator}>~</Text>
                 <DateInput
-                  compact
-                  displayFormat="iso"
                   onChange={setCustomEndDate}
-                  showCalendarIcon
                   style={styles.dateRangeInput}
                   value={customEndDate}
                 />
@@ -718,6 +712,14 @@ const styles = StyleSheet.create({
   },
   dateRangeInput: {
     flex: 1,
+    // 공통 DateInput의 구조는 유지하고, 기간 필터 안에서만 날짜 값을 가운데에 배치합니다.
+    alignItems: 'center',
+    minHeight: 48,
+    justifyContent: 'center',
+    gap: 0,
+    paddingHorizontal: 14,
+    paddingVertical: 0,
+    borderRadius: 18,
   },
   dateRangeSeparator: {
     color: Colors.light.textSecondary,
