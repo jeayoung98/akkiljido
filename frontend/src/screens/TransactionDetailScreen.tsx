@@ -1,10 +1,11 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import AppScreen from '@/components/common/AppScreen';
 import { Button } from '@/components/common/button/Button';
 import { AppHeader } from '@/components/common/header/AppHeader';
+import { ConfirmModal } from '@/components/common/modal/ConfirmModal';
 import { CategoryIcon } from '@/components/transaction/common/CategoryIcon';
 import { InfoRow } from '@/components/transaction/common/InfoRow';
 import { TransactionDetailCard } from '@/components/transaction/common/TransactionDetailCard';
@@ -28,6 +29,7 @@ function formatPlace(address: string) {
  */
 export default function TransactionDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
 
   // 수정 화면에서 저장 후 router.back()으로 돌아오면, 이 화면은 계속 마운트돼 있던 상태라
   // 다시 렌더링될 이유가 없어서 방금 바꿔치기한 값이 안 보일 수 있다. 포커스를 받을 때마다
@@ -57,19 +59,13 @@ export default function TransactionDetailScreen() {
   };
 
   const handleDelete = () => {
-    // TODO: 삭제 확인 UI는 팀 공통 ConfirmModal(frontend/modal 브랜치, 아직 미병합)로
-    // 나중에 교체 예정입니다. 지금은 화면 동작만 먼저 확인하기 위해 기본 Alert로 대체했습니다.
-    Alert.alert('거래를 삭제할까요?', '삭제된 내역은 복구할 수 없어요.', [
-      { style: 'cancel', text: '취소' },
-      {
-        style: 'destructive',
-        text: '삭제',
-        onPress: () => {
-          // TODO: 실제 삭제 API 연결 전까지는 삭제된 것처럼 화면만 처리합니다.
-          router.back();
-        },
-      },
-    ]);
+    setIsDeleteModalVisible(true);
+  };
+
+  const handleConfirmDelete = () => {
+    setIsDeleteModalVisible(false);
+    // TODO: DELETE 거래 API 연동 후 성공한 경우에만 목록 화면으로 돌아갑니다.
+    router.back();
   };
 
   return (
@@ -101,6 +97,17 @@ export default function TransactionDetailScreen() {
           </Button>
         </View>
       </ScrollView>
+
+      <ConfirmModal
+        cancelLabel="취소"
+        confirmLabel="삭제"
+        description="삭제된 내역은 복구할 수 없어요."
+        destructive
+        onCancel={() => setIsDeleteModalVisible(false)}
+        onConfirm={handleConfirmDelete}
+        title="거래를 삭제할까요?"
+        visible={isDeleteModalVisible}
+      />
     </AppScreen>
   );
 }

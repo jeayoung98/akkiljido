@@ -27,6 +27,10 @@ import {
   MOCK_TRANSACTIONS,
   type TransactionRecord,
 } from '@/mocks/transactions';
+import {
+  TRANSACTION_SCREEN_MOCKS,
+  type TransactionScreenMock,
+} from '@/mocks/transactionScreen';
 
 const toDateKey = (datetime: string) => datetime.slice(0, 10);
 
@@ -37,30 +41,33 @@ const toLocalDateKey = (date: Date) =>
 
 // 목업 데이터를 date별로 묶어서, 실제 "거래내역 목록 조회" API의 dateList 응답 모양과 똑같이 만듭니다.
 // (백엔드 연결 전까지는 여기서 흉내 내고, 나중엔 이 부분만 fetch 결과로 바꾸면 됩니다.)
-function groupByDate(records: TransactionRecord[]) {
-  const groups = new Map<string, TransactionRecord[]>();
+/** 목록 탭 전용 목업을 날짜별 거래 그룹 형태로 변환합니다. */
+function groupScreenMocks(records: TransactionScreenMock[]) {
+  const groups = new Map<string, TransactionScreenMock[]>();
+
   for (const record of records) {
-    const key = toDateKey(record.datetime);
-    const list = groups.get(key) ?? [];
-    list.push(record);
-    groups.set(key, list);
+    const date = toDateKey(record.datetime);
+    const group = groups.get(date) ?? [];
+    group.push(record);
+    groups.set(date, group);
   }
 
   return Array.from(groups.entries())
-    .sort(([a], [b]) => (a < b ? 1 : -1)) // 최신순(latest) 기본값
-    .map(([date, records]) => ({
+    .sort(([a], [b]) => (a < b ? 1 : -1))
+    .map(([date, transactions]) => ({
       date,
-      records,
-      totalAmount: records.reduce(
-        (sum, record) => sum + (record.type === 'income' ? record.amount : -record.amount),
+      transactions,
+      totalAmount: transactions.reduce(
+        (sum, transaction) => sum + (transaction.type === 'income' ? transaction.amount : -transaction.amount),
         0,
       ),
     }));
 }
 
-function toGroupItems(records: TransactionRecord[]): TransactionGroupItem[] {
+/** 공통 TransactionGroup이 받는 행 데이터로 변환합니다. */
+function toScreenGroupItems(records: TransactionScreenMock[]): TransactionGroupItem[] {
   return records.map((record) => ({
-    id: String(record.transactionId),
+    id: record.transactionId,
     title: record.name,
     description: record.categoryName,
     leading: <CategoryIcon categoryName={record.categoryName} size={20} />,
@@ -137,7 +144,8 @@ export default function ListScreen() {
   const [selectedDateKey, setSelectedDateKey] = useState('2026-07-17');
   const [analysisMode, setAnalysisMode] = useState<AnalysisMode>('category');
 
-  const dateGroups = useMemo(() => groupByDate(MOCK_TRANSACTIONS), []);
+  // 목록 API 연동 전에는 거래 화면 전용 목업만 사용합니다.
+  const dateGroups = useMemo(() => groupScreenMocks(TRANSACTION_SCREEN_MOCKS), []);
 
   // 실제 검색 API는 날짜별로 묶지 않고 flat한 목록을 준다. 목업도 그 모양을 그대로 흉내 낸다.
   const searchResults = useMemo(() => {
@@ -305,7 +313,7 @@ export default function ListScreen() {
                         onItemPress={(item) => handleOpenDetail(item.id)}
                         style={styles.group}
                         totalAmount={group.totalAmount}
-                        transactions={toGroupItems(group.records)}
+                        transactions={toScreenGroupItems(group.transactions)}
                       />
                     ))
                   )}
