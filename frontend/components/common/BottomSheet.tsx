@@ -28,6 +28,10 @@ type CommonBottomSheetProps = {
   initialHeight?: number; // 열릴 때 시작할 높이(비율). 기본값은 minHeight
   draggable?: boolean; // 드래그로 높이를 바꿀 수 있는지. 기본 true
   dismissOnDragDown?: boolean; // 최소 높이보다 더 내리면 닫히게 할지. 기본 true
+  // 화면에 실제로 보이는 시트 높이(px)가 확정될 때마다 알려주는 콜백.
+  // 열릴 때 한 번 + 드래그를 놓을 때마다 호출된다(드래그 중에는 호출하지 않는다 — 매 프레임 리렌더 방지).
+  // 시트 안 내용물이 "지금 보이는 만큼"에 맞춰 스스로 크기를 조절해야 할 때 쓴다(예: 지도 탭 내 장소 목록).
+  onVisibleHeightChange?: (heightPx: number) => void;
 };
 
 type ModalBottomSheetProps = CommonBottomSheetProps & {
@@ -67,6 +71,7 @@ export default function BottomSheet(props: BottomSheetProps) {
     initialHeight = minHeight,
     draggable = true,
     dismissOnDragDown = true,
+    onVisibleHeightChange,
   } = props;
   const modal = props.modal ?? true;
   // modal=false면 애초에 배경(Pressable)이 없어서 이 값 자체가 의미 없다.
@@ -89,6 +94,11 @@ export default function BottomSheet(props: BottomSheetProps) {
     onClose?.();
   };
 
+  // 워클릿(드래그 onEnd)에서 runOnJS로 호출할 수 있도록 감싼 버전.
+  const notifyVisibleHeight = (heightPx: number) => {
+    onVisibleHeightChange?.(heightPx);
+  };
+
   useEffect(() => {
     if (visible) {
       setMounted(true);
@@ -108,6 +118,8 @@ export default function BottomSheet(props: BottomSheetProps) {
   useEffect(() => {
     if (mounted && visible) {
       translateY.value = withSpring(maxHeightPx - initialHeightPx, SPRING_CONFIG);
+      // 열리는 애니메이션이 끝나면 시트는 initialHeight만큼 보이게 되므로, 그 값을 바로 알려준다.
+      onVisibleHeightChange?.(initialHeightPx);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mounted]);
@@ -138,6 +150,8 @@ export default function BottomSheet(props: BottomSheetProps) {
       // 스냅 없이, 놓은 자리에서 그대로 멈춘다. 최소/최대 높이 범위 밖으로만 못 나가게 막는다.
       const clamped = Math.min(Math.max(released, 0), lowestTranslateY);
       translateY.value = withSpring(clamped, SPRING_CONFIG);
+      // 손을 놓아 최종 높이가 확정된 시점에만, 화면에 보이게 될 시트 높이를 JS 스레드로 알려준다.
+      runOnJS(notifyVisibleHeight)(maxHeightPx - clamped);
     });
 
   const sheetStyle = useAnimatedStyle(() => ({

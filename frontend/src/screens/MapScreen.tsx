@@ -13,9 +13,10 @@ import { Chip } from '@/components/common/chip/Chip';
 import { DateInput } from '@/components/common/input/DateInput';
 import { SearchInput } from '@/components/common/input/SearchInput';
 import { KakaoMap, type KakaoMapHandle, type LatLng, type MapMarker } from '@/components/map/KakaoMap';
+import { Scroll } from '@/components/common/Scroll';
 import { MapZoom } from '@/components/map/MapZoom';
 import Colors from '@/constants/Colors';
-import { MY_PLACES, toMapDepthResponse, toMapPlaceListResponse, toMyPlaceDetailResponse } from '@/mocks/transactions';
+import { MY_PLACES, toMapDepthResponse, toMapPlaceListResponse, toMyPlaceDetailResponse, toMyPlaceListResponse } from '@/mocks/transactions';
 import { searchPlaces, type PlaceResult } from '@/utils/kakaoSearch';
 import { getZoomStage, STAGE_TARGET_LEVEL } from '@/utils/kakaoZoomStage';
 
@@ -25,6 +26,13 @@ const INITIAL_LEVEL = 4;
 const DEFAULT_CENTER: LatLng = { lat: 37.4979, lng: 127.0276 };
 const SEARCH_BAR_HEIGHT = 52;
 const LOCATE_BUTTON_HEIGHT = 44;
+// 내 장소 상세 모드에서 이동할 줌 레벨. 반경 2km 원(지름 4km)이 폰 화면에 통째로 들어오는 최소 축소 레벨이다.
+const PLACE_DETAIL_LEVEL = 6;
+// 내 장소 시트에서 목록 위에 고정으로 자리 차지하는 영역(드래그 핸들 + "내 장소 N개" 제목)의 대략적인 높이.
+// 시트의 보이는 높이에서 이만큼을 빼면 목록(Scroll)에 줄 수 있는 높이가 나온다.
+const SHEET_HEADER_HEIGHT = 56;
+// 내 장소 상세에서 아코디언 목록 위 영역(드래그 핸들 + 뒤로가기·장소명·누적 금액 헤더)의 대략적인 높이.
+const DETAIL_HEADER_HEIGHT = 72;
 
 type Period = 'week' | 'month' | '3months' | 'custom';
 
@@ -50,15 +58,53 @@ const CATEGORY_OPTIONS = [
   { id: 11, label: '기타' },
 ];
 
-// 내 장소별 아이콘. MY_PLACES에 아이콘 정보가 없어서 placeId 기준으로 화면에서 따로 매핑한다.
-const PLACE_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
-  home: 'home',
-  workcafe: 'briefcase',
-  client: 'business',
+// 내 장소별 아이콘. API 응답에 아이콘 정보가 없어서 placeId(숫자) 기준으로 화면에서 따로 매핑한다.
+const PLACE_ICONS: Record<number, keyof typeof Ionicons.glyphMap> = {
+  1: 'home', // 집
+  2: 'briefcase', // 직장
+  3: 'business', // 클라이언트사
 };
 
 function formatWon(amount: number) {
   return amount.toLocaleString('ko-KR');
+}
+
+// Date -> 'YYYY-MM-DD' (기기 로컬 기준)
+function toDateString(date: Date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+// 필터의 기간 옵션을 API 쿼리 형태(startDate/endDate)로 변환한다.
+function periodToDateRange(
+  period: Period,
+  customStart?: Date,
+  customEnd?: Date
+): { startDate?: string; endDate?: string } {
+  const today = new Date();
+
+  if (period === 'week') {
+    const day = today.getDay(); // 0=일요일
+    const monday = new Date(today);
+    monday.setDate(today.getDate() - (day === 0 ? 6 : day - 1));
+    return { startDate: toDateString(monday), endDate: toDateString(today) };
+  }
+  if (period === 'month') {
+    const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    return { startDate: toDateString(firstOfMonth), endDate: toDateString(today) };
+  }
+  if (period === '3months') {
+    const threeMonthsAgo = new Date(today);
+    threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+    return { startDate: toDateString(threeMonthsAgo), endDate: toDateString(today) };
+  }
+  // custom: 두 날짜가 다 있어야만 적용하기가 눌리므로 보통 둘 다 있다.
+  return {
+    startDate: customStart ? toDateString(customStart) : undefined,
+    endDate: customEnd ? toDateString(customEnd) : undefined,
+  };
 }
 
 function formatManwon(amount: number) {
@@ -129,8 +175,11 @@ export default function MapScreen() {
   };
 
   // "적용하기"를 눌렀을 때만 초안을 실제 값으로 반영하고 닫는다.
+  // 카테고리를 하나도 안 골랐으면 "아무것도 안 보기"가 아니라 전체 선택으로 간주한다.
   const handleApplyFilter = () => {
-    setAppliedFilter({ period, categoryIds: selectedCategoryIds, customStartDate, customEndDate });
+    const categoryIds =
+      selectedCategoryIds.length > 0 ? selectedCategoryIds : CATEGORY_OPTIONS.map((category) => category.id);
+    setAppliedFilter({ period, categoryIds, customStartDate, customEndDate });
     setFilterVisible(false);
   };
 
@@ -139,29 +188,52 @@ export default function MapScreen() {
     setFilterVisible(false);
   };
 
-  // 시작일이 종료일보다 늦어지면 종료일을 다시 고르게 비운다.
-  const handleCustomStartChange = (date: Date) => {
-    setCustomStartDate(date);
-    if (customEndDate && date > customEndDate) {
-      setCustomEndDate(undefined);
-    }
-  };
-
-  // 종료일은 시작일보다 이른 날짜를 아예 선택하지 못하게 막는다.
-  const handleCustomEndChange = (date: Date) => {
-    if (customStartDate && date < customStartDate) {
-      return;
-    }
-    setCustomEndDate(date);
-  };
+  // 시작일↔종료일 순서 보장은 DateInput의 minDate/maxDate로 달력에서부터 막는다
+  // (시작일 달력은 종료일 이후를, 종료일 달력은 시작일 이전을 아예 못 고른다).
+  // "직접 선택"은 두 날짜가 모두 채워져야만 적용할 수 있다.
+  const isCustomPeriodValid =
+    period !== 'custom' ||
+    (customStartDate != null && customEndDate != null && customStartDate <= customEndDate);
 
   // null이면 "내 장소" 리스트, placeId가 있으면 그 장소의 가맹점별 상세를 보여준다.
-  const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
-  const selectedPlace = MY_PLACES.find((place) => place.placeId === selectedPlaceId) ?? null;
-  const placeDetail = useMemo(
-    () => (selectedPlaceId ? toMyPlaceDetailResponse(selectedPlaceId) : null),
-    [selectedPlaceId]
+  const [selectedPlaceId, setSelectedPlaceId] = useState<number | null>(null);
+
+  // 내 장소 시트가 화면에 실제로 보이는 높이(px). 시트를 열 때/드래그를 놓을 때마다 갱신된다.
+  // 목록(Scroll)의 높이를 여기에 맞춰서, 공간이 충분하면 스크롤 없이 다 보이고 부족할 때만 스크롤이 생긴다.
+  const [sheetVisibleHeight, setSheetVisibleHeight] = useState(0);
+  const placeListHeight = Math.max(sheetVisibleHeight - SHEET_HEADER_HEIGHT, 0);
+  // 상세(가맹점 아코디언) 목록도 같은 원리로, 헤더 높이만 다르게 뺀다.
+  const merchantListHeight = Math.max(sheetVisibleHeight - DETAIL_HEADER_HEIGHT, 0);
+
+  // 내 장소를 선택하면 상세로 전환하면서, 지도 중심을 그 장소로 옮기고
+  // 반경 2km 원 전체가 화면에 들어오는 레벨(6)로 축소한다.
+  // 이 레벨은 원래 3단계(읍면동) 구간이지만, 내 장소 상세 모드에서는 아래 markers 계산에서
+  // 클러스터 대신 이 장소 주변 가맹점 개별 마커를 보여주므로 단계 규칙과 충돌하지 않는다.
+  const handleSelectPlace = (place: (typeof MY_PLACES)[number]) => {
+    setSelectedPlaceId(place.placeId);
+    mapRef.current?.setCenter({ lat: place.latitude, lng: place.longitude });
+    mapRef.current?.setLevel(PLACE_DETAIL_LEVEL);
+  };
+
+  // 적용된 필터를 API 쿼리 형태(startDate/endDate/categoryIds)로 변환한 값.
+  // 지도 마커·내 장소 목록·내 장소 상세가 전부 이걸 기준으로 데이터를 가져온다.
+  const mapFilter = useMemo(
+    () => ({
+      ...periodToDateRange(appliedFilter.period, appliedFilter.customStartDate, appliedFilter.customEndDate),
+      categoryIds: appliedFilter.categoryIds,
+    }),
+    [appliedFilter]
   );
+
+  const selectedPlace = MY_PLACES.find((place) => place.placeId === selectedPlaceId) ?? null;
+  // 내 장소 API 두 개는 명세상 기간만 받는다(카테고리 필터 없음) — mapFilter를 통째로 넘겨도
+  // 함수 쪽에서 startDate/endDate만 쓴다.
+  const placeDetail = useMemo(
+    () => (selectedPlaceId != null ? toMyPlaceDetailResponse(selectedPlaceId, mapFilter) : null),
+    [selectedPlaceId, mapFilter]
+  );
+  // 내 장소 목록. totalAmount(반경 2km 안에서 기간 내에 쓴 금액 합)까지 응답에 포함되어 온다.
+  const myPlaces = useMemo(() => toMyPlaceListResponse(mapFilter).data, [mapFilter]);
   const placeMerchants = placeDetail?.success ? placeDetail.data.transactionList : [];
   const placeTotal = placeMerchants.reduce((sum, merchant) => sum + merchant.amount, 0);
 
@@ -233,9 +305,22 @@ export default function MapScreen() {
   };
 
   // 4단계(개별)면 가게별 말풍선(테두리=카테고리 지정색), 1~3단계면 구역별 말풍선(테두리=브랜드 그린 고정)을 그린다.
+  // 단, 내 장소 상세 모드에서는 줌 단계와 무관하게 그 장소 주변 가맹점을 개별 마커로 보여준다
+  // (bottom sheet의 가맹점별 목록과 지도가 같은 것을 가리키게 하기 위함).
   const markers: MapMarker[] = useMemo(() => {
+    if (selectedPlaceId && placeDetail?.success) {
+      return placeDetail.data.transactionList.map((merchant) => ({
+        id: `${merchant.latitude},${merchant.longitude}`,
+        lat: merchant.latitude!,
+        lng: merchant.longitude!,
+        label: merchant.name,
+        amount: merchant.amount,
+        color: Colors.category[merchant.categoryId ?? 11],
+      }));
+    }
+
     if (currentStage === 4) {
-      const { data } = toMapPlaceListResponse();
+      const { data } = toMapPlaceListResponse(mapFilter);
       return data.placeList.map((place) => ({
         id: `${place.latitude},${place.longitude}`,
         lat: place.latitude!,
@@ -246,7 +331,7 @@ export default function MapScreen() {
       }));
     }
 
-    const { data } = toMapDepthResponse(currentStage as 1 | 2 | 3);
+    const { data } = toMapDepthResponse(currentStage as 1 | 2 | 3, mapFilter);
     return data.transactionList.map((region) => ({
       id: region.depthName,
       lat: region.latitude,
@@ -255,7 +340,7 @@ export default function MapScreen() {
       amount: region.amount,
       color: Colors.light.primary,
     }));
-  }, [currentStage]);
+  }, [currentStage, selectedPlaceId, placeDetail, mapFilter]);
 
   return (
     <View style={{ flex: 1 }}>
@@ -264,13 +349,14 @@ export default function MapScreen() {
         initialCenter={center}
         initialLevel={INITIAL_LEVEL}
         myLocation={currentLocation ?? undefined}
+        myPlaceCircle={selectedPlace ? { lat: selectedPlace.latitude, lng: selectedPlace.longitude } : undefined}
         markers={markers}
         selectedPin={searchedPlace ? { lat: searchedPlace.lat, lng: searchedPlace.lng } : undefined}
         onLevelChange={setCurrentLevel}
         style={{ flex: 1 }}
       />
 
-      {/* 필터 기능은 아직 연동 전이라 자리만 잡아둔다 */}
+      {/* 검색줄 + 필터 버튼. 필터에서 적용한 값은 mapFilter로 변환되어 지도 마커·내 장소 데이터에 반영된다. */}
       <View
         style={{
           position: 'absolute',
@@ -325,7 +411,13 @@ export default function MapScreen() {
 
       {/* 내 장소 목록. 드래그로 높이를 바꿀 수 있고, 배경(지도)은 계속 조작 가능하다.
           "내 장소 N개"는 핸들 바로 아래, 접혔을 때(peek 상태)도 보이는 자리에 가운데 정렬로 둔다. */}
-      <BottomSheet visible modal={false} minHeight={0.08} maxHeight={0.5} dismissOnDragDown={false}>
+      <BottomSheet
+        visible
+        modal={false}
+        minHeight={0.08}
+        maxHeight={0.5}
+        dismissOnDragDown={false}
+        onVisibleHeightChange={setSheetVisibleHeight}>
         {selectedPlace ? (
           <>
             <View
@@ -333,13 +425,15 @@ export default function MapScreen() {
                 flexDirection: 'row',
                 alignItems: 'center',
                 gap: 8,
-                paddingHorizontal: 8,
+                paddingLeft: 8,
+                // 누적 금액의 오른쪽 끝을 아래 아코디언 카드들의 오른쪽 끝(패딩 16)과 맞춘다.
+                paddingRight: 16,
                 paddingBottom: 8,
               }}>
               <IconButton name="back" onPress={() => setSelectedPlaceId(null)} />
               <View style={{ flex: 1 }}>
                 <Text style={{ fontSize: 15, fontWeight: '700', color: Colors.light.cardTitle }}>
-                  {selectedPlace.name}
+                  {selectedPlace.myPlaceName}
                 </Text>
                 <Text style={{ fontSize: 12, color: Colors.light.cardDescription }}>{selectedPlace.address}</Text>
               </View>
@@ -348,7 +442,9 @@ export default function MapScreen() {
               </Text>
             </View>
 
-            <ScrollView style={{ paddingHorizontal: 16 }} contentContainerStyle={{ gap: 12 }}>
+            <Scroll height={merchantListHeight} style={{ paddingHorizontal: 16 }}>
+              {/* Scroll은 contentContainerStyle을 안 받아서, 카드 사이 간격(gap)은 View로 한 번 감싸서 준다. */}
+              <View style={{ gap: 12 }}>
               {placeMerchants.map((merchant) => (
                 <AccordionCard
                   key={merchant.name}
@@ -389,7 +485,8 @@ export default function MapScreen() {
                   </View>
                 </AccordionCard>
               ))}
-            </ScrollView>
+              </View>
+            </Scroll>
           </>
         ) : (
           <>
@@ -401,15 +498,10 @@ export default function MapScreen() {
                 fontSize: 15,
                 fontWeight: '700',
               }}>
-              내 장소 {MY_PLACES.length}개
+              내 장소 {myPlaces.length}개
             </Text>
-            <View style={{ paddingHorizontal: 16 }}>
-              {MY_PLACES.map((place) => {
-                const detail = toMyPlaceDetailResponse(place.placeId);
-                const total = detail.success
-                  ? detail.data.transactionList.reduce((sum, merchant) => sum + merchant.amount, 0)
-                  : 0;
-
+            <Scroll height={placeListHeight} style={{ paddingHorizontal: 16 }}>
+              {myPlaces.map((place) => {
                 return (
                   <InfoListItem
                     key={place.placeId}
@@ -426,23 +518,23 @@ export default function MapScreen() {
                         <Ionicons name={PLACE_ICONS[place.placeId] ?? 'location'} size={20} color={Colors.light.primary} />
                       </View>
                     }
-                    title={place.name}
+                    title={place.myPlaceName}
                     description={place.address}
                     trailing={
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                        {total > 0 ? (
+                        {place.totalAmount > 0 ? (
                           <Text style={{ fontSize: 14, fontWeight: '700', color: Colors.light.cardTitle }}>
-                            {formatManwon(total)}
+                            {formatManwon(place.totalAmount)}
                           </Text>
                         ) : null}
                         <Ionicons name="chevron-forward" size={18} color={Colors.light.cardDescription} />
                       </View>
                     }
-                    onPress={() => setSelectedPlaceId(place.placeId)}
+                    onPress={() => handleSelectPlace(place)}
                   />
                 );
               })}
-            </View>
+            </Scroll>
           </>
         )}
       </BottomSheet>
@@ -487,13 +579,15 @@ export default function MapScreen() {
                 <DateInput
                   label="시작일"
                   value={customStartDate}
-                  onChange={handleCustomStartChange}
+                  onChange={setCustomStartDate}
+                  maxDate={customEndDate}
                   style={{ width: '47%' }}
                 />
                 <DateInput
                   label="종료일"
                   value={customEndDate}
-                  onChange={handleCustomEndChange}
+                  onChange={setCustomEndDate}
+                  minDate={customStartDate}
                   style={{ width: '47%' }}
                 />
               </View>
@@ -503,8 +597,15 @@ export default function MapScreen() {
           <View style={{ gap: 12 }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
               <Text style={{ fontSize: 15, fontWeight: '700', color: Colors.light.cardTitle }}>카테고리 선택</Text>
-              <Text style={{ color: Colors.light.cardDescription }} onPress={() => setSelectedCategoryIds([])}>
-                전체 해제
+              {/* 하나라도 선택돼 있으면 "전체 해제"(→ 모두 비움), 다 비어 있으면 "전체 선택"(→ 모두 채움)으로 토글 */}
+              <Text
+                style={{ color: Colors.light.cardDescription }}
+                onPress={() =>
+                  setSelectedCategoryIds(
+                    selectedCategoryIds.length === 0 ? CATEGORY_OPTIONS.map((category) => category.id) : []
+                  )
+                }>
+                {selectedCategoryIds.length === 0 ? '전체 선택' : '전체 해제'}
               </Text>
             </View>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
@@ -533,7 +634,11 @@ export default function MapScreen() {
           <Button variant="white" onPress={handleResetFilter} style={{ width: '47%', height: 50 }}>
             초기화
           </Button>
-          <Button variant="green" onPress={handleApplyFilter} style={{ width: '47%', height: 50 }}>
+          <Button
+            variant="green"
+            disabled={!isCustomPeriodValid}
+            onPress={handleApplyFilter}
+            style={{ width: '47%', height: 50 }}>
             적용하기
           </Button>
         </View>

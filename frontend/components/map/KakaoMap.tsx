@@ -23,8 +23,10 @@ type KakaoMapProps = {
   initialCenter: LatLng;
   // 카카오맵 줌 레벨(1~14, 작을수록 확대). 기본 3. 지도 생성 시점에만 쓰이고, 이후엔 setLevel로만 바뀐다.
   initialLevel?: number;
-  // 내 위치. 있으면 파란 동그라미로 표시한다(핀 아님). 없으면 아무것도 안 보인다.
+  // 내 위치. 있으면 연두색 동그라미로 표시한다(핀 아님). 없으면 아무것도 안 보인다.
   myLocation?: LatLng;
+  // 내 장소(집/직장 등). 있으면 그 좌표에 파란 점 + 반경 2km 반투명 원을 표시한다.
+  myPlaceCircle?: LatLng;
   // 이름+금액이 적힌 말풍선 마커 목록 (지도 탭의 가게별/클러스터 마커용).
   markers?: MapMarker[];
   // 검색 결과 등 여러 개 찍을 핀 목록.
@@ -46,6 +48,7 @@ export const KakaoMap = forwardRef<KakaoMapHandle, KakaoMapProps>(function Kakao
     initialCenter,
     initialLevel,
     myLocation,
+    myPlaceCircle,
     markers,
     pins,
     selectedPin,
@@ -112,6 +115,12 @@ export const KakaoMap = forwardRef<KakaoMapHandle, KakaoMapProps>(function Kakao
       webViewRef.current?.injectJavaScript(`setMyLocation(${JSON.stringify(myLocation ?? null)}); true;`);
     }
   }, [isReady, myLocation]);
+
+  useEffect(() => {
+    if (isReady) {
+      webViewRef.current?.injectJavaScript(`setMyPlaceCircle(${JSON.stringify(myPlaceCircle ?? null)}); true;`);
+    }
+  }, [isReady, myPlaceCircle]);
 
   // WebView → RN 방향 통신: 지도 안에서 일어난 일(준비 완료, 핀 클릭, 탭, 줌 변경)을 postMessage로 받는다.
   const handleMessage = (event: WebViewMessageEvent) => {

@@ -31,6 +31,8 @@ export type BuildMapHtmlParams = {
 // 검색 결과 핀(파랑)과 선택된 핀(초록)은 모양은 같고 색만 다르게 구분한다.
 const PIN_COLOR = '#4285F4';
 const SELECTED_PIN_COLOR = '#63A061';
+// 내 위치 점은 연두색으로, 내 장소 점(파랑)·검색 핀(파랑)과 구분되게 한다.
+const MY_LOCATION_COLOR = '#8BC34A';
 
 // 지도 생성 자체(중심좌표/레벨)만 굽고, 마커/핀/선택핀/내 위치는 전부 RN에서 injectJavaScript로 채워 넣는다.
 export function buildMapHtml({ initialCenter, initialLevel = 3 }: BuildMapHtmlParams) {
@@ -41,14 +43,15 @@ export function buildMapHtml({ initialCenter, initialLevel = 3 }: BuildMapHtmlPa
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <style>
     html, body, #map { width: 100%; height: 100%; margin: 0; padding: 0; }
-    .my-location-dot {
+    .my-location-dot, .my-place-dot {
       width: 16px;
       height: 16px;
       border-radius: 50%;
-      background: #4285F4;
       border: 2px solid #fff;
       box-shadow: 0 0 4px rgba(0,0,0,0.4);
     }
+    .my-location-dot { background: ${MY_LOCATION_COLOR}; }
+    .my-place-dot { background: ${PIN_COLOR}; }
   </style>
 </head>
 <body>
@@ -70,7 +73,7 @@ export function buildMapHtml({ initialCenter, initialLevel = 3 }: BuildMapHtmlPa
     const pinImage = makePinImage('${PIN_COLOR}');
     const selectedPinImage = makePinImage('${SELECTED_PIN_COLOR}');
 
-    // ── 내 위치(파란 원) ──────────────────────────────────────────────
+    // ── 내 위치(연두색 점) ────────────────────────────────────────────
     let myLocationOverlay = null;
     function setMyLocation(loc) {
       if (myLocationOverlay) {
@@ -83,6 +86,39 @@ export function buildMapHtml({ initialCenter, initialLevel = 3 }: BuildMapHtmlPa
         content: '<div class="my-location-dot"></div>',
       });
       myLocationOverlay.setMap(map);
+    }
+
+    // ── 내 장소(파란 점 + 반경 2km 원) ────────────────────────────────
+    // 점은 내 위치 점(연두)과 모양은 같고 색만 파랑(.my-place-dot)이다.
+    // 원은 "이 범위 안의 소비 내역을 보고 있다"는 표시라서 목 데이터의 근처 판정(약 2km)과 맞춘다.
+    let myPlaceDotOverlay = null;
+    let myPlaceCircleShape = null;
+    function setMyPlaceCircle(place) {
+      if (myPlaceDotOverlay) {
+        myPlaceDotOverlay.setMap(null);
+        myPlaceDotOverlay = null;
+      }
+      if (myPlaceCircleShape) {
+        myPlaceCircleShape.setMap(null);
+        myPlaceCircleShape = null;
+      }
+      if (!place) return;
+      const position = new kakao.maps.LatLng(place.lat, place.lng);
+      myPlaceCircleShape = new kakao.maps.Circle({
+        center: position,
+        radius: 2000,
+        strokeWeight: 2,
+        strokeColor: '${PIN_COLOR}',
+        strokeOpacity: 0.8,
+        fillColor: '${PIN_COLOR}',
+        fillOpacity: 0.06,
+      });
+      myPlaceCircleShape.setMap(map);
+      myPlaceDotOverlay = new kakao.maps.CustomOverlay({
+        position: position,
+        content: '<div class="my-place-dot"></div>',
+      });
+      myPlaceDotOverlay.setMap(map);
     }
 
     // ── 검색 결과 등 단순 핀 목록 ─────────────────────────────────────
