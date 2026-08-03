@@ -25,16 +25,13 @@ import lombok.NoArgsConstructor;
 @Getter
 @Entity
 @Table(
-	name = "notification_place",
-	uniqueConstraints = {
-		@UniqueConstraint(
-			name = "uk_notification_place_user_name",
-			columnNames = {
-				"user_id",
-				"notification_place_name"
-			}
-		)
-	}
+		name = "notification_place",
+		uniqueConstraints = {
+				@UniqueConstraint(
+						name = "uk_notification_place_user_name",
+						columnNames = {"user_id", "notification_place_name"}
+				)
+		}
 )
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class NotificationPlace {
@@ -48,25 +45,13 @@ public class NotificationPlace {
 	@JoinColumn(name = "user_id", nullable = false)
 	private User user;
 
-	@Column(
-		name = "notification_place_name",
-		nullable = false,
-		length = 20
-	)
+	@Column(name = "notification_place_name", nullable = false, length = 20)
 	private String notificationPlaceName;
 
-	@Column(
-		name = "address",
-		nullable = false,
-		length = 50
-	)
+	@Column(name = "address", nullable = false, length = 50)
 	private String address;
 
-	@Column(
-		name = "coordinate",
-		nullable = false,
-		columnDefinition = "geometry(Point, 4326)"
-	)
+	@Column(name = "coordinate", nullable = false, columnDefinition = "geometry(Point, 4326)")
 	private Point coordinate;
 
 	@Column(name = "start_time", nullable = false)
@@ -75,21 +60,17 @@ public class NotificationPlace {
 	@Column(name = "end_time", nullable = false)
 	private LocalTime endTime;
 
-	@Column(
-		name = "reason",
-		nullable = false,
-		length = 100
-	)
+	@Column(name = "reason", nullable = false, length = 100)
 	private String reason;
 
 	private NotificationPlace(
-		User user,
-		String notificationPlaceName,
-		String address,
-		Point coordinate,
-		LocalTime startTime,
-		LocalTime endTime,
-		String reason
+			User user,
+			String notificationPlaceName,
+			String address,
+			Point coordinate,
+			LocalTime startTime,
+			LocalTime endTime,
+			String reason
 	) {
 		this.user = user;
 		this.notificationPlaceName = notificationPlaceName;
@@ -101,30 +82,46 @@ public class NotificationPlace {
 
 	/** 사용자가 지정한 시작 및 종료 시각으로 알림 장소를 생성한다. */
 	public static NotificationPlace create(
-		User user,
-		String notificationPlaceName,
-		String address,
-		Double latitude,
-		Double longitude,
-		LocalTime startTime,
-		LocalTime endTime,
-		String reason
+			User user,
+			String notificationPlaceName,
+			String address,
+			Double latitude,
+			Double longitude,
+			LocalTime startTime,
+			LocalTime endTime,
+			String reason
 	) {
 		return new NotificationPlace(
-			user,
-			notificationPlaceName,
-			address,
-			GeometryUtils.toPoint(latitude, longitude),
-			startTime,
-			endTime,
-			reason
+				user,
+				notificationPlaceName,
+				address,
+				GeometryUtils.toPoint(latitude, longitude),
+				startTime,
+				endTime,
+				reason
 		);
+	}
+
+	/** 알림 장소 이름을 변경한다. */
+	public void updateNotificationPlaceName(String notificationPlaceName) {
+		this.notificationPlaceName = notificationPlaceName;
+	}
+
+	/** 알림 장소의 주소와 좌표를 변경한다. */
+	public void updateLocation(String address, Double latitude, Double longitude) {
+		this.address = address;
+		this.coordinate = GeometryUtils.toPoint(latitude, longitude);
 	}
 
 	/** 알림이 활성화되는 시작 및 종료 시각을 함께 변경한다. */
 	public void updateNotificationTimeRange(LocalTime startTime, LocalTime endTime) {
 		this.startTime = startTime;
 		this.endTime = endTime;
+	}
+
+	/** 알림 설정 이유를 변경한다. */
+	public void updateReason(String reason) {
+		this.reason = reason;
 	}
 
 	public Double getLatitude() {

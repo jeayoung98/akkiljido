@@ -5,19 +5,18 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.*;
 
 import java.time.LocalTime;
-import java.util.List;
+import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import com.a508.backend.domain.notification.dto.NotificationPlaceResult;
-import com.a508.backend.domain.notification.dto.request.NotificationPlaceCreateRequest;
+import com.a508.backend.domain.notification.dto.request.NotificationPlaceUpdateRequest;
 import com.a508.backend.domain.notification.entity.NotificationPlace;
 import com.a508.backend.domain.notification.repository.NotificationPlaceRepository;
 import com.a508.backend.domain.user.domain.User;
@@ -26,9 +25,10 @@ import com.a508.backend.global.exception.BusinessException;
 import com.a508.backend.global.exception.ExceptionType;
 
 @ExtendWith(MockitoExtension.class)
-class NotificationPlaceServiceTest {
+class NotificationPlaceUpdateServiceTest {
 
 	private static final Long USER_ID = 1L;
+	private static final Long NOTIFICATION_PLACE_ID = 1L;
 
 	@Mock
 	private NotificationPlaceRepository notificationPlaceRepository;
@@ -37,226 +37,322 @@ class NotificationPlaceServiceTest {
 	private UserService userService;
 
 	private NotificationPlaceService notificationPlaceService;
-	private User user;
+	private NotificationPlace notificationPlace;
 
 	@BeforeEach
 	void setUp() {
 		notificationPlaceService = new NotificationPlaceService(
-			notificationPlaceRepository,
-			userService
+				notificationPlaceRepository,
+				userService
 		);
-		user = User.createGoogleGuest("google-sub");
+
+		User user = User.createGoogleGuest("google-sub");
 		ReflectionTestUtils.setField(user, "id", USER_ID);
+
+		notificationPlace = NotificationPlace.create(
+				user,
+				"회사",
+				"서울 강남구 역삼동",
+				37.5007,
+				127.0365,
+				LocalTime.of(9, 0),
+				LocalTime.of(18, 0),
+				"근무 시간 소비 알림"
+		);
+		ReflectionTestUtils.setField(
+				notificationPlace,
+				"id",
+				NOTIFICATION_PLACE_ID
+		);
 	}
 
 	@Test
-	@DisplayName("로그인 사용자의 알림 장소 목록을 조회한다")
-	void getNotificationPlaces() {
-		NotificationPlace firstPlace = notificationPlace(
-			1L,
-			"회사",
-			"서울 강남구 역삼동",
-			37.5007,
-			127.0365,
-			LocalTime.of(8, 30),
-			LocalTime.of(9, 30),
-			"출근 시간 소비 알림"
-		);
-		NotificationPlace secondPlace = notificationPlace(
-			2L,
-			"카페",
-			"서울 마포구 서교동",
-			37.5563,
-			126.9236,
-			LocalTime.of(12, 0),
-			LocalTime.of(13, 0),
-			"점심시간 과소비 방지"
+	@DisplayName("알림 장소의 모든 정보를 수정한다")
+	void updateNotificationPlace() {
+		NotificationPlaceUpdateRequest request = request(
+				" 사무실 ",
+				" 서울 서초구 서초동 ",
+				37.4923,
+				127.0292,
+				"10:00",
+				"19:00",
+				" 퇴근 전 소비 알림 "
 		);
 
-		given(notificationPlaceRepository.findAllByUser_IdOrderByIdAsc(USER_ID))
-			.willReturn(List.of(firstPlace, secondPlace));
-
-		List<NotificationPlaceResult> results =
-			notificationPlaceService.getNotificationPlaces(USER_ID);
-
-		assertThat(results).hasSize(2);
-		assertThat(results.get(0).notificationPlaceId()).isEqualTo(1L);
-		assertThat(results.get(0).notificationPlaceName()).isEqualTo("회사");
-		assertThat(results.get(0).address()).isEqualTo("서울 강남구 역삼동");
-		assertThat(results.get(0).latitude()).isEqualTo(37.5007);
-		assertThat(results.get(0).longitude()).isEqualTo(127.0365);
-		assertThat(results.get(0).startTime()).isEqualTo(LocalTime.of(8, 30));
-		assertThat(results.get(0).endTime()).isEqualTo(LocalTime.of(9, 30));
-		assertThat(results.get(0).reason()).isEqualTo("출근 시간 소비 알림");
-		assertThat(results.get(1).notificationPlaceId()).isEqualTo(2L);
-		assertThat(results.get(1).notificationPlaceName()).isEqualTo("카페");
-
-		then(notificationPlaceRepository)
-			.should()
-			.findAllByUser_IdOrderByIdAsc(USER_ID);
-	}
-
-	@Test
-	@DisplayName("등록한 알림 장소가 없으면 빈 목록을 반환한다")
-	void getEmptyNotificationPlaces() {
-		given(notificationPlaceRepository.findAllByUser_IdOrderByIdAsc(USER_ID))
-			.willReturn(List.of());
-
-		List<NotificationPlaceResult> results =
-			notificationPlaceService.getNotificationPlaces(USER_ID);
-
-		assertThat(results).isEmpty();
-
-		then(notificationPlaceRepository)
-			.should()
-			.findAllByUser_IdOrderByIdAsc(USER_ID);
-	}
-
-	@Test
-	@DisplayName("알림 장소를 등록하고 정규화된 결과를 반환한다")
-	void createNotificationPlace() {
-		NotificationPlaceCreateRequest request = new NotificationPlaceCreateRequest(
-			" 회사 ",
-			" 서울 강남구 역삼동 ",
-			37.5007,
-			127.0365,
-			"09:00",
-			"18:00",
-			" 근무 시간 소비 알림 "
-		);
-
+		givenOwnedNotificationPlace();
 		given(
-			notificationPlaceRepository.existsByUser_IdAndNotificationPlaceName(
-				USER_ID,
-				"회사"
-			)
+				notificationPlaceRepository
+						.existsByUser_IdAndNotificationPlaceNameAndIdNot(
+								USER_ID,
+								"사무실",
+								NOTIFICATION_PLACE_ID
+						)
 		).willReturn(false);
-		given(userService.getUser(USER_ID)).willReturn(user);
-		given(notificationPlaceRepository.save(any(NotificationPlace.class)))
-			.willAnswer(invocation -> {
-				NotificationPlace notificationPlace = invocation.getArgument(0);
-				ReflectionTestUtils.setField(notificationPlace, "id", 1L);
-				return notificationPlace;
-			});
 
 		NotificationPlaceResult result =
-			notificationPlaceService.createNotificationPlace(USER_ID, request);
+				notificationPlaceService.updateNotificationPlace(
+						USER_ID,
+						NOTIFICATION_PLACE_ID,
+						request
+				);
 
-		assertThat(result.notificationPlaceId()).isEqualTo(1L);
+		assertThat(result.notificationPlaceId()).isEqualTo(NOTIFICATION_PLACE_ID);
+		assertThat(result.notificationPlaceName()).isEqualTo("사무실");
+		assertThat(result.address()).isEqualTo("서울 서초구 서초동");
+		assertThat(result.latitude()).isEqualTo(37.4923);
+		assertThat(result.longitude()).isEqualTo(127.0292);
+		assertThat(result.startTime()).isEqualTo(LocalTime.of(10, 0));
+		assertThat(result.endTime()).isEqualTo(LocalTime.of(19, 0));
+		assertThat(result.reason()).isEqualTo("퇴근 전 소비 알림");
+
+		then(notificationPlaceRepository)
+				.should()
+				.findByIdAndUser_Id(NOTIFICATION_PLACE_ID, USER_ID);
+		then(notificationPlaceRepository)
+				.should()
+				.existsByUser_IdAndNotificationPlaceNameAndIdNot(
+						USER_ID,
+						"사무실",
+						NOTIFICATION_PLACE_ID
+				);
+		then(notificationPlaceRepository).should(never()).save(any());
+	}
+
+	@Test
+	@DisplayName("알림 장소의 일부 정보만 수정한다")
+	void updateNotificationPlacePartially() {
+		NotificationPlaceUpdateRequest request = request(
+				null,
+				null,
+				null,
+				null,
+				null,
+				null,
+				" 점심 소비 주의 "
+		);
+
+		givenOwnedNotificationPlace();
+
+		NotificationPlaceResult result =
+				notificationPlaceService.updateNotificationPlace(
+						USER_ID,
+						NOTIFICATION_PLACE_ID,
+						request
+				);
+
 		assertThat(result.notificationPlaceName()).isEqualTo("회사");
 		assertThat(result.address()).isEqualTo("서울 강남구 역삼동");
-		assertThat(result.latitude()).isEqualTo(37.5007);
-		assertThat(result.longitude()).isEqualTo(127.0365);
 		assertThat(result.startTime()).isEqualTo(LocalTime.of(9, 0));
 		assertThat(result.endTime()).isEqualTo(LocalTime.of(18, 0));
-		assertThat(result.reason()).isEqualTo("근무 시간 소비 알림");
-
-		ArgumentCaptor<NotificationPlace> captor =
-			ArgumentCaptor.forClass(NotificationPlace.class);
+		assertThat(result.reason()).isEqualTo("점심 소비 주의");
 
 		then(notificationPlaceRepository)
-			.should()
-			.save(captor.capture());
-
-		NotificationPlace savedNotificationPlace = captor.getValue();
-
-		assertThat(savedNotificationPlace.getUser()).isSameAs(user);
-		assertThat(savedNotificationPlace.getNotificationPlaceName()).isEqualTo("회사");
-		assertThat(savedNotificationPlace.getAddress()).isEqualTo("서울 강남구 역삼동");
-		assertThat(savedNotificationPlace.getStartTime()).isEqualTo(LocalTime.of(9, 0));
-		assertThat(savedNotificationPlace.getEndTime()).isEqualTo(LocalTime.of(18, 0));
-		assertThat(savedNotificationPlace.getReason()).isEqualTo("근무 시간 소비 알림");
-
-		then(userService).should().getUser(USER_ID);
+				.should(never())
+				.existsByUser_IdAndNotificationPlaceNameAndIdNot(
+						anyLong(),
+						anyString(),
+						anyLong()
+				);
 	}
 
 	@Test
-	@DisplayName("자정을 넘기는 알림 시간 범위를 등록한다")
-	void createNotificationPlaceAcrossMidnight() {
-		NotificationPlaceCreateRequest request = new NotificationPlaceCreateRequest(
-			"야간 편의점",
-			"서울 강남구 역삼동",
-			37.5007,
-			127.0365,
-			"23:00",
-			"01:00",
-			"야간 소비 알림"
+	@DisplayName("알림 장소 시간을 자정을 넘기는 범위로 수정한다")
+	void updateNotificationPlaceAcrossMidnight() {
+		NotificationPlaceUpdateRequest request = request(
+				null,
+				null,
+				null,
+				null,
+				"23:00",
+				"01:00",
+				null
 		);
 
-		given(
-			notificationPlaceRepository.existsByUser_IdAndNotificationPlaceName(
-				USER_ID,
-				"야간 편의점"
-			)
-		).willReturn(false);
-		given(userService.getUser(USER_ID)).willReturn(user);
-		given(notificationPlaceRepository.save(any(NotificationPlace.class)))
-			.willAnswer(invocation -> {
-				NotificationPlace notificationPlace = invocation.getArgument(0);
-				ReflectionTestUtils.setField(notificationPlace, "id", 2L);
-				return notificationPlace;
-			});
+		givenOwnedNotificationPlace();
 
 		NotificationPlaceResult result =
-			notificationPlaceService.createNotificationPlace(USER_ID, request);
+				notificationPlaceService.updateNotificationPlace(
+						USER_ID,
+						NOTIFICATION_PLACE_ID,
+						request
+				);
 
 		assertThat(result.startTime()).isEqualTo(LocalTime.of(23, 0));
 		assertThat(result.endTime()).isEqualTo(LocalTime.of(1, 0));
 	}
 
 	@Test
-	@DisplayName("동일한 사용자의 알림 장소 이름이 중복되면 등록을 거부한다")
-	void rejectDuplicateNotificationPlaceName() {
-		NotificationPlaceCreateRequest request = new NotificationPlaceCreateRequest(
-			"회사",
-			"서울 강남구 역삼동",
-			37.5007,
-			127.0365,
-			"09:00",
-			"18:00",
-			"근무 시간 소비 알림"
+	@DisplayName("기존 장소 이름을 유지하는 수정 요청을 허용한다")
+	void updateWithSameNotificationPlaceName() {
+		NotificationPlaceUpdateRequest request = request(
+				"회사",
+				null,
+				null,
+				null,
+				null,
+				null,
+				null
 		);
 
+		givenOwnedNotificationPlace();
 		given(
-			notificationPlaceRepository.existsByUser_IdAndNotificationPlaceName(
-				USER_ID,
-				"회사"
-			)
+				notificationPlaceRepository
+						.existsByUser_IdAndNotificationPlaceNameAndIdNot(
+								USER_ID,
+								"회사",
+								NOTIFICATION_PLACE_ID
+						)
+		).willReturn(false);
+
+		NotificationPlaceResult result =
+				notificationPlaceService.updateNotificationPlace(
+						USER_ID,
+						NOTIFICATION_PLACE_ID,
+						request
+				);
+
+		assertThat(result.notificationPlaceName()).isEqualTo("회사");
+	}
+
+	@Test
+	@DisplayName("다른 알림 장소와 이름이 중복되면 수정을 거부한다")
+	void rejectDuplicateNotificationPlaceName() {
+		NotificationPlaceUpdateRequest request = request(
+				"카페",
+				null,
+				null,
+				null,
+				null,
+				null,
+				null
+		);
+
+		givenOwnedNotificationPlace();
+		given(
+				notificationPlaceRepository
+						.existsByUser_IdAndNotificationPlaceNameAndIdNot(
+								USER_ID,
+								"카페",
+								NOTIFICATION_PLACE_ID
+						)
 		).willReturn(true);
 
 		BusinessException exception = catchThrowableOfType(
-			() -> notificationPlaceService.createNotificationPlace(USER_ID, request),
-			BusinessException.class
+				() -> notificationPlaceService.updateNotificationPlace(
+						USER_ID,
+						NOTIFICATION_PLACE_ID,
+						request
+				),
+				BusinessException.class
 		);
 
 		assertThat(exception.getExceptionType())
-			.isEqualTo(ExceptionType.DUPLICATE_NOTIFICATION_PLACE_NAME);
-
-		then(userService).should(never()).getUser(anyLong());
-		then(notificationPlaceRepository).should(never()).save(any(NotificationPlace.class));
+				.isEqualTo(ExceptionType.DUPLICATE_NOTIFICATION_PLACE_NAME);
+		assertThat(notificationPlace.getNotificationPlaceName()).isEqualTo("회사");
 	}
 
-	private NotificationPlace notificationPlace(
-		Long notificationPlaceId,
-		String notificationPlaceName,
-		String address,
-		Double latitude,
-		Double longitude,
-		LocalTime startTime,
-		LocalTime endTime,
-		String reason
+	@Test
+	@DisplayName("존재하지 않는 알림 장소는 수정할 수 없다")
+	void rejectMissingNotificationPlace() {
+		NotificationPlaceUpdateRequest request = request(
+				"사무실",
+				null,
+				null,
+				null,
+				null,
+				null,
+				null
+		);
+
+		given(
+				notificationPlaceRepository.findByIdAndUser_Id(
+						NOTIFICATION_PLACE_ID,
+						USER_ID
+				)
+		).willReturn(Optional.empty());
+
+		BusinessException exception = catchThrowableOfType(
+				() -> notificationPlaceService.updateNotificationPlace(
+						USER_ID,
+						NOTIFICATION_PLACE_ID,
+						request
+				),
+				BusinessException.class
+		);
+
+		assertThat(exception.getExceptionType())
+				.isEqualTo(ExceptionType.NOTIFICATION_PLACE_NOT_FOUND);
+
+		then(notificationPlaceRepository)
+				.should(never())
+				.existsByUser_IdAndNotificationPlaceNameAndIdNot(
+						anyLong(),
+						anyString(),
+						anyLong()
+				);
+	}
+
+	@Test
+	@DisplayName("다른 사용자가 소유한 알림 장소는 수정할 수 없다")
+	void rejectAnotherUserNotificationPlace() {
+		Long anotherUserId = 2L;
+
+		NotificationPlaceUpdateRequest request = request(
+				"사무실",
+				null,
+				null,
+				null,
+				null,
+				null,
+				null
+		);
+
+		given(
+				notificationPlaceRepository.findByIdAndUser_Id(
+						NOTIFICATION_PLACE_ID,
+						anotherUserId
+				)
+		).willReturn(Optional.empty());
+
+		BusinessException exception = catchThrowableOfType(
+				() -> notificationPlaceService.updateNotificationPlace(
+						anotherUserId,
+						NOTIFICATION_PLACE_ID,
+						request
+				),
+				BusinessException.class
+		);
+
+		assertThat(exception.getExceptionType())
+				.isEqualTo(ExceptionType.NOTIFICATION_PLACE_NOT_FOUND);
+	}
+
+	private void givenOwnedNotificationPlace() {
+		given(
+				notificationPlaceRepository.findByIdAndUser_Id(
+						NOTIFICATION_PLACE_ID,
+						USER_ID
+				)
+		).willReturn(Optional.of(notificationPlace));
+	}
+
+	private NotificationPlaceUpdateRequest request(
+			String notificationPlaceName,
+			String address,
+			Double latitude,
+			Double longitude,
+			String startTime,
+			String endTime,
+			String reason
 	) {
-		NotificationPlace notificationPlace = mock(NotificationPlace.class);
-
-		given(notificationPlace.getId()).willReturn(notificationPlaceId);
-		given(notificationPlace.getNotificationPlaceName()).willReturn(notificationPlaceName);
-		given(notificationPlace.getAddress()).willReturn(address);
-		given(notificationPlace.getLatitude()).willReturn(latitude);
-		given(notificationPlace.getLongitude()).willReturn(longitude);
-		given(notificationPlace.getStartTime()).willReturn(startTime);
-		given(notificationPlace.getEndTime()).willReturn(endTime);
-		given(notificationPlace.getReason()).willReturn(reason);
-
-		return notificationPlace;
+		return new NotificationPlaceUpdateRequest(
+				notificationPlaceName,
+				address,
+				latitude,
+				longitude,
+				startTime,
+				endTime,
+				reason
+		);
 	}
 }
