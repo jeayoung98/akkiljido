@@ -8,6 +8,8 @@ export type TransactionScreenMock = {
   name: string;
   amount: number;
   type: 'expense' | 'income';
+  /** 실제 목록 API가 내려주는 categoryId를 함께 보관해 아이콘·색상 매핑에 사용합니다. */
+  categoryId: number;
   categoryName: string;
   datetime: string;
   memo: string;
@@ -19,6 +21,7 @@ export const TRANSACTION_SCREEN_MOCKS: TransactionScreenMock[] = [
     name: '스타벅스 강남역점',
     amount: 4500,
     type: 'expense',
+    categoryId: 2,
     categoryName: '카페·간식',
     datetime: '2026-07-17 09:12:00+09',
     memo: '아이스 아메리카노',
@@ -28,6 +31,7 @@ export const TRANSACTION_SCREEN_MOCKS: TransactionScreenMock[] = [
     name: '쿠팡 로켓배송',
     amount: 32000,
     type: 'expense',
+    categoryId: 4,
     categoryName: '쇼핑',
     datetime: '2026-07-17 21:40:00+09',
     memo: '생활용품',
@@ -37,6 +41,7 @@ export const TRANSACTION_SCREEN_MOCKS: TransactionScreenMock[] = [
     name: 'GS25 편의점',
     amount: 2300,
     type: 'expense',
+    categoryId: 3,
     categoryName: '편의점·마트',
     datetime: '2026-07-16 08:05:00+09',
     memo: '간식',
@@ -46,6 +51,7 @@ export const TRANSACTION_SCREEN_MOCKS: TransactionScreenMock[] = [
     name: '네이버페이',
     amount: 100000,
     type: 'income',
+    categoryId: 11,
     categoryName: '기타',
     datetime: '2026-07-16 18:00:00+09',
     memo: '용돈',

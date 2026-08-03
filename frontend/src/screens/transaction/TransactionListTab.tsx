@@ -43,7 +43,7 @@ function toGroupItems(records: TransactionScreenMock[]): TransactionGroupItem[] 
     id: record.transactionId,
     title: record.name,
     description: record.categoryName,
-    leading: <CategoryIcon categoryName={record.categoryName} size={20} />,
+    leading: <CategoryIcon categoryId={record.categoryId} categoryName={record.categoryName} size={20} />,
     amount: record.amount,
     type: record.type,
   }));

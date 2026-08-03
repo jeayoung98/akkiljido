@@ -257,7 +257,7 @@ export default function ListScreen() {
                       <TransactionItem
                         amount={record.amount}
                         description={record.categoryName}
-                        leading={<CategoryIcon categoryName={record.categoryName} size={20} />}
+                        leading={<CategoryIcon categoryId={record.categoryId} categoryName={record.categoryName} size={20} />}
                         onPress={() => handleOpenDetail(record.transactionId)}
                         title={record.name}
                         type={record.type}

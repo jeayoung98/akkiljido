@@ -1,7 +1,12 @@
 import type { ReactNode } from 'react';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 
-import { getCategoryColorByName, getCategoryIconKey, type CategoryIconKey } from '@/constants/categories';
+import {
+  getCategoryColorById,
+  getCategoryColorByName,
+  getCategoryIconKey,
+  type CategoryIconKey,
+} from '@/constants/categories';
 
 // assets/icons/categories/*.svg 파일의 path·circle을 그대로 옮긴 것입니다.
 // 원본 svg는 stroke 색이 고정돼 있어서, color prop으로 바꿔 쓸 수 있게 react-native-svg로 다시 그렸습니다.
@@ -112,6 +117,8 @@ const ICON_SHAPES: Record<CategoryIconName, (color: string) => ReactNode> = {
 
 type CategoryIconProps = {
   categoryName: string;
+  /** 목록·상세 API가 내려주는 categoryId가 있으면 이름보다 우선해 아이콘·색상을 정합니다. */
+  categoryId?: number | string;
   size?: number;
   color?: string;
 };
@@ -120,9 +127,9 @@ type CategoryIconProps = {
  * 카테고리명에 맞는 SVG 아이콘을 그립니다.
  * color를 따로 전달하지 않으면 공통 카테고리 팔레트 색을 사용하고, 이름을 찾지 못하면 기타 색으로 표시합니다.
  */
-export function CategoryIcon({ categoryName, size = 20, color }: CategoryIconProps) {
-  const iconName = getCategoryIconKey(categoryName);
-  const iconColor = color ?? getCategoryColorByName(categoryName);
+export function CategoryIcon({ categoryName, categoryId, size = 20, color }: CategoryIconProps) {
+  const iconName = getCategoryIconKey(categoryName, categoryId);
+  const iconColor = color ?? (categoryId === undefined ? getCategoryColorByName(categoryName) : getCategoryColorById(categoryId));
 
   return (
     <Svg
