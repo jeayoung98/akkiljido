@@ -24,6 +24,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class FcmService {
 
+	// TODO: 테스트 알림 API 삭제 시 고정 테스트 메시지와 발송 로직을 함께 삭제한다.
 	private static final String TEST_NOTIFICATION_TITLE = "FCM 테스트 알림";
 	private static final String TEST_NOTIFICATION_BODY = "알림 연결이 정상적으로 완료되었습니다.";
 	private static final String TEST_NOTIFICATION_TYPE = "FCM_TEST";
@@ -48,6 +49,7 @@ public class FcmService {
 	}
 
 	/** 현재 사용자의 모든 등록 기기로 고정된 테스트 알림을 발송한다. */
+	// TODO: 주간/월간 리포트 알림 연동 완료 후 테스트 전용 발송 로직을 삭제한다.
 	public FcmTestResponse sendTestNotification(Long userId) {
 		userService.getUser(userId);
 

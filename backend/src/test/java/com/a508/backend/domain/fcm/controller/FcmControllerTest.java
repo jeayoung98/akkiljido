@@ -133,6 +133,7 @@ class FcmControllerTest {
 		verifyNoInteractions(fcmService);
 	}
 
+	// TODO: 테스트 알림 API 삭제 시 아래 테스트 알림 API 테스트들을 함께 삭제한다.
 	@Test
 	@DisplayName("POST /api/v1/fcm/test는 테스트 알림 발송 결과를 반환한다")
 	void sendTestNotification() throws Exception {

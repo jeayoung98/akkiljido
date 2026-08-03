@@ -99,6 +99,7 @@ class FcmServiceTest {
 		verify(userPushTokenRepository, never()).save(any(UserPushToken.class));
 	}
 
+	// TODO: 테스트 알림 API 삭제 시 아래 테스트 전용 발송 로직 테스트들을 함께 삭제한다.
 	@Test
 	@DisplayName("등록된 모든 기기로 테스트 알림을 보내고 성공과 실패 수를 반환한다")
 	void sendTestNotification() {

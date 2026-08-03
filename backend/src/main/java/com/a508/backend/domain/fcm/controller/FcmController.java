@@ -39,6 +39,7 @@ public class FcmController {
 		);
 	}
 
+	// TODO: 주간/월간 리포트 알림 연동 완료 후 테스트 알림 API를 삭제한다.
 	@PostMapping("/test")
 	public ResponseEntity<ResponseBody<FcmTestResponse>> sendTestNotification(
 		@AuthenticationPrincipal AuthenticatedUser authenticatedUser
