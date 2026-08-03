@@ -59,6 +59,8 @@ export function Switch({ value, onValueChange, disabled = false, accessibilityLa
 }
 
 const styles = StyleSheet.create({
+  // alignSelf:'flex-start'가 없으면 부모가 row가 아닐 때 이 Pressable이 가로로 꽉 늘어나서,
+  // 트랙 오른쪽 빈 공간까지 눌리는 영역이 돼버린다. 스위치 크기만큼만 눌리게 고정한다.
   hitArea: {
     alignSelf: 'flex-start',
   },
