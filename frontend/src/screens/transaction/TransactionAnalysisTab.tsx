@@ -100,13 +100,14 @@ export function TransactionAnalysisTab({
           <EmptyState message={emptyMessage} />
         ) : (
           <>
+            <View style={styles.chartRow}><PieChart data={activeItems} /></View>
+            <AnalysisLegend items={activeItems} style={styles.legendSpacing} />
+            {/* 장소 분석 안내는 차트·범례 아래에 두어 카테고리 분석과 본문 시작 위치를 맞춥니다. */}
             {mode === 'place' ? (
               <Text style={styles.placeDescription}>
                 등록한 장소 주변 소비만 묶고, 범위 밖 소비는 기타로 분류했어요.
               </Text>
             ) : null}
-            <View style={styles.chartRow}><PieChart data={activeItems} /></View>
-            <AnalysisLegend items={activeItems} style={styles.legendSpacing} />
           </>
         )}
       </AnalysisCard>
@@ -118,5 +119,5 @@ const styles = StyleSheet.create({
   container: { gap: 14, padding: 16 },
   chartRow: { alignItems: 'center' },
   legendSpacing: { marginTop: 16 },
-  placeDescription: { marginBottom: 16, color: Colors.light.textSecondary, fontSize: 12, lineHeight: 18 },
+  placeDescription: { marginTop: 20, color: Colors.light.textSecondary, fontSize: 12, lineHeight: 18 },
 });
