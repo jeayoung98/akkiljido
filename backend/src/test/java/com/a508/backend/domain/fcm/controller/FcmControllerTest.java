@@ -18,9 +18,12 @@ import org.springframework.security.web.method.annotation.AuthenticationPrincipa
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
+import com.a508.backend.domain.fcm.dto.FcmTestResponse;
 import com.a508.backend.domain.fcm.dto.FcmTokenRegisterRequest;
 import com.a508.backend.domain.fcm.entity.DeviceType;
 import com.a508.backend.domain.fcm.service.FcmService;
+import com.a508.backend.global.exception.BusinessException;
+import com.a508.backend.global.exception.ExceptionType;
 import com.a508.backend.global.exception.GlobalExceptionHandler;
 import com.a508.backend.global.security.AuthenticatedUser;
 
@@ -128,5 +131,34 @@ class FcmControllerTest {
 			.andExpect(jsonPath("$.code").value("C004"));
 
 		verifyNoInteractions(fcmService);
+	}
+
+	@Test
+	@DisplayName("POST /api/v1/fcm/test는 테스트 알림 발송 결과를 반환한다")
+	void sendTestNotification() throws Exception {
+		when(fcmService.sendTestNotification(USER_ID))
+			.thenReturn(new FcmTestResponse(2, 1, 1));
+
+		mockMvc.perform(post("/api/v1/fcm/test"))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.success").value(true))
+			.andExpect(jsonPath("$.data.requestedCount").value(2))
+			.andExpect(jsonPath("$.data.successCount").value(1))
+			.andExpect(jsonPath("$.data.failureCount").value(1));
+
+		verify(fcmService).sendTestNotification(USER_ID);
+	}
+
+	@Test
+	@DisplayName("등록된 푸시 토큰이 없으면 404와 F001을 반환한다")
+	void rejectTestNotificationWithoutPushToken() throws Exception {
+		when(fcmService.sendTestNotification(USER_ID))
+			.thenThrow(new BusinessException(ExceptionType.FCM_PUSH_TOKEN_NOT_FOUND));
+
+		mockMvc.perform(post("/api/v1/fcm/test"))
+			.andExpect(status().isNotFound())
+			.andExpect(jsonPath("$.success").value(false))
+			.andExpect(jsonPath("$.code").value("F001"))
+			.andExpect(jsonPath("$.msg").value("등록된 FCM 푸시 토큰이 없습니다."));
 	}
 }

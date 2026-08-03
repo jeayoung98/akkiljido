@@ -3,6 +3,7 @@ package com.a508.backend.domain.fcm.service;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.junit.jupiter.api.DisplayName;
@@ -12,13 +13,19 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
+import com.a508.backend.domain.fcm.dto.FcmTestResponse;
 import com.a508.backend.domain.fcm.dto.FcmTokenRegisterRequest;
 import com.a508.backend.domain.fcm.entity.DeviceType;
 import com.a508.backend.domain.fcm.entity.UserPushToken;
 import com.a508.backend.domain.fcm.repository.UserPushTokenRepository;
 import com.a508.backend.domain.user.domain.User;
 import com.a508.backend.domain.user.service.UserService;
+import com.a508.backend.global.client.fcm.FcmClient;
+import com.a508.backend.global.client.fcm.FcmSendResult;
+import com.a508.backend.global.exception.BusinessException;
+import com.a508.backend.global.exception.ExceptionType;
 
 @ExtendWith(MockitoExtension.class)
 class FcmServiceTest {
@@ -31,6 +38,9 @@ class FcmServiceTest {
 
 	@Mock
 	private UserService userService;
+
+	@Mock
+	private FcmClient fcmClient;
 
 	@InjectMocks
 	private FcmService fcmService;
@@ -87,5 +97,59 @@ class FcmServiceTest {
 		assertThat(existingPushToken.getPushToken()).isEqualTo(PUSH_TOKEN);
 
 		verify(userPushTokenRepository, never()).save(any(UserPushToken.class));
+	}
+
+	@Test
+	@DisplayName("등록된 모든 기기로 테스트 알림을 보내고 성공과 실패 수를 반환한다")
+	void sendTestNotification() {
+		User user = User.createGoogleGuest("provider-sub");
+		UserPushToken successfulToken = createPushToken(1L, user, "successful-token");
+		UserPushToken invalidToken = createPushToken(2L, user, "invalid-token");
+		UserPushToken failedToken = createPushToken(3L, user, "failed-token");
+
+		when(userService.getUser(USER_ID)).thenReturn(user);
+		when(userPushTokenRepository.findAllByUser_IdOrderByIdAsc(USER_ID))
+			.thenReturn(List.of(successfulToken, invalidToken, failedToken));
+		when(fcmClient.send(eq("successful-token"), anyString(), anyString(), eq("FCM_TEST")))
+			.thenReturn(FcmSendResult.sent());
+		when(fcmClient.send(eq("invalid-token"), anyString(), anyString(), eq("FCM_TEST")))
+			.thenReturn(FcmSendResult.failed(true));
+		when(fcmClient.send(eq("failed-token"), anyString(), anyString(), eq("FCM_TEST")))
+			.thenReturn(FcmSendResult.failed(false));
+
+		FcmTestResponse response = fcmService.sendTestNotification(USER_ID);
+
+		assertThat(response.requestedCount()).isEqualTo(3);
+		assertThat(response.successCount()).isEqualTo(1);
+		assertThat(response.failureCount()).isEqualTo(2);
+
+		verify(userPushTokenRepository).deleteAllByIdInBatch(List.of(2L));
+	}
+
+	@Test
+	@DisplayName("등록된 푸시 토큰이 없으면 FCM_PUSH_TOKEN_NOT_FOUND 예외를 던진다")
+	void throwWhenPushTokenDoesNotExist() {
+		User user = User.createGoogleGuest("provider-sub");
+
+		when(userService.getUser(USER_ID)).thenReturn(user);
+		when(userPushTokenRepository.findAllByUser_IdOrderByIdAsc(USER_ID))
+			.thenReturn(List.of());
+
+		assertThatThrownBy(() -> fcmService.sendTestNotification(USER_ID))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getExceptionType())
+			.isEqualTo(ExceptionType.FCM_PUSH_TOKEN_NOT_FOUND);
+
+		verifyNoInteractions(fcmClient);
+	}
+
+	private UserPushToken createPushToken(Long id, User user, String pushToken) {
+		UserPushToken userPushToken = UserPushToken.create(
+			user,
+			DeviceType.ANDROID,
+			pushToken
+		);
+		ReflectionTestUtils.setField(userPushToken, "id", id);
+		return userPushToken;
 	}
 }
