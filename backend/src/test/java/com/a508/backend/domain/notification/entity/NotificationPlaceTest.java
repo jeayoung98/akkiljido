@@ -20,68 +20,51 @@ class NotificationPlaceTest {
 	}
 
 	@Test
-	@DisplayName("기준 알림 시각의 전후 30분으로 시작 및 종료 시각을 설정한다")
-	void createNotificationTimeWindow() {
+	@DisplayName("사용자가 지정한 시작 및 종료 시각으로 알림 장소를 생성한다")
+	void createNotificationTimeRange() {
 		NotificationPlace notificationPlace = createNotificationPlace(
-			LocalTime.of(9, 0)
+			LocalTime.of(9, 0),
+			LocalTime.of(18, 0)
 		);
 
 		assertThat(notificationPlace.getStartTime())
-			.isEqualTo(LocalTime.of(8, 30));
+			.isEqualTo(LocalTime.of(9, 0));
 		assertThat(notificationPlace.getEndTime())
-			.isEqualTo(LocalTime.of(9, 30));
+			.isEqualTo(LocalTime.of(18, 0));
 	}
 
 	@Test
-	@DisplayName("기준 알림 시각이 자정 직후이면 시작 시각이 전날 시각으로 순환한다")
-	void createNotificationTimeWindowAfterMidnight() {
+	@DisplayName("알림 시작 및 종료 시각을 함께 변경한다")
+	void updateNotificationTimeRange() {
 		NotificationPlace notificationPlace = createNotificationPlace(
-			LocalTime.of(0, 10)
+			LocalTime.of(9, 0),
+			LocalTime.of(18, 0)
+		);
+
+		notificationPlace.updateNotificationTimeRange(
+			LocalTime.of(10, 30),
+			LocalTime.of(19, 30)
 		);
 
 		assertThat(notificationPlace.getStartTime())
-			.isEqualTo(LocalTime.of(23, 40));
+			.isEqualTo(LocalTime.of(10, 30));
 		assertThat(notificationPlace.getEndTime())
-			.isEqualTo(LocalTime.of(0, 40));
+			.isEqualTo(LocalTime.of(19, 30));
 	}
 
-	@Test
-	@DisplayName("기준 알림 시각이 자정 직전이면 종료 시각이 다음 날 시각으로 순환한다")
-	void createNotificationTimeWindowBeforeMidnight() {
-		NotificationPlace notificationPlace = createNotificationPlace(
-			LocalTime.of(23, 50)
-		);
-
-		assertThat(notificationPlace.getStartTime())
-			.isEqualTo(LocalTime.of(23, 20));
-		assertThat(notificationPlace.getEndTime())
-			.isEqualTo(LocalTime.of(0, 20));
-	}
-
-	@Test
-	@DisplayName("기준 알림 시각을 변경하면 시작 및 종료 시각을 함께 갱신한다")
-	void updateNotificationTime() {
-		NotificationPlace notificationPlace = createNotificationPlace(
-			LocalTime.of(9, 0)
-		);
-
-		notificationPlace.updateNotificationTime(LocalTime.of(14, 30));
-
-		assertThat(notificationPlace.getStartTime())
-			.isEqualTo(LocalTime.of(14, 0));
-		assertThat(notificationPlace.getEndTime())
-			.isEqualTo(LocalTime.of(15, 0));
-	}
-
-	private NotificationPlace createNotificationPlace(LocalTime notificationTime) {
+	private NotificationPlace createNotificationPlace(
+		LocalTime startTime,
+		LocalTime endTime
+	) {
 		return NotificationPlace.create(
 			user,
 			"회사",
 			"서울 강남구 역삼동",
 			37.5007,
 			127.0365,
-			notificationTime,
-			"출근 시간 소비 알림"
+			startTime,
+			endTime,
+			"근무 시간 소비 알림"
 		);
 	}
 }
