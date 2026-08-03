@@ -30,9 +30,11 @@ public final class GeometryUtils {
     private static final double MIN_LONGITUDE = -180.0;
     private static final double MAX_LONGITUDE = 180.0;
 
+    private static final double EARTH_RADIUS_METERS = 6_371_008.8;
+
     // GeometryFactory 는 thread-safe 하므로 재사용한다.
     private static final GeometryFactory GEOMETRY_FACTORY =
-            new GeometryFactory(new PrecisionModel(), SRID_WGS84);
+        new GeometryFactory(new PrecisionModel(), SRID_WGS84);
 
     private GeometryUtils() {
     }
@@ -78,17 +80,36 @@ public final class GeometryUtils {
         validateRange(north, east);
 
         Coordinate[] coordinates = {
-                new CoordinateXY(west, south),
-                new CoordinateXY(east, south),
-                new CoordinateXY(east, north),
-                new CoordinateXY(west, north),
-                new CoordinateXY(west, south)
+            new CoordinateXY(west, south),
+            new CoordinateXY(east, south),
+            new CoordinateXY(east, north),
+            new CoordinateXY(west, north),
+            new CoordinateXY(west, south)
         };
 
         Polygon polygon = GEOMETRY_FACTORY.createPolygon(coordinates);
         polygon.setSRID(SRID_WGS84);
 
         return polygon;
+    }
+
+    /**
+     * 두 좌표 사이의 대권 거리(m)를 하버사인 공식으로 계산한다.
+     * 둘 중 하나라도 null 이면 반경 계산 대상에서 제외되도록 무한대를 반환한다.
+     */
+    public static double distanceMeters(Point from, Point to) {
+        if (from == null || to == null) {
+            return Double.POSITIVE_INFINITY;
+        }
+
+        double latitudeDelta = Math.toRadians(to.getY() - from.getY());
+        double longitudeDelta = Math.toRadians(to.getX() - from.getX());
+
+        double a = Math.pow(Math.sin(latitudeDelta / 2), 2)
+            + Math.cos(Math.toRadians(from.getY())) * Math.cos(Math.toRadians(to.getY()))
+            * Math.pow(Math.sin(longitudeDelta / 2), 2);
+
+        return 2 * EARTH_RADIUS_METERS * Math.asin(Math.min(1.0, Math.sqrt(a)));
     }
 
     /**
