@@ -1,5 +1,20 @@
 // 앱 전체에서 쓰는 색상 팔레트. 다크모드 없이 라이트 팔레트 하나만 관리한다.
 
+/** 백엔드 categoryId 1~11 순서와 같은 카테고리 전용 색상입니다. */
+export const categoryColors = [
+  '#B388EB', // 라이트 퍼플
+  '#F48FB1', // 핑크
+  '#FFB74D', // 오렌지
+  '#FFD54F', // 옐로우
+  '#4A784F', // 메인 초록
+  '#80CBC4', // 민트
+  '#81D4FA', // 하늘
+  '#90CAF9', // 블루
+  '#9FA8DA', // 인디고
+  '#AED581', // 연두
+  '#D7B899', // 베이지
+] as const;
+
 export default {
   onboarding: {
     green: '#4A784F',
@@ -10,6 +25,21 @@ export default {
     inverseText: '#FFFFFF',
     surface: '#FFFFFF',
   },
+  // 백엔드 categoryId(1~11)와 같은 순서로 관리하는 카테고리 전용 색상입니다.
+  // 지도 마커, 카테고리 아이콘, 분석 차트가 동일한 색을 사용합니다.
+  category: {
+    1: categoryColors[0],
+    2: categoryColors[1],
+    3: categoryColors[2],
+    4: categoryColors[3],
+    5: categoryColors[4],
+    6: categoryColors[5],
+    7: categoryColors[6],
+    8: categoryColors[7],
+    9: categoryColors[8],
+    10: categoryColors[9],
+    11: categoryColors[10],
+  } as Record<number, string>,
   light: {
     text: '#000', // 기본 텍스트 색
     textSecondary: '#525a55', // 보조 설명, 타임스탬프 등 회색톤 텍스트

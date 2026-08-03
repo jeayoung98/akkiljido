@@ -28,12 +28,13 @@ function toDateString(date: Date) {
   return `${y}-${m}-${d}`;
 }
 
-function formatDisplay(date: Date) {
-  return `${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일`;
-}
-
 // 날짜 하나를 고르는 입력창. 누르면 자체적으로 달력 팝업을 띄우고, 고르면 팝업을 닫는다.
-export function DateInput({ label, value, onChange, style }: DateInputProps) {
+export function DateInput({
+  label,
+  value,
+  onChange,
+  style,
+}: DateInputProps) {
   const [visible, setVisible] = useState(false);
 
   const handleSelectDay = (day: DateData) => {
@@ -50,7 +51,7 @@ export function DateInput({ label, value, onChange, style }: DateInputProps) {
     <>
       <Pressable style={[styles.field, style]} onPress={() => setVisible(true)}>
         {label ? <Text style={styles.label}>{label}</Text> : null}
-        {value ? <Text style={styles.value}>{formatDisplay(value)}</Text> : null}
+        {value ? <Text style={styles.value}>{`${value.getFullYear()}년 ${value.getMonth() + 1}월 ${value.getDate()}일`}</Text> : null}
       </Pressable>
 
       {visible && (
@@ -101,8 +102,9 @@ const styles = StyleSheet.create({
     minHeight: 90,
   },
   label: {
-    fontSize: 15,
-    fontWeight: '600',
+    // SelectInput의 내부 라벨과 맞춰 2열 배치 시 기준선이 어긋나지 않게 합니다.
+    fontSize: 13,
+    fontWeight: '700',
     color: Colors.light.text,
   },
   value: {
