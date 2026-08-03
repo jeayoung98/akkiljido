@@ -78,9 +78,7 @@ public class HomeService {
 
 	/**
 	 * 기준 좌표 반경 안에서 발생한 최근 일주일 지출을 항목명 단위로 합산해 반환한다.
-	 * <p>
-	 * SRID 4326 의 거리 단위가 도(degree)라 DB 에서는 반경을 감싸는 사각형으로 후보를 좁히고,
-	 * 정확한 원형 반경 판정은 하버사인 거리로 애플리케이션에서 수행한다(내 장소 조회와 동일한 방식).
+	 * 원형 반경 판정은 PostGIS ST_DWithin 이 처리하므로 애플리케이션에서 거리를 다시 걸러내지 않는다.
 	 *
 	 * @param radiusMeters 반경(m). null 이면 {@link #DEFAULT_RADIUS_METERS} 를 사용한다.
 	 */
@@ -93,17 +91,13 @@ public class HomeService {
 		DateRange recentWeek = DateRange.ofRecentDays(RECENT_EXPENSE_DAYS);
 		Point center = GeometryUtils.toPoint(latitude, longitude);
 
-		List<TransactionHistory> candidates = transactionHistoryRepository.findExpensesWithinArea(
+		List<TransactionHistory> nearbyExpenses = transactionHistoryRepository.findExpensesWithinRadius(
 			userId,
-			GeometryUtils.toEnvelope(center, radius),
+			center,
+			radius,
 			recentWeek.startDateTime(),
 			recentWeek.endDateTime(),
 			null);
-
-		List<TransactionHistory> nearbyExpenses = candidates.stream()
-			.filter(transaction ->
-				GeometryUtils.distanceMeters(center, transaction.getCoordinate()) <= radius)
-			.toList();
 
 		return RecentExpenseResponse.of(nearbyExpenses);
 	}

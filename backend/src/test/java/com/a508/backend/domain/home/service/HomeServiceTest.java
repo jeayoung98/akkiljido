@@ -13,7 +13,7 @@ import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.locationtech.jts.geom.Polygon;
+import org.locationtech.jts.geom.Point;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -36,7 +36,9 @@ import com.a508.backend.global.util.GeometryUtils;
 
 /**
  * 홈 화면 집계 서비스 단위 테스트. DB(PostGIS) 없이 기간 경계, Top N 절삭과 percent 계산,
- * 반경 필터와 항목명 그룹핑, 파라미터 검증을 확인한다.
+ * 항목명 그룹핑, 반경 파라미터 전달과 검증을 확인한다.
+ * <p>
+ * 반경 경계 판정 자체는 PostGIS ST_DWithin 이 담당하므로 여기서 검증하지 않는다(통합 테스트 영역).
  */
 @ExtendWith(MockitoExtension.class)
 class HomeServiceTest {
@@ -49,10 +51,6 @@ class HomeServiceTest {
 
 	// 기준 좌표에서 북쪽으로 약 100m.
 	private static final double NEAR_LATITUDE = 37.5015;
-
-	// 반경 2km 를 감싸는 사각형 후보에는 들어오지만 원 반경 밖인 대각선 모서리(약 2.8km).
-	private static final double CORNER_LATITUDE = 37.5185;
-	private static final double CORNER_LONGITUDE = 127.0592;
 
 	// 그룹 대표(가장 최근 거래) 선정만 검증하므로 절대 날짜에는 의미가 없다.
 	private static final LocalDateTime EARLIER = LocalDateTime.of(2026, 8, 1, 12, 0);
@@ -168,8 +166,8 @@ class HomeServiceTest {
 	@Test
 	@DisplayName("같은 항목명의 지출은 합산하고 주소/좌표는 가장 최근 거래 값을 쓴다")
 	void getRecentNearbyExpenses_groupsByName() {
-		given(transactionHistoryRepository.findExpensesWithinArea(
-			eq(USER_ID), any(Polygon.class), any(), any(), isNull()))
+		given(transactionHistoryRepository.findExpensesWithinRadius(
+			eq(USER_ID), any(Point.class), anyDouble(), any(), any(), isNull()))
 			.willReturn(List.of(
 				expense("스타벅스", 5_000L, "옛 주소", NEAR_LATITUDE, CENTER_LONGITUDE, EARLIER),
 				expense("스타벅스", 18_000L, "새 주소", NEAR_LATITUDE, CENTER_LONGITUDE, LATER),
@@ -186,34 +184,18 @@ class HomeServiceTest {
 	}
 
 	@Test
-	@DisplayName("사각형 후보 중 원 반경 밖(모서리)의 지출은 하버사인 거리로 걸러낸다")
-	void getRecentNearbyExpenses_filtersOutOfRadius() {
-		given(transactionHistoryRepository.findExpensesWithinArea(
-			eq(USER_ID), any(Polygon.class), any(), any(), isNull()))
-			.willReturn(List.of(
-				expense("가까운가게", 10_000L, "가까운 주소", NEAR_LATITUDE, CENTER_LONGITUDE, LATER),
-				expense("모서리가게", 99_000L, "모서리 주소", CORNER_LATITUDE, CORNER_LONGITUDE, LATER)));
-
-		RecentExpenseResponse response = homeService.getRecentNearbyExpenses(
-			USER_ID, CENTER_LATITUDE, CENTER_LONGITUDE, null);
-
-		assertThat(response.totalAmount()).isEqualTo(10_000L);
-		assertThat(response.placeList()).extracting("name").containsExactly("가까운가게");
-	}
-
-	@Test
 	@DisplayName("조회 기간은 오늘 포함 7일(오늘-6일 0시 ~ 내일 0시)이다")
 	void getRecentNearbyExpenses_queriesLastSevenDays() {
-		given(transactionHistoryRepository.findExpensesWithinArea(
-			eq(USER_ID), any(Polygon.class), any(), any(), isNull()))
+		given(transactionHistoryRepository.findExpensesWithinRadius(
+			eq(USER_ID), any(Point.class), anyDouble(), any(), any(), isNull()))
 			.willReturn(List.of());
 
 		homeService.getRecentNearbyExpenses(USER_ID, CENTER_LATITUDE, CENTER_LONGITUDE, 500);
 
 		ArgumentCaptor<OffsetDateTime> startCaptor = ArgumentCaptor.forClass(OffsetDateTime.class);
 		ArgumentCaptor<OffsetDateTime> endCaptor = ArgumentCaptor.forClass(OffsetDateTime.class);
-		verify(transactionHistoryRepository).findExpensesWithinArea(
-			eq(USER_ID), any(Polygon.class), startCaptor.capture(), endCaptor.capture(), isNull());
+		verify(transactionHistoryRepository).findExpensesWithinRadius(
+			eq(USER_ID), any(Point.class), anyDouble(), startCaptor.capture(), endCaptor.capture(), isNull());
 
 		LocalDate today = DateTimeUtils.today();
 		assertThat(startCaptor.getValue()).isEqualTo(DateTimeUtils.startOfDay(today.minusDays(6)));
@@ -221,21 +203,35 @@ class HomeServiceTest {
 	}
 
 	@Test
-	@DisplayName("radius 를 주지 않으면 기본 반경 2000m 를 감싸는 사각형으로 후보를 조회한다")
+	@DisplayName("radius 를 주지 않으면 기준 좌표와 기본 반경 2000m 로 조회한다")
 	void getRecentNearbyExpenses_usesDefaultRadius() {
-		given(transactionHistoryRepository.findExpensesWithinArea(
-			eq(USER_ID), any(Polygon.class), any(), any(), isNull()))
+		given(transactionHistoryRepository.findExpensesWithinRadius(
+			eq(USER_ID), any(Point.class), anyDouble(), any(), any(), isNull()))
 			.willReturn(List.of());
 
 		homeService.getRecentNearbyExpenses(USER_ID, CENTER_LATITUDE, CENTER_LONGITUDE, null);
 
-		ArgumentCaptor<Polygon> areaCaptor = ArgumentCaptor.forClass(Polygon.class);
-		verify(transactionHistoryRepository).findExpensesWithinArea(
-			eq(USER_ID), areaCaptor.capture(), any(), any(), isNull());
+		ArgumentCaptor<Point> centerCaptor = ArgumentCaptor.forClass(Point.class);
+		ArgumentCaptor<Double> radiusCaptor = ArgumentCaptor.forClass(Double.class);
+		verify(transactionHistoryRepository).findExpensesWithinRadius(
+			eq(USER_ID), centerCaptor.capture(), radiusCaptor.capture(), any(), any(), isNull());
 
-		Polygon expected = GeometryUtils.toEnvelope(
-			GeometryUtils.toPoint(CENTER_LATITUDE, CENTER_LONGITUDE), HomeService.DEFAULT_RADIUS_METERS);
-		assertThat(areaCaptor.getValue().equalsExact(expected)).isTrue();
+		Point expectedCenter = GeometryUtils.toPoint(CENTER_LATITUDE, CENTER_LONGITUDE);
+		assertThat(centerCaptor.getValue().equalsExact(expectedCenter)).isTrue();
+		assertThat(radiusCaptor.getValue()).isEqualTo((double)HomeService.DEFAULT_RADIUS_METERS);
+	}
+
+	@Test
+	@DisplayName("전달한 radius 를 그대로 반경 조회에 넘긴다")
+	void getRecentNearbyExpenses_passesGivenRadius() {
+		given(transactionHistoryRepository.findExpensesWithinRadius(
+			eq(USER_ID), any(Point.class), anyDouble(), any(), any(), isNull()))
+			.willReturn(List.of());
+
+		homeService.getRecentNearbyExpenses(USER_ID, CENTER_LATITUDE, CENTER_LONGITUDE, 500);
+
+		verify(transactionHistoryRepository).findExpensesWithinRadius(
+			eq(USER_ID), any(Point.class), eq(500.0), any(), any(), isNull());
 	}
 
 	@Test

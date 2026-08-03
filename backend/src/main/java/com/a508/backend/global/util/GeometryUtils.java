@@ -30,14 +30,6 @@ public final class GeometryUtils {
     private static final double MIN_LONGITUDE = -180.0;
     private static final double MAX_LONGITUDE = 180.0;
 
-    private static final double EARTH_RADIUS_METERS = 6_371_008.8;
-
-    // 위도 1도의 거리(m). distanceMeters 와 같은 지구 반지름에서 유도해야 사각형 후보가 반경보다 작아지지 않는다.
-    private static final double METERS_PER_DEGREE_LATITUDE = Math.toRadians(1) * EARTH_RADIUS_METERS;
-
-    // 극지방에서 경도 delta 가 발산하는 것을 막기 위한 하한
-    private static final double MIN_COSINE = 0.01;
-
     // GeometryFactory 는 thread-safe 하므로 재사용한다.
     private static final GeometryFactory GEOMETRY_FACTORY =
             new GeometryFactory(new PrecisionModel(), SRID_WGS84);
@@ -100,48 +92,6 @@ public final class GeometryUtils {
     }
 
     /**
-     * 중심 좌표에서 반경(m)을 감싸는 사각형 Polygon 을 만든다.
-     * SRID 4326 의 거리 단위는 도(degree)라 ST_DWithin 에 미터를 그대로 넘길 수 없으므로,
-     * 이 사각형으로 후보를 1차 추려낸 뒤 {@link #distanceMeters} 로 정확한 원형 거리를 판정한다.
-     * <p>
-     * 반경이 극/날짜변경선을 넘으면 좌표가 유효 범위를 벗어나므로 경계값으로 자른다.
-     * 후보를 넓게 잡는 사각형이라 잘라내도 최종 거리 판정 결과는 달라지지 않는다.
-     */
-    public static Polygon toEnvelope(Point center, double radiusMeters) {
-        double centerLatitude = center.getY();
-        double centerLongitude = center.getX();
-
-        double latitudeDelta = radiusMeters / METERS_PER_DEGREE_LATITUDE;
-        double longitudeDelta = radiusMeters
-                / (METERS_PER_DEGREE_LATITUDE * Math.max(Math.cos(Math.toRadians(centerLatitude)), MIN_COSINE));
-
-        return toEnvelope(
-                clamp(centerLatitude - latitudeDelta, MIN_LATITUDE, MAX_LATITUDE),
-                clamp(centerLongitude - longitudeDelta, MIN_LONGITUDE, MAX_LONGITUDE),
-                clamp(centerLatitude + latitudeDelta, MIN_LATITUDE, MAX_LATITUDE),
-                clamp(centerLongitude + longitudeDelta, MIN_LONGITUDE, MAX_LONGITUDE)
-        );
-    }
-
-    /**
-     * 두 좌표 사이의 대권 거리(m)를 하버사인 공식으로 계산한다. 둘 중 하나라도 null 이면 무한대를 반환한다.
-     */
-    public static double distanceMeters(Point from, Point to) {
-        if (from == null || to == null) {
-            return Double.POSITIVE_INFINITY;
-        }
-
-        double latitudeDelta = Math.toRadians(to.getY() - from.getY());
-        double longitudeDelta = Math.toRadians(to.getX() - from.getX());
-
-        double a = Math.pow(Math.sin(latitudeDelta / 2), 2)
-                + Math.cos(Math.toRadians(from.getY())) * Math.cos(Math.toRadians(to.getY()))
-                * Math.pow(Math.sin(longitudeDelta / 2), 2);
-
-        return 2 * EARTH_RADIUS_METERS * Math.asin(Math.min(1.0, Math.sqrt(a)));
-    }
-
-    /**
      * 위도 유효 범위 판정. 좌표 범위 기준을 이 클래스 하나로 모으기 위해 공개한다.
      * 범위를 벗어났을 때 던질 예외가 도메인마다 다른 경우(예: 지도 영역)를 위해 검증이 아닌 판정만 제공한다.
      */
@@ -176,9 +126,5 @@ public final class GeometryUtils {
         if (!isValidLongitude(longitude)) {
             throw new BusinessException(ExceptionType.INVALID_LONGITUDE);
         }
-    }
-
-    private static double clamp(double value, double min, double max) {
-        return Math.min(Math.max(value, min), max);
     }
 }

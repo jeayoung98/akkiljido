@@ -20,7 +20,7 @@ import lombok.RequiredArgsConstructor;
  * <p>
  * CRUD 파생 메서드가 전혀 필요 없는 집계 전용이라 Spring Data 인터페이스(+Custom/+Impl) 3종 대신
  * {@link JPAQueryFactory} 를 직접 쓰는 단일 클래스로 둔다.
- * 좌표 반경 조회는 {@code TransactionHistoryRepositoryCustom.findExpensesWithinArea} 를 재사용하므로
+ * 좌표 반경 조회는 {@code TransactionHistoryRepositoryCustom.findExpensesWithinRadius} 를 재사용하므로
  * 여기에는 카테고리 집계만 있다.
  */
 @Repository

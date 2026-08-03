@@ -2,7 +2,6 @@ package com.a508.backend.domain.transaction_history.service;
 
 import java.util.List;
 
-import org.locationtech.jts.geom.Point;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,7 +17,6 @@ import com.a508.backend.domain.transaction_history.entity.MapBounds;
 import com.a508.backend.domain.transaction_history.entity.MapDepth;
 import com.a508.backend.domain.transaction_history.entity.TransactionHistory;
 import com.a508.backend.domain.transaction_history.repository.TransactionHistoryRepository;
-import com.a508.backend.global.util.GeometryUtils;
 
 import lombok.RequiredArgsConstructor;
 
@@ -103,20 +101,11 @@ public class TransactionMapService {
 
 	/**
 	 * 내 장소 반경 2km 안의 지출 거래내역을 조회한다.
-	 * SRID 4326 의 거리 단위가 도(degree)라 DB 에서는 반경을 감싸는 사각형으로 후보를 좁히고,
-	 * 정확한 원형 반경 판정은 하버사인 거리로 애플리케이션에서 수행한다.
+	 * 원형 반경 판정은 PostGIS ST_DWithin 이 처리하므로 애플리케이션에서 거리를 다시 걸러내지 않는다.
 	 */
 	private List<TransactionHistory> findExpensesNearMyPlace(Long userId, MyPlace myPlace, DateRange dateRange) {
-		Point center = myPlace.getCoordinate();
-
-		List<TransactionHistory> candidates = transactionHistoryRepository.findExpensesWithinArea(userId,
-			GeometryUtils.toEnvelope(center, MY_PLACE_RADIUS_METERS), dateRange.startDateTime(),
-			dateRange.endDateTime(), null);
-
-		return candidates.stream()
-			.filter(transaction ->
-				GeometryUtils.distanceMeters(center, transaction.getCoordinate()) <= MY_PLACE_RADIUS_METERS)
-			.toList();
+		return transactionHistoryRepository.findExpensesWithinRadius(userId, myPlace.getCoordinate(),
+			MY_PLACE_RADIUS_METERS, dateRange.startDateTime(), dateRange.endDateTime(), null);
 	}
 
 }
