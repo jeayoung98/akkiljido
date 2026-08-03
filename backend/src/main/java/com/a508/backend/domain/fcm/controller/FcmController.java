@@ -2,6 +2,7 @@ package com.a508.backend.domain.fcm.controller;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -9,6 +10,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.a508.backend.domain.fcm.dto.FcmTestResponse;
 import com.a508.backend.domain.fcm.dto.FcmTokenRegisterRequest;
+import com.a508.backend.domain.fcm.dto.FcmTokenUnregisterRequest;
 import com.a508.backend.domain.fcm.service.FcmService;
 import com.a508.backend.global.response.ResponseBody;
 import com.a508.backend.global.response.ResponseUtil;
@@ -30,6 +32,21 @@ public class FcmController {
 		@Valid @RequestBody FcmTokenRegisterRequest request
 	) {
 		fcmService.registerPushToken(
+			authenticatedUser.getUserId(),
+			request
+		);
+
+		return ResponseEntity.ok(
+			ResponseUtil.createSuccessResponse()
+		);
+	}
+
+	@DeleteMapping
+	public ResponseEntity<ResponseBody<Void>> unregisterPushToken(
+		@AuthenticationPrincipal AuthenticatedUser authenticatedUser,
+		@Valid @RequestBody FcmTokenUnregisterRequest request
+	) {
+		fcmService.unregisterPushToken(
 			authenticatedUser.getUserId(),
 			request
 		);

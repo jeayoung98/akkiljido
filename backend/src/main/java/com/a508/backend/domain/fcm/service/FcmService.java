@@ -8,6 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.a508.backend.domain.fcm.dto.FcmTestResponse;
 import com.a508.backend.domain.fcm.dto.FcmTokenRegisterRequest;
+import com.a508.backend.domain.fcm.dto.FcmTokenUnregisterRequest;
 import com.a508.backend.domain.fcm.entity.UserPushToken;
 import com.a508.backend.domain.fcm.repository.UserPushTokenRepository;
 import com.a508.backend.domain.user.domain.User;
@@ -46,6 +47,18 @@ public class FcmService {
 					UserPushToken.create(user, request.deviceType(), normalizedPushToken)
 				)
 			);
+	}
+
+	/** 현재 로그인한 사용자와 연결된 기기 푸시 토큰을 해제한다. */
+	@Transactional
+	public void unregisterPushToken(Long userId, FcmTokenUnregisterRequest request) {
+		userService.getUser(userId);
+		String normalizedPushToken = request.pushToken().trim();
+
+		userPushTokenRepository.deleteByUser_IdAndPushToken(
+			userId,
+			normalizedPushToken
+		);
 	}
 
 	/** 현재 사용자의 모든 등록 기기로 고정된 테스트 알림을 발송한다. */

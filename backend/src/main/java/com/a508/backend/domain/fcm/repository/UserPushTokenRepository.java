@@ -14,4 +14,6 @@ public interface UserPushTokenRepository extends JpaRepository<UserPushToken, Lo
 	Optional<UserPushToken> findByPushToken(String pushToken);
 
 	List<UserPushToken> findAllByUser_IdOrderByIdAsc(Long userId);
+
+	long deleteByUser_IdAndPushToken(Long userId, String pushToken);
 }
