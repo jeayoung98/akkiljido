@@ -40,12 +40,12 @@ public class TransactionMapService {
 	 */
 	@Transactional(readOnly = true)
 	public MapPlaceListResponse getPlaceMap(Long userId, double south, double west, double north, double east,
-		String startDate, String endDate, Long categoryId) {
+		String startDate, String endDate, List<Long> categoryIds) {
 		MapBounds bounds = MapBounds.of(south, west, north, east);
 		DateRange dateRange = DateRange.ofThisWeek(startDate, endDate);
-		categoryService.validateOwnership(userId, categoryId);
+		categoryService.validateOwnership(userId, categoryIds);
 
-		return MapPlaceListResponse.of(findExpensesInBounds(userId, bounds, dateRange, categoryId));
+		return MapPlaceListResponse.of(findExpensesInBounds(userId, bounds, dateRange, categoryIds));
 	}
 
 	/**
@@ -53,13 +53,13 @@ public class TransactionMapService {
 	 */
 	@Transactional(readOnly = true)
 	public MapRegionListResponse getRegionMap(Long userId, Integer depth, double south, double west, double north,
-		double east, String startDate, String endDate, Long categoryId) {
+		double east, String startDate, String endDate, List<Long> categoryIds) {
 		MapDepth mapDepth = MapDepth.from(depth);
 		MapBounds bounds = MapBounds.of(south, west, north, east);
 		DateRange dateRange = DateRange.ofThisWeek(startDate, endDate);
-		categoryService.validateOwnership(userId, categoryId);
+		categoryService.validateOwnership(userId, categoryIds);
 
-		return MapRegionListResponse.of(mapDepth, findExpensesInBounds(userId, bounds, dateRange, categoryId));
+		return MapRegionListResponse.of(mapDepth, findExpensesInBounds(userId, bounds, dateRange, categoryIds));
 	}
 
 	/**
@@ -94,9 +94,9 @@ public class TransactionMapService {
 	}
 
 	private List<TransactionHistory> findExpensesInBounds(Long userId, MapBounds bounds, DateRange dateRange,
-		Long categoryId) {
+		List<Long> categoryIds) {
 		return transactionHistoryRepository.findExpensesWithinArea(userId, bounds.toPolygon(),
-			dateRange.startDateTime(), dateRange.endDateTime(), categoryId);
+			dateRange.startDateTime(), dateRange.endDateTime(), categoryIds);
 	}
 
 	/**

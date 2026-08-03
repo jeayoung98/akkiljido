@@ -1,21 +1,16 @@
 package com.a508.backend.domain.transaction_history.repository;
 
-import java.time.OffsetDateTime;
-import java.util.List;
 import java.util.Optional;
 
-import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
 
 import com.a508.backend.domain.transaction_history.entity.TransactionHistory;
-import com.a508.backend.domain.transaction_history.entity.TransactionType;
 
 public interface TransactionHistoryRepository
 	extends JpaRepository<TransactionHistory, Long>, TransactionHistoryRepositoryCustom {
 
 	Optional<TransactionHistory> findByIdAndUser_Id(Long id, Long userId);
+<<<<<<< HEAD
 
 	/** 특정 기간의 사용자 거래내역을 거래 일시 오름차순으로 조회한다. */
 	List<TransactionHistory> findAllByUser_IdAndDatetimeGreaterThanEqualAndDatetimeLessThanOrderByDatetimeAsc(
@@ -38,4 +33,6 @@ public interface TransactionHistoryRepository
 		@Param("categoryId") Long categoryId,
 		@Param("query") String query,
 		Sort sort);
+=======
+>>>>>>> d60b068 (✨ feat: 거래내역 목록/검색/지도 조회에 다중 카테고리 필터 지원)
 }

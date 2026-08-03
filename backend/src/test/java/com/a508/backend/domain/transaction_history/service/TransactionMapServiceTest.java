@@ -181,13 +181,27 @@ class TransactionMapServiceTest {
 	@DisplayName("카테고리 필터가 내 카테고리가 아니면 CATEGORY_NOT_FOUND 예외를 던진다")
 	void getPlaceMapWithOtherUsersCategory() {
 		doThrow(new BusinessException(ExceptionType.CATEGORY_NOT_FOUND))
-			.when(categoryService).validateOwnership(USER_ID, 99L);
+			.when(categoryService).validateOwnership(USER_ID, List.of(99L));
 
 		assertThatThrownBy(() -> transactionMapService.getPlaceMap(
-			USER_ID, 37.49, 126.91, 37.58, 127.05, null, null, 99L))
+			USER_ID, 37.49, 126.91, 37.58, 127.05, null, null, List.of(99L)))
 			.isInstanceOf(BusinessException.class)
 			.extracting(e -> ((BusinessException)e).getExceptionType())
 			.isEqualTo(ExceptionType.CATEGORY_NOT_FOUND);
+	}
+
+	@Test
+	@DisplayName("카테고리 필터를 여러 개 넘기면 그대로 공간 쿼리에 전달한다")
+	void getPlaceMapWithMultipleCategories() {
+		when(transactionHistoryRepository.findExpensesWithinArea(
+			eq(USER_ID), any(), any(), any(), eq(List.of(1L, 3L))))
+			.thenReturn(List.of());
+
+		transactionMapService.getPlaceMap(USER_ID, 37.49, 126.91, 37.58, 127.05, null, null, List.of(1L, 3L));
+
+		verify(transactionHistoryRepository).findExpensesWithinArea(
+			eq(USER_ID), any(Polygon.class), any(), any(), eq(List.of(1L, 3L)));
+		verify(categoryService).validateOwnership(USER_ID, List.of(1L, 3L));
 	}
 
 	@Test

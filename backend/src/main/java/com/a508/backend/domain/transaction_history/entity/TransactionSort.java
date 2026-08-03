@@ -2,25 +2,22 @@ package com.a508.backend.domain.transaction_history.entity;
 
 import java.util.Locale;
 
-import org.springframework.data.domain.Sort;
-
 import com.a508.backend.global.exception.BusinessException;
 import com.a508.backend.global.exception.ExceptionType;
 
 /**
  * 거래내역 정렬 기준. 요청 쿼리 파라미터(latest/oldest)와 매핑된다.
+ * 정렬 컬럼은 거래일시(datetime)로 고정이며, 실제 정렬은 조회 쿼리(QueryDSL)에서 방향만 적용한다.
  */
 public enum TransactionSort {
 
-    LATEST(Sort.Direction.DESC),
-    OLDEST(Sort.Direction.ASC);
+    LATEST(false),
+    OLDEST(true);
 
-    private static final String SORT_PROPERTY = "datetime";
+    private final boolean ascending;
 
-    private final Sort.Direction direction;
-
-    TransactionSort(Sort.Direction direction) {
-        this.direction = direction;
+    TransactionSort(boolean ascending) {
+        this.ascending = ascending;
     }
 
     /**
@@ -38,7 +35,8 @@ public enum TransactionSort {
         };
     }
 
-    public Sort toSort() {
-        return Sort.by(direction, SORT_PROPERTY);
+    /** 오름차순(과거순) 여부. 최신순은 내림차순이다. */
+    public boolean isAscending() {
+        return ascending;
     }
 }

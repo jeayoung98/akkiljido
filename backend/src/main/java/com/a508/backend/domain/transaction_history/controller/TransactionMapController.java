@@ -29,6 +29,10 @@ import lombok.RequiredArgsConstructor;
 @RequestMapping("/api/v1/transaction/map")
 public class TransactionMapController {
 
+	/** 카테고리 다중 필터는 categoryId=1&categoryId=3 또는 categoryId=1,3 두 형식을 모두 허용한다. */
+	private static final String CATEGORY_ID_DESCRIPTION =
+		"카테고리 ID 목록. 여러 개 지정 가능(categoryId=1&categoryId=3 또는 categoryId=1,3). 미지정 시 전체 조회";
+
 	private final TransactionMapService transactionMapService;
 
 	@Operation(summary = "거래내역 목록 조회 - 지도 가계별",
@@ -43,7 +47,7 @@ public class TransactionMapController {
 		@Parameter(description = "동쪽 경도", example = "127.0500") @RequestParam double east,
 		@Parameter(description = "조회 시작일(yyyy-MM-dd)", example = "2026-07-27") @RequestParam(required = false) String startDate,
 		@Parameter(description = "조회 종료일(yyyy-MM-dd)", example = "2026-08-01") @RequestParam(required = false) String endDate,
-		@Parameter(description = "카테고리 ID. 미지정 시 전체 조회", example = "3") @RequestParam(required = false) Long categoryId) {
+		@Parameter(description = CATEGORY_ID_DESCRIPTION) @RequestParam(required = false) List<Long> categoryId) {
 		MapPlaceListResponse response = transactionMapService.getPlaceMap(
 			authenticatedUser.getUserId(), south, west, north, east, startDate, endDate, categoryId);
 		return ResponseUtil.createSuccessResponse(response);
@@ -62,7 +66,7 @@ public class TransactionMapController {
 		@Parameter(description = "동쪽 경도", example = "127.0500") @RequestParam double east,
 		@Parameter(description = "조회 시작일(yyyy-MM-dd)", example = "2026-07-27") @RequestParam(required = false) String startDate,
 		@Parameter(description = "조회 종료일(yyyy-MM-dd)", example = "2026-08-01") @RequestParam(required = false) String endDate,
-		@Parameter(description = "카테고리 ID. 미지정 시 전체 조회", example = "3") @RequestParam(required = false) Long categoryId) {
+		@Parameter(description = CATEGORY_ID_DESCRIPTION) @RequestParam(required = false) List<Long> categoryId) {
 		MapRegionListResponse response = transactionMapService.getRegionMap(
 			authenticatedUser.getUserId(), depth, south, west, north, east, startDate, endDate, categoryId);
 		return ResponseUtil.createSuccessResponse(response);
