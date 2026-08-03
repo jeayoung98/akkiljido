@@ -57,6 +57,11 @@ public enum ExceptionType {
 	FCM_PUSH_TOKEN_NOT_FOUND(NOT_FOUND, "F001", "등록된 FCM 푸시 토큰이 없습니다."),
 	FCM_NOT_CONFIGURED(SERVICE_UNAVAILABLE, "F002", "FCM 서버 설정이 완료되지 않았습니다."),
 
+	// report
+	REPORT_NOT_FOUND(NOT_FOUND, "R001", "존재하지 않는 리포트"),
+	REPORT_GENERATION_FAILED(SERVICE_UNAVAILABLE, "R002", "리포트 생성에 실패했습니다. 잠시 후 다시 시도해 주세요."),
+	REPORT_NO_TRANSACTIONS(NOT_FOUND, "R003", "해당 기간에 거래 내역이 없어 리포트를 만들 수 없습니다."),
+
 	;
 
 	private final HttpStatus status;
