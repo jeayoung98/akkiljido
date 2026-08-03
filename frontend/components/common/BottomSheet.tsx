@@ -124,11 +124,6 @@ export default function BottomSheet(props: BottomSheetProps) {
     transform: [{ translateY: translateY.value }],
   }));
 
-  // 시트가 드래그된 현재 높이만큼만 내용 영역도 함께 줄여야 내부 ScrollView가 정확한 높이를 인식합니다.
-  const visibleAreaStyle = useAnimatedStyle(() => ({
-    height: Math.max(0, maxHeightPx - translateY.value),
-  }));
-
   if (!mounted) {
     return null;
   }
@@ -137,18 +132,14 @@ export default function BottomSheet(props: BottomSheetProps) {
   const sheet = (
     <Animated.View
       style={[styles.sheet, { height: maxHeightPx + OVERDRAG_BUFFER, bottom: -OVERDRAG_BUFFER }, sheetStyle]}>
-      {/* 드래그 여유 영역은 배경만 유지하고, 실제 콘텐츠는 화면에 보이는 최대 높이 안에서만 배치합니다.
-          그래야 내부 ScrollView가 가려진 마지막 항목까지 정확히 스크롤할 수 있습니다. */}
-      <Animated.View style={[styles.visibleArea, visibleAreaStyle]}>
-        {draggable && (
-          <GestureDetector gesture={panGesture}>
-            <View style={styles.handleArea}>
-              <View style={styles.handle} />
-            </View>
-          </GestureDetector>
-        )}
-        <View style={styles.content}>{children}</View>
-      </Animated.View>
+      {draggable && (
+        <GestureDetector gesture={panGesture}>
+          <View style={styles.handleArea}>
+            <View style={styles.handle} />
+          </View>
+        </GestureDetector>
+      )}
+      <View style={styles.content}>{children}</View>
     </Animated.View>
   );
 
@@ -200,9 +191,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-  },
-  visibleArea: {
-    overflow: 'hidden',
   },
   handleArea: {
     paddingVertical: 10,

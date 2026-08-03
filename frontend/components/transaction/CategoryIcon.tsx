@@ -1,38 +1,11 @@
 import type { ReactNode } from 'react';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 
-import Colors from '@/constants/Colors';
+import { getCategoryColorByName, getCategoryIconKey, type CategoryIconKey } from '@/constants/categories';
 
 // assets/icons/categories/*.svg 파일의 path·circle을 그대로 옮긴 것입니다.
 // 원본 svg는 stroke 색이 고정돼 있어서, color prop으로 바꿔 쓸 수 있게 react-native-svg로 다시 그렸습니다.
-export type CategoryIconName =
-  | 'restaurant'
-  | 'cafe'
-  | 'mart'
-  | 'shopping'
-  | 'leisure'
-  | 'transport'
-  | 'health'
-  | 'living'
-  | 'beauty'
-  | 'education'
-  | 'other';
-
-const CATEGORY_ICON_BY_NAME: Record<string, CategoryIconName> = {
-  음식점: 'restaurant',
-  '카페·간식': 'cafe',
-  '편의점·마트': 'mart',
-  쇼핑: 'shopping',
-  여가: 'leisure',
-  교통: 'transport',
-  '건강·의료': 'health',
-  생활: 'living',
-  미용: 'beauty',
-  교육: 'education',
-  기타: 'other',
-};
-
-const DEFAULT_ICON: CategoryIconName = 'other';
+export type CategoryIconName = CategoryIconKey;
 
 const ICON_SHAPES: Record<CategoryIconName, (color: string) => ReactNode> = {
   restaurant: (color) => (
@@ -143,21 +116,25 @@ type CategoryIconProps = {
   color?: string;
 };
 
-/** 카테고리명에 맞는 SVG 아이콘을 그립니다. color를 바꾸면 배경색이 다른 배지 위에서도 대비를 맞출 수 있습니다. */
-export function CategoryIcon({ categoryName, size = 20, color = Colors.light.primary }: CategoryIconProps) {
-  const iconName = CATEGORY_ICON_BY_NAME[categoryName] ?? DEFAULT_ICON;
+/**
+ * 카테고리명에 맞는 SVG 아이콘을 그립니다.
+ * color를 따로 전달하지 않으면 공통 카테고리 팔레트 색을 사용하고, 이름을 찾지 못하면 기타 색으로 표시합니다.
+ */
+export function CategoryIcon({ categoryName, size = 20, color }: CategoryIconProps) {
+  const iconName = getCategoryIconKey(categoryName);
+  const iconColor = color ?? getCategoryColorByName(categoryName);
 
   return (
     <Svg
       fill="none"
       height={size}
-      stroke={color}
+      stroke={iconColor}
       strokeLinecap="round"
       strokeLinejoin="round"
       strokeWidth={2}
       viewBox="0 0 24 24"
       width={size}>
-      {ICON_SHAPES[iconName](color)}
+      {ICON_SHAPES[iconName](iconColor)}
     </Svg>
   );
 }

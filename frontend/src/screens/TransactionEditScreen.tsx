@@ -23,6 +23,7 @@ import { TextInput } from '@/components/common/input/TextInput';
 import { CategoryIcon } from '@/components/transaction/CategoryIcon';
 import { EditableInfoRow } from '@/components/transaction/EditableInfoRow';
 import type { TransactionType } from '@/components/transaction/TransactionItem';
+import { CATEGORY_ID_SELECT_OPTIONS, CATEGORY_NAME_BY_ID } from '@/constants/categories';
 import Colors from '@/constants/Colors';
 import { MOCK_TRANSACTIONS } from '@/mocks/transactions';
 import { useMapPickerStore } from '@/store/mapPickerStore';
@@ -37,24 +38,6 @@ LocaleConfig.locales.kr = {
   dayNamesShort: ['일', '월', '화', '수', '목', '금', '토'],
 };
 LocaleConfig.defaultLocale = 'kr';
-
-// 카테고리 마스터 데이터(id/name) API 응답 순서 그대로입니다. 드롭다운은 문자열 값만 다루다가
-// 저장할 때만 다시 숫자로 바꿉니다.
-const CATEGORY_OPTIONS: { label: string; value: string }[] = [
-  { label: '음식점', value: '1' },
-  { label: '카페·간식', value: '2' },
-  { label: '편의점·마트', value: '3' },
-  { label: '쇼핑', value: '4' },
-  { label: '여가', value: '5' },
-  { label: '교통', value: '6' },
-  { label: '건강·의료', value: '7' },
-  { label: '생활', value: '8' },
-  { label: '미용', value: '9' },
-  { label: '교육', value: '10' },
-  { label: '기타', value: '11' },
-];
-
-const CATEGORY_NAME_BY_ID = new Map(CATEGORY_OPTIONS.map((option) => [option.value, option.label]));
 
 function toDateOnly(datetime: string) {
   // "YYYY-MM-DD HH:mm:ss+09"에서 날짜 부분만 로컬 Date로 만든다(시간은 수정 대상이 아니라 버린다).
@@ -159,7 +142,8 @@ export default function TransactionEditScreen() {
       return;
     }
 
-    // TODO: 실제 수정 API(PATCH /transactions/{id})가 붙기 전까지, 목업 배열을 직접 바꿔치기한다.
+    // TODO(API): PATCH /transactions/{id} 성공 후 React Query의 거래 상세·목록 쿼리를 invalidate하고,
+    // 현재처럼 목업 배열을 직접 바꿔치기하지 않도록 교체합니다.
     transaction.name = name.trim();
     transaction.amount = amount;
     transaction.type = type;
@@ -269,7 +253,7 @@ export default function TransactionEditScreen() {
 
             {isCategoryOpen ? (
               <View style={styles.categoryDropdown}>
-                {CATEGORY_OPTIONS.map((option) => {
+                {CATEGORY_ID_SELECT_OPTIONS.map((option) => {
                   const isSelected = option.value === categoryId;
                   return (
                     <Pressable

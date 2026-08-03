@@ -20,6 +20,7 @@ import { EmptyState } from '@/components/transaction/EmptyState';
 import { FloatingActionButton } from '@/components/transaction/FloatingActionButton';
 import { TransactionTabBar, type TransactionTab } from '@/components/transaction/TransactionTabBar';
 import TransactionItem from '@/components/transaction/TransactionItem';
+import { CATEGORY_NAMES, CATEGORY_NAME_SELECT_OPTIONS } from '@/constants/categories';
 import Colors from '@/constants/Colors';
 import { TRANSACTION_SCREEN_MOCKS, type TransactionScreenMock } from '@/mocks/transactionScreen';
 import { TransactionAnalysisTab, type AnalysisMode } from '@/src/screens/transaction/TransactionAnalysisTab';
@@ -31,26 +32,22 @@ type SortOrder = 'latest' | 'oldest';
 type PeriodFilter = 'thisMonth' | 'last3Months' | 'custom';
 type AddTransactionType = 'expense' | 'income';
 
-const FILTER_CATEGORY_OPTIONS = [
-  '음식점',
-  '카페·간식',
-  '편의점·마트',
-  '쇼핑',
-  '여가',
-  '교통',
-  '건강·의료',
-  '생활',
-  '미용',
-  '교육',
-  '기타',
-] as const;
+type AppliedTransactionFilter = {
+  sortOrder: SortOrder;
+  selectedTypes: Array<TransactionScreenMock['type']>;
+  periodFilter: PeriodFilter;
+  customStartDate: Date;
+  customEndDate: Date;
+  selectedCategories: string[];
+};
 
 const ADD_TRANSACTION_TYPE_OPTIONS = [
   { value: 'expense', label: '💸 소비', activeBackgroundColor: Colors.light.danger, activeTextColor: '#FFFFFF' },
   { value: 'income', label: '💰 소득', activeBackgroundColor: Colors.light.primary, activeTextColor: '#FFFFFF' },
 ] as const;
 
-const ADD_CATEGORY_OPTIONS = FILTER_CATEGORY_OPTIONS.map((category) => ({ label: category, value: category }));
+const FILTER_CATEGORY_OPTIONS = CATEGORY_NAMES;
+const ADD_CATEGORY_OPTIONS = CATEGORY_NAME_SELECT_OPTIONS;
 
 const toDateKey = (datetime: string) => datetime.slice(0, 10);
 const toLocalDateKey = (date: Date) =>
@@ -66,7 +63,11 @@ export default function ListScreen() {
   const [isFilterVisible, setIsFilterVisible] = useState(false);
   const [isAddVisible, setIsAddVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [month, setMonth] = useState(() => new Date(2026, 6, 1));
+  // 리스트의 기간 필터, 캘린더, 분석은 서로 다른 월 상태를 사용합니다.
+  // 따라서 캘린더·분석 화면에서 월을 이동해도 리스트 필터 결과가 바뀌지 않습니다.
+  const listFilterMonth = useRef(new Date(2026, 6, 1)).current;
+  const [calendarMonth, setCalendarMonth] = useState(() => new Date(2026, 6, 1));
+  const [analysisMonth, setAnalysisMonth] = useState(() => new Date(2026, 6, 1));
   const [selectedDateKey, setSelectedDateKey] = useState('2026-07-17');
   const [analysisMode, setAnalysisMode] = useState<AnalysisMode>('category');
   const [sortOrder, setSortOrder] = useState<SortOrder>('latest');
@@ -75,6 +76,15 @@ export default function ListScreen() {
   const [customStartDate, setCustomStartDate] = useState(() => new Date(2026, 6, 1));
   const [customEndDate, setCustomEndDate] = useState(() => new Date(2026, 6, 31));
   const [selectedCategories, setSelectedCategories] = useState<string[]>([...FILTER_CATEGORY_OPTIONS]);
+  // 시트에서 선택 중인 값은 초안으로 유지하고, 적용하기를 누른 값만 목록에 반영합니다.
+  const [appliedFilter, setAppliedFilter] = useState<AppliedTransactionFilter>(() => ({
+    sortOrder: 'latest',
+    selectedTypes: ['expense', 'income'],
+    periodFilter: 'thisMonth',
+    customStartDate: new Date(2026, 6, 1),
+    customEndDate: new Date(2026, 6, 31),
+    selectedCategories: [...FILTER_CATEGORY_OPTIONS],
+  }));
 
   const [addType, setAddType] = useState<AddTransactionType>('expense');
   const [addName, setAddName] = useState('');
@@ -88,28 +98,36 @@ export default function ListScreen() {
 
   /** 목록과 검색 결과가 동일한 조건을 사용하도록 필터링을 한 곳에서 처리합니다. */
   const filteredTransactions = useMemo(() => {
-    const currentMonthIndex = month.getFullYear() * 12 + month.getMonth();
-    const customStartDateKey = toLocalDateKey(customStartDate);
-    const customEndDateKey = toLocalDateKey(customEndDate);
+    const {
+      customEndDate: appliedCustomEndDate,
+      customStartDate: appliedCustomStartDate,
+      periodFilter: appliedPeriodFilter,
+      selectedCategories: appliedCategories,
+      selectedTypes: appliedTypes,
+      sortOrder: appliedSortOrder,
+    } = appliedFilter;
+    const currentMonthIndex = listFilterMonth.getFullYear() * 12 + listFilterMonth.getMonth();
+    const customStartDateKey = toLocalDateKey(appliedCustomStartDate);
+    const customEndDateKey = toLocalDateKey(appliedCustomEndDate);
 
     return TRANSACTION_SCREEN_MOCKS.filter((record) => {
       const recordMonthIndex = Number(record.datetime.slice(0, 4)) * 12 + Number(record.datetime.slice(5, 7)) - 1;
       const monthDifference = currentMonthIndex - recordMonthIndex;
       const recordDateKey = toDateKey(record.datetime);
       const matchesPeriod =
-        (periodFilter === 'custom' &&
+        (appliedPeriodFilter === 'custom' &&
           customStartDateKey <= customEndDateKey &&
           recordDateKey >= customStartDateKey &&
           recordDateKey <= customEndDateKey) ||
-        (periodFilter === 'thisMonth' && monthDifference === 0) ||
-        (periodFilter === 'last3Months' && monthDifference >= 0 && monthDifference < 3);
+        (appliedPeriodFilter === 'thisMonth' && monthDifference === 0) ||
+        (appliedPeriodFilter === 'last3Months' && monthDifference >= 0 && monthDifference < 3);
 
-      return matchesPeriod && selectedTypes.includes(record.type) && selectedCategories.includes(record.categoryName);
+      return matchesPeriod && appliedTypes.includes(record.type) && appliedCategories.includes(record.categoryName);
     }).sort((left, right) => {
-      const direction = sortOrder === 'latest' ? -1 : 1;
+      const direction = appliedSortOrder === 'latest' ? -1 : 1;
       return left.datetime.localeCompare(right.datetime) * direction;
     });
-  }, [customEndDate, customStartDate, month, periodFilter, selectedCategories, selectedTypes, sortOrder]);
+  }, [appliedFilter, listFilterMonth]);
 
   const searchResults = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -162,6 +180,43 @@ export default function ListScreen() {
   };
 
   const hasAllCategoriesSelected = selectedCategories.length === FILTER_CATEGORY_OPTIONS.length;
+  const isCustomPeriodValid =
+    periodFilter !== 'custom' || customStartDate <= customEndDate;
+
+  // 마지막 적용값을 초안으로 복원하므로, 적용하지 않고 닫아도 기존 목록은 바뀌지 않습니다.
+  const handleOpenFilter = () => {
+    setSortOrder(appliedFilter.sortOrder);
+    setSelectedTypes(appliedFilter.selectedTypes);
+    setPeriodFilter(appliedFilter.periodFilter);
+    setCustomStartDate(appliedFilter.customStartDate);
+    setCustomEndDate(appliedFilter.customEndDate);
+    setSelectedCategories(appliedFilter.selectedCategories);
+    setIsFilterVisible(true);
+  };
+
+  const handleResetFilter = () => {
+    setSortOrder('latest');
+    setSelectedTypes(['expense', 'income']);
+    setPeriodFilter('thisMonth');
+    setCustomStartDate(new Date(2026, 6, 1));
+    setCustomEndDate(new Date(2026, 6, 31));
+    setSelectedCategories([...FILTER_CATEGORY_OPTIONS]);
+  };
+
+  const handleApplyFilter = () => {
+    if (!isCustomPeriodValid) return;
+
+    setAppliedFilter({
+      sortOrder,
+      selectedTypes,
+      periodFilter,
+      customStartDate,
+      customEndDate,
+      // 아무 카테고리도 선택하지 않은 경우에는 지도 필터와 동일하게 전체 선택으로 처리합니다.
+      selectedCategories: selectedCategories.length > 0 ? selectedCategories : [...FILTER_CATEGORY_OPTIONS],
+    });
+    setIsFilterVisible(false);
+  };
 
   return (
     <>
@@ -181,7 +236,7 @@ export default function ListScreen() {
           <AppHeader
             rightActions={tab === 'list' ? [
               { icon: 'search', key: 'search', onPress: () => setIsSearching(true) },
-              { icon: 'filter', key: 'filter', onPress: () => setIsFilterVisible(true) },
+              { icon: 'filter', key: 'filter', onPress: handleOpenFilter },
             ] : []}
             title="내역"
           />
@@ -218,10 +273,10 @@ export default function ListScreen() {
               {tab === 'list' ? <TransactionListTab onOpenDetail={handleOpenDetail} records={filteredTransactions} sortOrder={sortOrder} /> : null}
               {tab === 'calendar' ? (
                 <TransactionCalendarTab
-                  month={month}
-                  onNextMonth={() => setMonth((current) => new Date(current.getFullYear(), current.getMonth() + 1, 1))}
+                  month={calendarMonth}
+                  onNextMonth={() => setCalendarMonth((current) => new Date(current.getFullYear(), current.getMonth() + 1, 1))}
                   onOpenDetail={handleOpenDetail}
-                  onPreviousMonth={() => setMonth((current) => new Date(current.getFullYear(), current.getMonth() - 1, 1))}
+                  onPreviousMonth={() => setCalendarMonth((current) => new Date(current.getFullYear(), current.getMonth() - 1, 1))}
                   onSelectDate={setSelectedDateKey}
                   selectedDateKey={selectedDateKey}
                 />
@@ -229,10 +284,10 @@ export default function ListScreen() {
               {tab === 'analysis' ? (
                 <TransactionAnalysisTab
                   mode={analysisMode}
-                  month={month}
+                  month={analysisMonth}
                   onChangeMode={setAnalysisMode}
-                  onNextMonth={() => setMonth((current) => new Date(current.getFullYear(), current.getMonth() + 1, 1))}
-                  onPreviousMonth={() => setMonth((current) => new Date(current.getFullYear(), current.getMonth() - 1, 1))}
+                  onNextMonth={() => setAnalysisMonth((current) => new Date(current.getFullYear(), current.getMonth() + 1, 1))}
+                  onPreviousMonth={() => setAnalysisMonth((current) => new Date(current.getFullYear(), current.getMonth() - 1, 1))}
                 />
               ) : null}
             </>
@@ -284,6 +339,15 @@ export default function ListScreen() {
             </View>
           </FilterSection>
         </ScrollView>
+        {/* 지도 필터와 동일하게 초기화는 초안만 바꾸고, 적용하기를 눌러야 목록에 반영합니다. */}
+        <View style={styles.filterFooter}>
+          <Button onPress={handleResetFilter} style={styles.filterFooterButton} variant="white">
+            초기화
+          </Button>
+          <Button disabled={!isCustomPeriodValid} onPress={handleApplyFilter} style={styles.filterFooterButton} variant="green">
+            적용하기
+          </Button>
+        </View>
       </BottomSheet>
 
       <BottomSheet initialHeight={0.82} maxHeight={0.92} minHeight={0.62} onClose={() => setIsAddVisible(false)} visible={isAddVisible}>
@@ -341,6 +405,8 @@ const styles = StyleSheet.create({
   helperText: { color: Colors.light.textSecondary, fontSize: 14 },
   filterScroll: { flex: 1 },
   filterContent: { gap: 20, paddingHorizontal: 20, paddingBottom: 36 },
+  filterFooter: { flexDirection: 'row', gap: 10, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 20, borderTopWidth: 1, borderTopColor: Colors.light.border, backgroundColor: Colors.light.cardBackground },
+  filterFooterButton: { flex: 1, height: 50 },
   filterHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   filterTitle: { color: Colors.light.cardTitle, fontSize: 18, fontWeight: '800' },
   filterSection: { gap: 10 },

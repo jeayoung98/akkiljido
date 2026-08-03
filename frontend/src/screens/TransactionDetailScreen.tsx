@@ -32,9 +32,8 @@ export default function TransactionDetailScreen() {
   // 삭제 버튼을 누른 뒤 사용자 확인을 받을 때만 공통 모달을 표시합니다.
   const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
 
-  // 수정 화면에서 저장 후 router.back()으로 돌아오면, 이 화면은 계속 마운트돼 있던 상태라
-  // 다시 렌더링될 이유가 없어서 방금 바꿔치기한 값이 안 보일 수 있다. 포커스를 받을 때마다
-  // 더미 state를 갱신해서 강제로 다시 렌더링하고, 그 김에 MOCK_TRANSACTIONS도 새로 읽는다.
+  // TODO(API): 목업 배열을 직접 수정하는 현재 단계에서만 필요한 임시 리렌더링입니다.
+  // 실제 API 연동 후에는 수정·삭제 성공 시 React Query query invalidation으로 데이터를 갱신합니다.
   const [, forceRefresh] = useState(0);
   useFocusEffect(
     useCallback(() => {

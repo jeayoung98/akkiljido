@@ -6,15 +6,17 @@ import { getAnalysisColor } from '@/components/transaction/analysisColors';
 
 export type PieChartSlice = {
   /**
-   * 색상을 조각/범례에 일관되게 배정하기 위한 key로도 씁니다.
+   * 조각/범례를 식별하기 위한 key입니다.
    * 카테고리 분석 API는 categoryId, 장소 분석 API는 placeId로 필드명이 서로 달라서,
-   * 이 컴포넌트는 둘 중 아무 이름도 쓰지 않고 그냥 id로 받습니다. 화면에서 매핑해서 넘겨주세요
+   * 이 컴포넌트는 둘 중 아무 이름도 쓰지 않고 그냥 id로 받습니다. 화면에서 매핑해서 넘겨주세요.
    * (예: data.categories.map(c => ({ id: c.categoryId, percent: c.percent }))
    *      data.categories.map(c => ({ id: c.placeId, percent: c.percent }))).
    */
   id: string | number;
   /** 분석 API의 percent(0~100, 반올림된 값)를 그대로 넣어주면 됩니다. */
   percent: number;
+  /** 카테고리 분석처럼 고정된 의미 색이 있을 때 전달합니다. 없으면 비율 기반 초록색을 사용합니다. */
+  color?: string;
 };
 
 type PieChartProps = {
@@ -34,6 +36,7 @@ function getPointOnCircle(cx: number, cy: number, r: number, angleDeg: number) {
 /**
  * 분석 탭의 카테고리별 소비 비중을 원 그래프로 보여줍니다.
  * 차트 라이브러리 없이 react-native-svg의 Path(부채꼴)로 직접 그립니다.
+ * categoryId 기반 color를 받으면 지도·아이콘과 같은 색을 쓰고, 없으면 비율 기반 초록색을 사용합니다.
  * percent 합이 반올림 때문에 100이 정확히 안 맞을 수 있어(예: 37+26+19+18=100이 아닐 수도 있음),
  * 조각을 그릴 때는 항상 실제 합계 기준으로 다시 정규화해서 원 전체가 항상 꽉 차게 합니다.
  */
@@ -55,11 +58,12 @@ export function PieChart({ data, size = 160, style }: PieChartProps) {
   }
 
   let cumulativePercent = 0;
+  const maxPercent = Math.max(...data.map((item) => item.percent));
   const slices = data.map((item, index) => {
     const startAngle = (cumulativePercent / total) * 360;
     cumulativePercent += item.percent;
     const endAngle = (cumulativePercent / total) * 360;
-    return { ...item, startAngle, endAngle, color: getAnalysisColor(index) };
+    return { ...item, startAngle, endAngle, color: item.color ?? getAnalysisColor(item.percent, maxPercent) };
   });
 
   return (

@@ -8,6 +8,7 @@ import { AnalysisLegend } from '@/components/transaction/AnalysisLegend';
 import { EmptyState } from '@/components/transaction/EmptyState';
 import { MonthPicker } from '@/components/transaction/MonthPicker';
 import { PieChart } from '@/components/transaction/PieChart';
+import { getCategoryColorById } from '@/constants/categories';
 import Colors from '@/constants/Colors';
 import { getMockPlaceAnalysis, MOCK_TRANSACTIONS } from '@/mocks/transactions';
 
@@ -60,6 +61,8 @@ export function TransactionAnalysisTab({
         name,
         amount,
         percent: totalAmount === 0 ? 0 : Math.round((amount / totalAmount) * 100),
+        // 카테고리 분석은 지도·아이콘과 같은 categoryId 팔레트 색을 씁니다.
+        color: getCategoryColorById(categoryId),
       }))
       .sort((left, right) => right.amount - left.amount);
 
