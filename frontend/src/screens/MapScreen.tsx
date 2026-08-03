@@ -16,7 +16,14 @@ import { KakaoMap, type KakaoMapHandle, type LatLng, type MapMarker } from '@/co
 import { Scroll } from '@/components/common/Scroll';
 import { MapZoom } from '@/components/map/MapZoom';
 import Colors from '@/constants/Colors';
-import { MY_PLACES, toMapDepthResponse, toMapPlaceListResponse, toMyPlaceDetailResponse, toMyPlaceListResponse } from '@/mocks/transactions';
+import {
+  groupTransactionsByName,
+  MY_PLACES,
+  toMapDepthResponse,
+  toMapPlaceListResponse,
+  toMyPlaceDetailResponse,
+  toMyPlaceListResponse,
+} from '@/mocks/transactions';
 import { searchPlaces, type PlaceResult } from '@/utils/kakaoSearch';
 import { getZoomStage, STAGE_TARGET_LEVEL } from '@/utils/kakaoZoomStage';
 
@@ -210,6 +217,24 @@ export default function MapScreen() {
 
   // null이면 "내 장소" 리스트, placeId가 있으면 그 장소의 가맹점별 상세를 보여준다.
   const [selectedPlaceId, setSelectedPlaceId] = useState<number | null>(null);
+  // 4단계에서 "내 장소"가 아닌 일반 가게 마커를 눌렀을 때 그 가게 하나의 상세를 보여준다.
+  const [selectedGeneralPlace, setSelectedGeneralPlace] = useState<{
+    name: string;
+    address: string;
+    lat: number;
+    lng: number;
+  } | null>(null);
+  // 1~3단계에서 지역(클러스터) 마커를 눌렀을 때 그 지역 안 가게들의 상세를 보여준다.
+  const [selectedRegionName, setSelectedRegionName] = useState<string | null>(null);
+
+  // 세 상세 모드(내 장소/일반 가게/지역)는 동시에 하나만 열려야 한다. 하나를 열 때 나머지 둘은 닫는다.
+  const closeAllDetails = () => {
+    setSelectedPlaceId(null);
+    setSelectedGeneralPlace(null);
+    setSelectedRegionName(null);
+    setHighlightedMerchant(null);
+    setOpenMerchants(new Set());
+  };
 
   // 내 장소 시트가 화면에 실제로 보이는 높이(px). 시트를 열 때/드래그를 놓을 때마다 갱신된다.
   // 목록(Scroll)의 높이를 여기에 맞춰서, 공간이 충분하면 스크롤 없이 다 보이고 부족할 때만 스크롤이 생긴다.
@@ -223,8 +248,8 @@ export default function MapScreen() {
   // 이 레벨은 원래 3단계(읍면동) 구간이지만, 내 장소 상세 모드에서는 아래 markers 계산에서
   // 클러스터 대신 이 장소 주변 가맹점 개별 마커를 보여주므로 단계 규칙과 충돌하지 않는다.
   const handleSelectPlace = (place: (typeof MY_PLACES)[number]) => {
+    closeAllDetails();
     setSelectedPlaceId(place.placeId);
-    setHighlightedMerchant(null);
     mapRef.current?.setCenter({ lat: place.latitude, lng: place.longitude });
     mapRef.current?.setLevel(PLACE_DETAIL_LEVEL);
   };
@@ -232,17 +257,66 @@ export default function MapScreen() {
   // 상세 모드에서 지도 마커를 눌렀을 때 강조할 가맹점 이름(마커 id로도 쓴다),
   // 그리고 그 카드로 스크롤하기 위한 ref들 (MapPickerScreen의 핀↔카드 연동과 같은 방식).
   const [highlightedMerchant, setHighlightedMerchant] = useState<string | null>(null);
+  // 지금 펼쳐진 상태여야 하는 가맹점 이름들. 마커를 누르거나 카드를 직접 눌러서 열고 닫을 때마다
+  // 여기에 넣고 빼서, AccordionCard를 key로 다시 마운트시켜 그 상태로 시작하게 한다
+  // (AccordionCard가 펼침 상태를 자체적으로 들고 있어서, 밖에서 직접 열고 닫을 방법이 이것뿐이다).
+  const [openMerchants, setOpenMerchants] = useState<Set<string>>(new Set());
   const merchantScrollRef = useRef<ScrollView>(null);
   const merchantCardOffsets = useRef<Record<string, number>>({});
 
-  // 상세 모드에서 가맹점 마커를 누르면, bottom sheet의 해당 아코디언 카드로 스크롤하고 테두리로 강조한다.
+  // 지도 마커를 누르면 모드에 따라 다르게 동작한다.
   const handleMarkerPress = (id: string) => {
-    if (selectedPlaceId == null) {
-      return; // 일반 탐색 모드의 마커(클러스터 등)는 대응하는 카드가 없다.
+    // 1) 내 장소 상세: 가맹점 마커. 그 카드로 스크롤 + 테두리 강조 + 펼치거나(닫혀 있었다면) 접는다(펼쳐져 있었다면).
+    if (selectedPlaceId != null) {
+      const merchant = placeMerchants.find((m) => m.name === id);
+      if (merchant?.latitude != null) {
+        mapRef.current?.setCenter({ lat: merchant.latitude, lng: merchant.longitude! });
+      }
+      const willOpen = !openMerchants.has(id);
+      setOpenMerchants((prev) => {
+        const next = new Set(prev);
+        if (willOpen) {
+          next.add(id);
+        } else {
+          next.delete(id);
+        }
+        return next;
+      });
+      // 닫는 쪽이면 강조(테두리 굵기)도 같이 원래대로 돌려놓는다.
+      setHighlightedMerchant(willOpen ? id : null);
+      const offset = merchantCardOffsets.current[id] ?? 0;
+      merchantScrollRef.current?.scrollTo({ y: offset, animated: true });
+      return;
     }
-    setHighlightedMerchant(id);
-    const offset = merchantCardOffsets.current[id] ?? 0;
-    merchantScrollRef.current?.scrollTo({ y: offset, animated: true });
+
+    // 2) 4단계: 일반 가게 마커(내 장소 아님). 같은 마커를 다시 누르면 "내 장소" 리스트로 돌아간다.
+    if (currentStage === 4) {
+      if (selectedGeneralPlace && `${selectedGeneralPlace.lat},${selectedGeneralPlace.lng}` === id) {
+        closeAllDetails();
+        return;
+      }
+      const place = placeListData.find((p) => `${p.latitude},${p.longitude}` === id);
+      if (!place || place.latitude == null || place.longitude == null) {
+        return;
+      }
+      closeAllDetails();
+      setSelectedGeneralPlace({ lat: place.latitude, lng: place.longitude, name: place.name, address: place.address ?? '' });
+      mapRef.current?.setCenter({ lat: place.latitude, lng: place.longitude });
+      return;
+    }
+
+    // 3) 1~3단계: 지역(클러스터) 마커. 같은 지역을 다시 누르면 "내 장소" 리스트로 돌아간다.
+    if (selectedRegionName === id) {
+      closeAllDetails();
+      return;
+    }
+    const region = depthData.find((r) => r.depthName === id);
+    if (!region) {
+      return;
+    }
+    closeAllDetails();
+    setSelectedRegionName(id);
+    mapRef.current?.setCenter({ lat: region.latitude, lng: region.longitude });
   };
 
   // 적용된 필터를 API 쿼리 형태(startDate/endDate/categoryIds)로 변환한 값.
@@ -334,6 +408,26 @@ export default function MapScreen() {
     mapRef.current?.setLevel(STAGE_TARGET_LEVEL[nextStage]);
   };
 
+  // 4단계 전용 개별 가게 목록, 1~3단계 전용 지역별 묶음. markers 계산과 handleMarkerPress(마커→상세 매칭)
+  // 양쪽에서 같이 쓰기 때문에 따로 떼어 메모이제이션한다.
+  const placeListData = useMemo(() => toMapPlaceListResponse(mapFilter).data.placeList, [mapFilter]);
+  const depthData = useMemo(
+    () => (currentStage === 4 ? [] : toMapDepthResponse(currentStage as 1 | 2 | 3, mapFilter).data.transactionList),
+    [currentStage, mapFilter]
+  );
+
+  // 4단계에서 선택한 일반 가게(내 장소 아님)의 상세. 필터가 바뀌어도 항상 최신 데이터를 반영하도록
+  // 좌표만 state에 두고 매번 placeListData에서 다시 찾는다.
+  const generalPlaceDetail = selectedGeneralPlace
+    ? (placeListData.find((p) => p.latitude === selectedGeneralPlace.lat && p.longitude === selectedGeneralPlace.lng) ??
+      null)
+    : null;
+
+  // 1~3단계에서 선택한 지역의 상세. 그 지역 안 개별 거래(placeList)를 가게 이름별로 묶어서
+  // 내 장소 상세와 같은 아코디언 리스트 모양으로 만든다.
+  const selectedRegionData = selectedRegionName ? depthData.find((r) => r.depthName === selectedRegionName) : null;
+  const regionMerchants = selectedRegionData ? groupTransactionsByName(selectedRegionData.placeList) : [];
+
   // 4단계(개별)면 가게별 말풍선(테두리=카테고리 지정색), 1~3단계면 구역별 말풍선(테두리=브랜드 그린 고정)을 그린다.
   // 단, 내 장소 상세 모드에서는 줌 단계와 무관하게 그 장소 주변 가맹점을 개별 마커로 보여준다
   // (bottom sheet의 가맹점별 목록과 지도가 같은 것을 가리키게 하기 위함).
@@ -348,31 +442,44 @@ export default function MapScreen() {
         label: merchant.name,
         amount: merchant.amount,
         color: Colors.category[merchant.categoryId ?? 11],
+        selected: merchant.name === highlightedMerchant,
       }));
     }
 
     if (currentStage === 4) {
-      const { data } = toMapPlaceListResponse(mapFilter);
-      return data.placeList.map((place) => ({
-        id: `${place.latitude},${place.longitude}`,
-        lat: place.latitude!,
-        lng: place.longitude!,
-        label: place.name,
-        amount: place.amount,
-        color: Colors.category[place.transactionList[0]?.categoryId ?? 11],
-      }));
+      return placeListData.map((place) => {
+        const id = `${place.latitude},${place.longitude}`;
+        return {
+          id,
+          lat: place.latitude!,
+          lng: place.longitude!,
+          label: place.name,
+          amount: place.amount,
+          color: Colors.category[place.transactionList[0]?.categoryId ?? 11],
+          selected: selectedGeneralPlace != null && id === `${selectedGeneralPlace.lat},${selectedGeneralPlace.lng}`,
+        };
+      });
     }
 
-    const { data } = toMapDepthResponse(currentStage as 1 | 2 | 3, mapFilter);
-    return data.transactionList.map((region) => ({
+    return depthData.map((region) => ({
       id: region.depthName,
       lat: region.latitude,
       lng: region.longitude,
       label: region.depthName,
       amount: region.amount,
       color: Colors.light.primary,
+      selected: region.depthName === selectedRegionName,
     }));
-  }, [currentStage, selectedPlaceId, placeDetail, mapFilter]);
+  }, [
+    currentStage,
+    selectedPlaceId,
+    placeDetail,
+    placeListData,
+    depthData,
+    highlightedMerchant,
+    selectedGeneralPlace,
+    selectedRegionName,
+  ]);
 
   return (
     <View style={{ flex: 1 }}>
@@ -515,13 +622,7 @@ export default function MapScreen() {
                 paddingRight: 16,
                 paddingBottom: 8,
               }}>
-              <IconButton
-                name="back"
-                onPress={() => {
-                  setSelectedPlaceId(null);
-                  setHighlightedMerchant(null);
-                }}
-              />
+              <IconButton name="back" onPress={closeAllDetails} />
               <View style={{ flex: 1 }}>
                 <Text style={{ fontSize: 15, fontWeight: '700', color: Colors.light.cardTitle }}>
                   {selectedPlace.myPlaceName}
@@ -544,11 +645,29 @@ export default function MapScreen() {
                     merchantCardOffsets.current[merchant.name] = event.nativeEvent.layout.y;
                   }}>
                 <AccordionCard
-                  // 카드를 누르면 지도 중심을 이 가맹점 위치로 옮긴다(아코디언 토글과 함께 동작).
-                  onPress={() =>
-                    merchant.latitude != null &&
-                    mapRef.current?.setCenter({ lat: merchant.latitude, lng: merchant.longitude! })
-                  }
+                  // 마커를 눌러서 열고 닫은 카드는 key를 바꿔 다시 마운트시켜서 그 상태로 시작하게 한다.
+                  // (AccordionCard가 펼침 상태를 자체적으로 들고 있어서, 밖에서 직접 열고 닫을 방법이 없다)
+                  key={merchant.name + (openMerchants.has(merchant.name) ? '-open' : '-closed')}
+                  defaultOpen={openMerchants.has(merchant.name)}
+                  // 카드를 직접 눌러서 열고 닫을 때도 지도 중심 이동 + 마커/카드 강조가 마커를 눌렀을 때와 똑같이 동작하게 한다.
+                  onPress={(open) => {
+                    if (merchant.latitude != null) {
+                      mapRef.current?.setCenter({ lat: merchant.latitude, lng: merchant.longitude! });
+                    }
+                    setHighlightedMerchant((prev) => {
+                      if (open) return merchant.name;
+                      return prev === merchant.name ? null : prev;
+                    });
+                    setOpenMerchants((prev) => {
+                      const next = new Set(prev);
+                      if (open) {
+                        next.add(merchant.name);
+                      } else {
+                        next.delete(merchant.name);
+                      }
+                      return next;
+                    });
+                  }}
                   style={
                     highlightedMerchant === merchant.name && { borderWidth: 2, borderColor: Colors.light.primary }
                   }
@@ -590,6 +709,137 @@ export default function MapScreen() {
                 </AccordionCard>
                 </View>
               ))}
+              </View>
+            </Scroll>
+          </>
+        ) : generalPlaceDetail ? (
+          // 4단계에서 "내 장소"가 아닌 일반 가게 마커를 눌렀을 때. 그 가게 하나의 아코디언 카드만 보여준다.
+          <>
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 8,
+                paddingLeft: 8,
+                paddingRight: 16,
+                paddingBottom: 8,
+              }}>
+              <IconButton name="back" onPress={closeAllDetails} />
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 15, fontWeight: '700', color: Colors.light.cardTitle }}>
+                  {generalPlaceDetail.name}
+                </Text>
+                <Text style={{ fontSize: 12, color: Colors.light.cardDescription }}>
+                  {generalPlaceDetail.address}
+                </Text>
+              </View>
+              <Text style={{ fontSize: 15, fontWeight: '700', color: Colors.light.cardTitle }}>
+                {formatWon(generalPlaceDetail.amount)}원
+              </Text>
+            </View>
+
+            <Scroll height={merchantListHeight} style={{ paddingHorizontal: 16 }}>
+              <AccordionCard
+                defaultOpen
+                header={
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text style={{ fontSize: 15, fontWeight: '700', color: Colors.light.cardTitle }}>
+                      {generalPlaceDetail.transactionList[0]?.categoryName ?? '기타'}
+                    </Text>
+                    <Text style={{ fontSize: 15, fontWeight: '700', color: Colors.light.cardTitle }}>
+                      {formatWon(generalPlaceDetail.amount)}원
+                    </Text>
+                  </View>
+                }>
+                <View style={{ gap: 12 }}>
+                  <Text style={{ fontSize: 12, color: Colors.light.cardAccent, fontWeight: '600' }}>
+                    이 가게에서 사용한 내역
+                  </Text>
+                  {generalPlaceDetail.transactionList.map((tx) => (
+                    <View key={tx.transactionId} style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                      <View>
+                        <Text style={{ fontSize: 14, color: Colors.light.cardBodyText }}>
+                          {tx.categoryName} 결제
+                        </Text>
+                        <Text style={{ fontSize: 12, color: Colors.light.cardDescription }}>
+                          {formatDateShort(tx.datetime)}
+                        </Text>
+                      </View>
+                      <Text style={{ fontSize: 14, fontWeight: '700', color: Colors.light.cardTitle }}>
+                        -{formatWon(tx.amount)}원
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              </AccordionCard>
+            </Scroll>
+          </>
+        ) : selectedRegionData ? (
+          // 1~3단계에서 지역(클러스터) 마커를 눌렀을 때. 그 지역 안 가게들을 내 장소 상세와 같은
+          // 아코디언 카드 여러 개로 보여준다.
+          <>
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 8,
+                paddingLeft: 8,
+                paddingRight: 16,
+                paddingBottom: 8,
+              }}>
+              <IconButton name="back" onPress={closeAllDetails} />
+              <Text style={{ flex: 1, fontSize: 15, fontWeight: '700', color: Colors.light.cardTitle }}>
+                {selectedRegionData.depthName}
+              </Text>
+              <Text style={{ fontSize: 15, fontWeight: '700', color: Colors.light.cardTitle }}>
+                {formatWon(selectedRegionData.amount)}원
+              </Text>
+            </View>
+
+            <Scroll height={merchantListHeight} style={{ paddingHorizontal: 16 }}>
+              <View style={{ gap: 12 }}>
+                {regionMerchants.map((merchant) => (
+                  <AccordionCard
+                    key={merchant.name}
+                    header={
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <View>
+                          <Text style={{ fontSize: 15, fontWeight: '700', color: Colors.light.cardTitle }}>
+                            {merchant.name}
+                          </Text>
+                          <Text style={{ fontSize: 12, color: Colors.light.cardDescription }}>
+                            {merchant.categoryName}
+                          </Text>
+                        </View>
+                        <Text style={{ fontSize: 15, fontWeight: '700', color: Colors.light.cardTitle }}>
+                          {formatWon(merchant.amount)}원
+                        </Text>
+                      </View>
+                    }>
+                    <View style={{ gap: 12 }}>
+                      <Text style={{ fontSize: 12, color: Colors.light.cardAccent, fontWeight: '600' }}>
+                        이 가게에서 사용한 내역
+                      </Text>
+                      {merchant.dateList.map((tx) => (
+                        <View
+                          key={tx.transactionId}
+                          style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                          <View>
+                            <Text style={{ fontSize: 14, color: Colors.light.cardBodyText }}>
+                              {merchant.categoryName} 결제
+                            </Text>
+                            <Text style={{ fontSize: 12, color: Colors.light.cardDescription }}>
+                              {formatDateShort(tx.datetime)}
+                            </Text>
+                          </View>
+                          <Text style={{ fontSize: 14, fontWeight: '700', color: Colors.light.cardTitle }}>
+                            -{formatWon(tx.amount)}원
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+                  </AccordionCard>
+                ))}
               </View>
             </Scroll>
           </>

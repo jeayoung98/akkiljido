@@ -21,6 +21,7 @@ export type MapMarker = {
   label: string; // 가게 이름 또는 구역 이름
   amount: number; // 누적 금액
   color: string; // 테두리 색 (개별=카테고리 지정색, 클러스터=브랜드 그린 등 호출부에서 결정)
+  selected?: boolean; // true면 다른 마커보다 테두리를 더 두껍게 그려서 강조한다.
 };
 
 export type BuildMapHtmlParams = {
@@ -178,8 +179,9 @@ export function buildMapHtml({ initialCenter, initialLevel = 3 }: BuildMapHtmlPa
     // "흰 배경 + 테두리 색" 말풍선처럼 보이게 하는 흔한 CSS 트릭이다.
     function markerBubbleHtml(marker) {
       const amountText = marker.amount.toLocaleString('ko-KR') + '원';
+      const borderWidth = marker.selected ? 4 : 2;
       return '<div style="position: relative; display: inline-block;">' +
-        '<div style="background:#fff;border:2px solid ' + marker.color + ';border-radius:10px;padding:5px 10px;' +
+        '<div style="background:#fff;border:' + borderWidth + 'px solid ' + marker.color + ';border-radius:10px;padding:5px 10px;' +
           'text-align:center;white-space:nowrap;box-shadow:0 2px 4px rgba(0,0,0,0.15);">' +
           '<div style="font-size:12px;font-weight:700;color:#18251E;line-height:15px;">' + marker.label + '</div>' +
           '<div style="font-size:11px;color:#789080;line-height:14px;">' + amountText + '</div>' +

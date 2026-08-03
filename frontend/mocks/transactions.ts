@@ -348,6 +348,39 @@ export function toMapDepthResponse(depth: 1 | 2 | 3, filter?: MapFilter, transac
   return { success: true, data: { transactionList } };
 }
 
+// ── 개별 거래 목록을 가게 이름별로 묶기 ──────────────────────────────────────
+// toMapDepthResponse의 placeList(지역 안 개별 거래들, 가게별로 안 묶여 있음)를
+// toMyPlaceDetailResponse의 transactionList와 같은 "가게별로 묶은" 모양으로 바꿀 때 쓴다.
+type FlatTransactionItem = {
+  transactionId: string;
+  name: string;
+  amount: number;
+  categoryId: CategoryId | null;
+  categoryName: string;
+  datetime: string;
+};
+
+export function groupTransactionsByName(items: FlatTransactionItem[]) {
+  const byName = new Map<string, FlatTransactionItem[]>();
+  for (const item of items) {
+    if (!byName.has(item.name)) {
+      byName.set(item.name, []);
+    }
+    byName.get(item.name)!.push(item);
+  }
+
+  return Array.from(byName.entries()).map(([name, list]) => {
+    const first = list[0];
+    return {
+      name,
+      categoryId: first.categoryId,
+      categoryName: first.categoryName,
+      amount: list.reduce((sum, tx) => sum + tx.amount, 0),
+      dateList: list.map((tx) => ({ transactionId: tx.transactionId, datetime: tx.datetime, amount: tx.amount })),
+    };
+  });
+}
+
 // ── 내 장소 공통: 반경 2km 근사 필터 ────────────────────────────────────────
 const NEARBY_RADIUS_DEG = 0.018; // 대략 2km 이내를 "이 내 장소 근처"로 취급 (더미 데이터용 단순 근사치)
 
