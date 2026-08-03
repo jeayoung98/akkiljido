@@ -17,8 +17,8 @@ import com.a508.backend.domain.user.domain.User;
 import com.a508.backend.domain.user.service.UserService;
 import com.a508.backend.global.util.DateTimeUtils;
 import com.a508.backend.global.util.GeometryUtils;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 
 import lombok.RequiredArgsConstructor;
 
@@ -68,7 +68,7 @@ public class ReportWriter {
 	private String serialize(ReportEnvelope envelope) {
 		try {
 			return objectMapper.writeValueAsString(envelope);
-		} catch (JsonProcessingException e) {
+		} catch (JacksonException e) {
 			throw new IllegalStateException("리포트 봉투 직렬화 실패", e);
 		}
 	}

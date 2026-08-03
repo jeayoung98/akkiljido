@@ -30,8 +30,8 @@ import com.a508.backend.global.exception.BusinessException;
 import com.a508.backend.global.exception.ExceptionType;
 import com.a508.backend.global.util.DateTimeUtils;
 import com.a508.backend.global.util.GeometryUtils;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 import org.mockito.ArgumentCaptor;
 
@@ -48,7 +48,7 @@ class ReportBatchServiceTest {
 	private final ReportRepository reportRepository = mock(ReportRepository.class);
 	private final LlmClient llmClient = mock(LlmClient.class);
 	private final ReportWriter reportWriter = mock(ReportWriter.class);
-	private final ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
+	private final ObjectMapper objectMapper = JsonMapper.builder().build();
 
 	private final ReportBatchService service = new ReportBatchService(
 		userRepository, sourceLoader, new FactExtractor(), new RecommendationExtractor(),

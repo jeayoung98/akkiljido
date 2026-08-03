@@ -13,7 +13,7 @@ import com.a508.backend.domain.report.entity.ReportType;
 import com.a508.backend.domain.report.repository.ReportRepository;
 import com.a508.backend.global.exception.BusinessException;
 import com.a508.backend.global.exception.ExceptionType;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
