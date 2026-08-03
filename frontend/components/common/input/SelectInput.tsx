@@ -22,6 +22,8 @@ export type SelectInputProps<T extends string = string> = {
   onChange: (value: T) => void;
   label?: string;
   placeholder?: string;
+  /** 추가 폼처럼 라벨을 선택 칸 안에 고정해 표시할 때 사용합니다. */
+  labelInside?: boolean;
   errorMessage?: string;
   disabled?: boolean;
   containerStyle?: StyleProp<ViewStyle>;
@@ -37,6 +39,7 @@ export function SelectInput<T extends string = string>({
   onChange,
   label,
   placeholder = '선택해 주세요',
+  labelInside = false,
   errorMessage,
   disabled = false,
   containerStyle,
@@ -53,7 +56,7 @@ export function SelectInput<T extends string = string>({
 
   return (
     <View style={[styles.container, containerStyle]}>
-      {label ? <Text style={[styles.label, hasError && styles.errorText]}>{label}</Text> : null}
+      {label && !labelInside ? <Text style={[styles.label, hasError && styles.errorText]}>{label}</Text> : null}
 
       <View>
         <Pressable
@@ -64,14 +67,24 @@ export function SelectInput<T extends string = string>({
           onPress={() => setIsOpen((current) => !current)}
           style={({ pressed }) => [
             styles.trigger,
+            labelInside && styles.triggerWithLabel,
             isOpen && styles.focused,
             hasError && styles.error,
             disabled && styles.disabled,
             pressed && !disabled && styles.pressedTrigger,
           ]}>
-          <Text numberOfLines={1} style={[styles.valueText, !selectedOption && styles.placeholder]}>
-            {selectedOption?.label ?? placeholder}
-          </Text>
+          <View style={[styles.valueArea, labelInside && styles.insideValueArea]}>
+            {labelInside ? <Text style={[styles.insideLabel, hasError && styles.errorText]}>{label}</Text> : null}
+            <Text
+              numberOfLines={1}
+              style={[
+                styles.valueText,
+                labelInside && styles.insideValueText,
+                !selectedOption && styles.placeholder,
+              ]}>
+              {selectedOption?.label ?? placeholder}
+            </Text>
+          </View>
           <Text style={styles.chevron}>{isOpen ? '⌃' : '⌄'}</Text>
         </Pressable>
 
@@ -127,7 +140,27 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     backgroundColor: Colors.light.inputBackground,
   },
+  triggerWithLabel: {
+    // DateInput과 같은 상단 여백과 높이를 사용해 카테고리·날짜를 나란히 정렬합니다.
+    minHeight: 90,
+    paddingVertical: 16,
+    alignItems: 'stretch',
+  },
+  valueArea: {
+    flex: 1,
+    gap: 5,
+  },
+  // DateInput처럼 라벨을 필드 상단에 고정해 두 칸을 나란히 배치해도 기준선이 맞습니다.
+  insideValueArea: {
+    justifyContent: 'flex-start',
+  },
+  insideLabel: {
+    color: Colors.light.text,
+    fontSize: 13,
+    fontWeight: '700',
+  },
   valueText: { flex: 1, color: Colors.light.text, fontSize: 16 },
+  insideValueText: { flex: 0, fontSize: 15 },
   placeholder: { color: Colors.light.placeholder },
   chevron: { marginLeft: 8, color: Colors.light.text, fontSize: 22, fontWeight: '700' },
   dropdown: {
@@ -135,6 +168,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.light.border,
     borderRadius: 14,
+    // 선택된 옵션의 배경도 드롭다운 둥근 모서리 안에서만 보이도록 합니다.
+    overflow: 'hidden',
     backgroundColor: Colors.light.cardBackground,
     elevation: 4,
     shadowColor: '#000000',

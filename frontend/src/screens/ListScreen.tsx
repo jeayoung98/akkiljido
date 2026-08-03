@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import AppScreen from '@/components/common/AppScreen';
@@ -9,8 +9,13 @@ import { AppHeader } from '@/components/common/header/AppHeader';
 import { IconButton } from '@/components/common/button/IconButton';
 import { Chip } from '@/components/common/chip/Chip';
 import { DateInput } from '@/components/common/input/DateInput';
+import { CurrencyInput } from '@/components/common/input/CurrencyInput';
+import { MapInput } from '@/components/common/input/MapInput';
 import { SearchInput } from '@/components/common/input/SearchInput';
+import { SelectInput } from '@/components/common/input/SelectInput';
+import { TextInput } from '@/components/common/input/TextInput';
 import SegmentedControl from '@/components/common/segmented-control/SegmentedControl';
+import { Button } from '@/components/common/button/Button';
 import { AnalysisCard } from '@/components/transaction/common/AnalysisCard';
 import { AnalysisLegend } from '@/components/transaction/common/AnalysisLegend';
 import { CalendarDayCell } from '@/components/transaction/common/CalendarDayCell';
@@ -23,6 +28,7 @@ import { TransactionTabBar, type TransactionTab } from '@/components/transaction
 import TransactionGroup, { type TransactionGroupItem } from '@/components/transaction/TransactionGroup';
 import TransactionItem from '@/components/transaction/TransactionItem';
 import Colors from '@/constants/Colors';
+import { useMapPickerStore } from '@/store/mapPickerStore';
 import {
   getMockDayDetail,
   getMockMonthDateList,
@@ -128,6 +134,7 @@ const WEEKDAY_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
 type AnalysisMode = 'category' | 'place';
 type SortOrder = 'latest' | 'oldest';
 type PeriodFilter = 'thisMonth' | 'last3Months' | 'custom';
+type AddTransactionType = 'expense' | 'income';
 
 const FILTER_CATEGORY_OPTIONS = [
   '음식점',
@@ -148,6 +155,26 @@ const ANALYSIS_MODE_OPTIONS = [
   { label: '장소 분석', value: 'place' },
 ] as const;
 
+const ADD_TRANSACTION_TYPE_OPTIONS = [
+  {
+    value: 'expense',
+    label: '💸 소비',
+    activeBackgroundColor: Colors.light.danger,
+    activeTextColor: '#FFFFFF',
+  },
+  {
+    value: 'income',
+    label: '💰 소득',
+    activeBackgroundColor: Colors.light.primary,
+    activeTextColor: '#FFFFFF',
+  },
+] as const;
+
+const ADD_CATEGORY_OPTIONS = FILTER_CATEGORY_OPTIONS.map((category) => ({
+  label: category,
+  value: category,
+}));
+
 // 장소 분석 범례는 카테고리처럼 색 점 대신 장소 종류를 나타내는 아이콘을 쓴다.
 const PLACE_ICON_BY_NAME: Record<string, keyof typeof Ionicons.glyphMap> = {
   회사: 'business',
@@ -161,6 +188,7 @@ export default function ListScreen() {
   const [tab, setTab] = useState<TransactionTab>('list');
   const [isSearching, setIsSearching] = useState(false);
   const [isFilterVisible, setIsFilterVisible] = useState(false);
+  const [isAddVisible, setIsAddVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [month, setMonth] = useState(() => new Date(2026, 6, 1));
   const [selectedDateKey, setSelectedDateKey] = useState('2026-07-17');
@@ -174,6 +202,15 @@ export default function ListScreen() {
   const [customStartDate, setCustomStartDate] = useState(() => new Date(2026, 6, 1));
   const [customEndDate, setCustomEndDate] = useState(() => new Date(2026, 6, 31));
   const [selectedCategories, setSelectedCategories] = useState<string[]>([...FILTER_CATEGORY_OPTIONS]);
+  const [addType, setAddType] = useState<AddTransactionType>('expense');
+  const [addName, setAddName] = useState('');
+  const [addAmount, setAddAmount] = useState<number | null>(null);
+  const [addAddress, setAddAddress] = useState('');
+  const [addCategory, setAddCategory] = useState<string | null>(null);
+  const [addDate, setAddDate] = useState(() => new Date());
+  const pickedLocation = useMapPickerStore((state) => state.pickedLocation);
+  const clearPickedLocation = useMapPickerStore((state) => state.clearPickedLocation);
+  const isReturningFromMapRef = useRef(false);
 
   // 목록과 검색은 같은 필터 결과를 사용해, 검색 여부에 따라 조건이 달라지지 않게 합니다.
   const filteredTransactions = useMemo(() => {
@@ -295,9 +332,43 @@ export default function ListScreen() {
     router.push({ pathname: '/transaction/[id]', params: { id: transactionId } });
   };
 
-  const handleAddPress = () => {
-    // TODO: 거래 추가 바텀시트는 팀원 작업 완료되면 연결.
-    Alert.alert('거래 추가', '추가 화면은 곧 연결될 예정이에요.');
+  // 지도에서 고른 장소는 store를 거쳐 돌아오므로, 기존 입력값을 유지한 채 주소만 반영합니다.
+  useEffect(() => {
+    if (pickedLocation) {
+      setAddAddress(pickedLocation.address);
+      clearPickedLocation();
+
+      if (isReturningFromMapRef.current) {
+        setIsAddVisible(true);
+        isReturningFromMapRef.current = false;
+      }
+    }
+  }, [clearPickedLocation, pickedLocation]);
+
+  const handleAddPress = () => setIsAddVisible(true);
+
+  const handleOpenMapPicker = () => {
+    // 바텀시트를 닫은 뒤 지도 화면으로 이동해야 Modal이 지도 위를 가리지 않습니다.
+    isReturningFromMapRef.current = true;
+    setIsAddVisible(false);
+    router.push('/map-picker');
+  };
+
+  const isAddFormValid = Boolean(
+    addName.trim() && addAmount !== null && (addType === 'income' || addCategory),
+  );
+
+  const handleCreateTransaction = () => {
+    if (!isAddFormValid) {
+      Alert.alert(
+        '입력을 확인해 주세요',
+        addType === 'expense' ? '항목명, 금액, 카테고리를 입력해 주세요.' : '항목명과 금액을 입력해 주세요.',
+      );
+      return;
+    }
+
+    // TODO: 거래 추가 API가 연결되면 현재 입력값을 POST 요청 본문으로 전달합니다.
+    Alert.alert('거래 추가', '입력한 거래를 추가할 준비가 되었어요.');
   };
 
   const handleFilterPress = () => {
@@ -641,7 +712,71 @@ export default function ListScreen() {
         </ScrollView>
       </BottomSheet>
 
-      {!isSearching && tab === 'list' ? <FloatingActionButton onPress={handleAddPress} /> : null}
+      <BottomSheet
+        initialHeight={0.82}
+        maxHeight={0.92}
+        minHeight={0.62}
+        onClose={() => setIsAddVisible(false)}
+        visible={isAddVisible}>
+        <ScrollView
+          contentContainerStyle={styles.addContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}>
+          <Text style={styles.addTitle}>내역 추가</Text>
+
+          {/* 소비·소득 상태는 API에 전달할 거래 유형 값으로 관리합니다. */}
+          <SegmentedControl<AddTransactionType>
+            onChange={setAddType}
+            options={ADD_TRANSACTION_TYPE_OPTIONS}
+            value={addType}
+          />
+
+          <TextInput
+            label="항목명"
+            labelInside
+            onChangeText={setAddName}
+            placeholder={addType === 'expense' ? '예) 스타벅스, 식료품' : '예) 월급, 용돈'}
+            value={addName}
+          />
+
+          <CurrencyInput label="금액" onChangeValue={setAddAmount} value={addAmount} />
+
+          {addType === 'expense' ? (
+            <>
+              <MapInput
+                label="위치"
+                onPress={handleOpenMapPicker}
+                // 빈 문자열 대신 undefined를 전달해 공통 MapInput의 안내 문구를 표시합니다.
+                value={addAddress || undefined}
+              />
+
+              <View style={styles.addTwoColumnRow}>
+                <SelectInput
+                  containerStyle={styles.addHalfField}
+                  label="카테고리"
+                  labelInside
+                  onChange={setAddCategory}
+                  options={ADD_CATEGORY_OPTIONS}
+                  placeholder="선택"
+                  value={addCategory}
+                />
+                <DateInput label="날짜" onChange={setAddDate} style={styles.addHalfField} value={addDate} />
+              </View>
+            </>
+          ) : (
+            <DateInput label="날짜" onChange={setAddDate} value={addDate} />
+          )}
+
+          <Button
+            disabled={!isAddFormValid}
+            onPress={handleCreateTransaction}
+            style={styles.addButton}>
+            추가하기
+          </Button>
+        </ScrollView>
+      </BottomSheet>
+
+      {!isSearching ? <FloatingActionButton onPress={handleAddPress} /> : null}
     </>
   );
 }
@@ -681,6 +816,31 @@ const styles = StyleSheet.create({
     gap: 20,
     paddingHorizontal: 20,
     paddingBottom: 36,
+  },
+  addContent: {
+    gap: 14,
+    paddingHorizontal: 20,
+    paddingBottom: 36,
+  },
+  addTitle: {
+    marginBottom: 2,
+    color: Colors.light.cardTitle,
+    fontSize: 18,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  addTwoColumnRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  addHalfField: {
+    flex: 1,
+  },
+  addButton: {
+    marginTop: 4,
+    height: 52,
+    borderRadius: 14,
   },
   filterHeader: {
     flexDirection: 'row',

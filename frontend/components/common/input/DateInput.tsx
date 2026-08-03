@@ -102,8 +102,9 @@ const styles = StyleSheet.create({
     minHeight: 90,
   },
   label: {
-    fontSize: 15,
-    fontWeight: '600',
+    // SelectInput의 내부 라벨과 맞춰 2열 배치 시 기준선이 어긋나지 않게 합니다.
+    fontSize: 13,
+    fontWeight: '700',
     color: Colors.light.text,
   },
   value: {
