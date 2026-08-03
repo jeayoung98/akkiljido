@@ -25,7 +25,7 @@ import { EditableInfoRow } from '@/components/transaction/EditableInfoRow';
 import type { TransactionType } from '@/components/transaction/TransactionItem';
 import { CATEGORY_ID_SELECT_OPTIONS, CATEGORY_NAME_BY_ID } from '@/constants/categories';
 import Colors from '@/constants/Colors';
-import { MOCK_TRANSACTIONS } from '@/mocks/transactions';
+import { MOCK_TRANSACTIONS } from '@/mocks/transactionViewData';
 import { useMapPickerStore } from '@/store/mapPickerStore';
 
 // DateInput.tsx가 이미 등록해두는 것과 같은 설정이다. react-native-calendars의 전역 설정이라

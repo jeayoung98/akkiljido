@@ -1,8 +1,9 @@
 import type { TransactionType } from '@/components/transaction/TransactionItem';
 
-// 백엔드 API가 아직 연결 안 됐을 때 화면만 먼저 확인하기 위한 목업 데이터입니다.
-// 필드 구성은 거래내역 상세보기 API 응답(GET /transactions/{id})을 기준으로 맞췄고,
-// 목록/검색 화면에서는 이 중 필요한 필드만 뽑아 씁니다.
+// 거래 화면의 캘린더·분석·상세 UI를 먼저 확인하기 위한 전용 목업 데이터입니다.
+// 지도 브랜치의 mocks/transactions.ts가 공통 원본으로 머지되면, 이 파일은 아래처럼
+// 공통 MOCK_TRANSACTIONS를 import하고 월/일/분석용 가공 함수만 남기도록 교체합니다.
+// import { MOCK_TRANSACTIONS } from '@/mocks/transactions';
 export type TransactionRecord = {
   transactionId: number;
   name: string;

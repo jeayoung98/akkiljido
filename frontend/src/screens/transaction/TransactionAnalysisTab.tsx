@@ -10,7 +10,7 @@ import { MonthPicker } from '@/components/transaction/MonthPicker';
 import { PieChart } from '@/components/transaction/PieChart';
 import { getCategoryColorById } from '@/constants/categories';
 import Colors from '@/constants/Colors';
-import { getMockPlaceAnalysis, MOCK_TRANSACTIONS } from '@/mocks/transactions';
+import { getMockPlaceAnalysis, MOCK_TRANSACTIONS } from '@/mocks/transactionViewData';
 
 export type AnalysisMode = 'category' | 'place';
 

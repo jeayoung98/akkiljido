@@ -7,7 +7,7 @@ import { EmptyState } from '@/components/transaction/EmptyState';
 import { MonthPicker } from '@/components/transaction/MonthPicker';
 import TransactionItem from '@/components/transaction/TransactionItem';
 import Colors from '@/constants/Colors';
-import { getMockDayDetail, getMockMonthDateList } from '@/mocks/transactions';
+import { getMockDayDetail, getMockMonthDateList } from '@/mocks/transactionViewData';
 
 type MonthCell = { day: number; dateKey: string; inCurrentMonth: boolean };
 

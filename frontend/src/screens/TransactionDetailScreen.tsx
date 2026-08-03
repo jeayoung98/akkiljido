@@ -10,7 +10,7 @@ import { CategoryIcon } from '@/components/transaction/CategoryIcon';
 import { InfoRow } from '@/components/transaction/InfoRow';
 import { TransactionDetailCard } from '@/components/transaction/TransactionDetailCard';
 import Colors from '@/constants/Colors';
-import { MOCK_TRANSACTIONS } from '@/mocks/transactions';
+import { MOCK_TRANSACTIONS } from '@/mocks/transactionViewData';
 
 // "2026-07-17 09:12:00+09" → "2026.07.17"로 보여준다. 실제 API가 붙으면 여기만 바꾸면 된다.
 function formatDate(datetime: string) {
