@@ -44,6 +44,8 @@ dependencies {
 	annotationProcessor 'jakarta.persistence:jakarta.persistence-api'
 
 	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.2'
+	// FCM 푸시 알림 발송을 위한 Firebase Admin SDK
+    implementation 'com.google.firebase:firebase-admin:9.10.0'
 
 	implementation 'org.springframework.boot:spring-boot-starter-security'
 	implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
