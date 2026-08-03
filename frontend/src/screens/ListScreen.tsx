@@ -1,11 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import AppScreen from '@/components/common/AppScreen';
+import BottomSheet from '@/components/common/BottomSheet';
 import { AppHeader } from '@/components/common/header/AppHeader';
 import { IconButton } from '@/components/common/button/IconButton';
+import { Chip } from '@/components/common/chip/Chip';
+import { DateInput } from '@/components/common/input/DateInput';
 import { SearchInput } from '@/components/common/input/SearchInput';
 import SegmentedControl from '@/components/common/segmented-control/SegmentedControl';
 import { AnalysisCard } from '@/components/transaction/common/AnalysisCard';
@@ -25,7 +28,6 @@ import {
   getMockMonthDateList,
   getMockPlaceAnalysis,
   MOCK_TRANSACTIONS,
-  type TransactionRecord,
 } from '@/mocks/transactions';
 import {
   TRANSACTION_SCREEN_MOCKS,
@@ -42,7 +44,7 @@ const toLocalDateKey = (date: Date) =>
 // 목업 데이터를 date별로 묶어서, 실제 "거래내역 목록 조회" API의 dateList 응답 모양과 똑같이 만듭니다.
 // (백엔드 연결 전까지는 여기서 흉내 내고, 나중엔 이 부분만 fetch 결과로 바꾸면 됩니다.)
 /** 목록 탭 전용 목업을 날짜별 거래 그룹 형태로 변환합니다. */
-function groupScreenMocks(records: TransactionScreenMock[]) {
+function groupScreenMocks(records: TransactionScreenMock[], sortOrder: SortOrder) {
   const groups = new Map<string, TransactionScreenMock[]>();
 
   for (const record of records) {
@@ -53,7 +55,10 @@ function groupScreenMocks(records: TransactionScreenMock[]) {
   }
 
   return Array.from(groups.entries())
-    .sort(([a], [b]) => (a < b ? 1 : -1))
+    .sort(([a], [b]) => {
+      const direction = sortOrder === 'latest' ? -1 : 1;
+      return a.localeCompare(b) * direction;
+    })
     .map(([date, transactions]) => ({
       date,
       transactions,
@@ -121,6 +126,22 @@ function getMonthWeeks(month: Date): MonthCell[][] {
 const WEEKDAY_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
 
 type AnalysisMode = 'category' | 'place';
+type SortOrder = 'latest' | 'oldest';
+type PeriodFilter = 'thisMonth' | 'last3Months' | 'custom';
+
+const FILTER_CATEGORY_OPTIONS = [
+  '음식점',
+  '카페·간식',
+  '편의점·마트',
+  '쇼핑',
+  '여가',
+  '교통',
+  '건강·의료',
+  '생활',
+  '미용',
+  '교육',
+  '기타',
+] as const;
 
 const ANALYSIS_MODE_OPTIONS = [
   { label: '카테고리 분석', value: 'category' },
@@ -139,20 +160,63 @@ const DEFAULT_PLACE_ICON: keyof typeof Ionicons.glyphMap = 'location';
 export default function ListScreen() {
   const [tab, setTab] = useState<TransactionTab>('list');
   const [isSearching, setIsSearching] = useState(false);
+  const [isFilterVisible, setIsFilterVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [month, setMonth] = useState(() => new Date(2026, 6, 1));
   const [selectedDateKey, setSelectedDateKey] = useState('2026-07-17');
   const [analysisMode, setAnalysisMode] = useState<AnalysisMode>('category');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('latest');
+  const [selectedTypes, setSelectedTypes] = useState<Array<TransactionScreenMock['type']>>([
+    'expense',
+    'income',
+  ]);
+  const [periodFilter, setPeriodFilter] = useState<PeriodFilter>('thisMonth');
+  const [customStartDate, setCustomStartDate] = useState(() => new Date(2026, 6, 1));
+  const [customEndDate, setCustomEndDate] = useState(() => new Date(2026, 6, 31));
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([...FILTER_CATEGORY_OPTIONS]);
 
-  // 목록 API 연동 전에는 거래 화면 전용 목업만 사용합니다.
-  const dateGroups = useMemo(() => groupScreenMocks(TRANSACTION_SCREEN_MOCKS), []);
+  // 목록과 검색은 같은 필터 결과를 사용해, 검색 여부에 따라 조건이 달라지지 않게 합니다.
+  const filteredTransactions = useMemo(() => {
+    const currentMonthIndex = month.getFullYear() * 12 + month.getMonth();
 
-  // 실제 검색 API는 날짜별로 묶지 않고 flat한 목록을 준다. 목업도 그 모양을 그대로 흉내 낸다.
+    return TRANSACTION_SCREEN_MOCKS.filter((record) => {
+      const recordYear = Number(record.datetime.slice(0, 4));
+      const recordMonthIndex = recordYear * 12 + Number(record.datetime.slice(5, 7)) - 1;
+      const monthDifference = currentMonthIndex - recordMonthIndex;
+      const recordDateKey = toDateKey(record.datetime);
+      const customStartDateKey = toLocalDateKey(customStartDate);
+      const customEndDateKey = toLocalDateKey(customEndDate);
+      // 직접 설정은 시작일과 종료일을 모두 포함해 목록·검색에 같은 조건으로 적용합니다.
+      const matchesPeriod =
+        (periodFilter === 'custom' &&
+          customStartDateKey <= customEndDateKey &&
+          recordDateKey >= customStartDateKey &&
+          recordDateKey <= customEndDateKey) ||
+        (periodFilter === 'thisMonth' && monthDifference === 0) ||
+        (periodFilter === 'last3Months' && monthDifference >= 0 && monthDifference < 3);
+
+      return (
+        matchesPeriod &&
+        selectedTypes.includes(record.type) &&
+        selectedCategories.includes(record.categoryName)
+      );
+    }).sort((a, b) => {
+      const direction = sortOrder === 'latest' ? -1 : 1;
+      return a.datetime.localeCompare(b.datetime) * direction;
+    });
+  }, [customEndDate, customStartDate, month, periodFilter, selectedCategories, selectedTypes, sortOrder]);
+
+  const dateGroups = useMemo(
+    () => groupScreenMocks(filteredTransactions, sortOrder),
+    [filteredTransactions, sortOrder],
+  );
+
+  // 검색도 필터 이후 목록을 대상으로 하므로 두 기능을 함께 사용할 수 있습니다.
   const searchResults = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
     if (!query) return [];
-    return MOCK_TRANSACTIONS.filter((record) => record.name.toLowerCase().includes(query));
-  }, [searchQuery]);
+    return filteredTransactions.filter((record) => record.name.toLowerCase().includes(query));
+  }, [filteredTransactions, searchQuery]);
 
   const monthWeeks = useMemo(() => getMonthWeeks(month), [month]);
 
@@ -237,8 +301,25 @@ export default function ListScreen() {
   };
 
   const handleFilterPress = () => {
-    // TODO: 필터 바텀시트 완성되면 연결. 완성되면 검색이랑 같이 적용할 예정.
-    Alert.alert('필터', '필터는 곧 연결될 예정이에요.');
+    setIsFilterVisible(true);
+  };
+
+  const toggleTransactionType = (type: TransactionScreenMock['type']) => {
+    setSelectedTypes((current) =>
+      current.includes(type) ? current.filter((item) => item !== type) : [...current, type],
+    );
+  };
+
+  const toggleCategory = (category: string) => {
+    setSelectedCategories((current) =>
+      current.includes(category) ? current.filter((item) => item !== category) : [...current, category],
+    );
+  };
+
+  const hasAllCategoriesSelected = selectedCategories.length === FILTER_CATEGORY_OPTIONS.length;
+
+  const toggleAllCategories = () => {
+    setSelectedCategories(hasAllCategoriesSelected ? [] : [...FILTER_CATEGORY_OPTIONS]);
   };
 
   const handleCloseSearch = () => {
@@ -288,8 +369,8 @@ export default function ListScreen() {
                     <View key={record.transactionId}>
                       {index > 0 ? <View style={styles.divider} /> : null}
                       {/* 검색 결과는 date로 안 묶이므로 TransactionGroup 대신 항목 하나씩 직접 그린다. */}
-                      <TransactionRow
-                        onPress={() => handleOpenDetail(String(record.transactionId))}
+                      <ScreenTransactionRow
+                        onPress={() => handleOpenDetail(record.transactionId)}
                         record={record}
                       />
                     </View>
@@ -431,13 +512,148 @@ export default function ListScreen() {
         </View>
       </AppScreen>
 
+      <BottomSheet
+        initialHeight={0.82}
+        maxHeight={0.92}
+        minHeight={0.62}
+        onClose={() => setIsFilterVisible(false)}
+        visible={isFilterVisible}>
+        <ScrollView
+          contentContainerStyle={styles.filterContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          style={styles.filterScroll}>
+          <View style={styles.filterHeader}>
+            <Text style={styles.filterTitle}>내역 필터</Text>
+            <IconButton color={Colors.light.text} name="close" onPress={() => setIsFilterVisible(false)} />
+          </View>
+
+          <View style={styles.filterSection}>
+            <Text style={styles.filterLabel}>정렬</Text>
+            <View style={styles.filterGrid}>
+              <Chip
+                align="center"
+                indicator="radio"
+                label="최신순"
+                onPress={() => setSortOrder('latest')}
+                selected={sortOrder === 'latest'}
+                style={styles.twoColumnChip}
+              />
+              <Chip
+                align="center"
+                indicator="radio"
+                label="과거순"
+                onPress={() => setSortOrder('oldest')}
+                selected={sortOrder === 'oldest'}
+                style={styles.twoColumnChip}
+              />
+            </View>
+          </View>
+
+          <View style={styles.filterSection}>
+            <Text style={styles.filterLabel}>소비/소득</Text>
+            <View style={styles.filterGrid}>
+              <Chip
+                align="center"
+                indicator="radio"
+                label="소비"
+                onPress={() => toggleTransactionType('expense')}
+                selected={selectedTypes.includes('expense')}
+                style={styles.twoColumnChip}
+              />
+              <Chip
+                align="center"
+                indicator="radio"
+                label="소득"
+                onPress={() => toggleTransactionType('income')}
+                selected={selectedTypes.includes('income')}
+                style={styles.twoColumnChip}
+              />
+            </View>
+          </View>
+
+          <View style={styles.filterSection}>
+            <Text style={styles.filterLabel}>기간</Text>
+            <View style={styles.filterGrid}>
+              <Chip
+                align="center"
+                indicator="radio"
+                label="이번 달"
+                onPress={() => setPeriodFilter('thisMonth')}
+                selected={periodFilter === 'thisMonth'}
+                style={styles.threeColumnChip}
+              />
+              <Chip
+                align="center"
+                indicator="radio"
+                label="최근 3개월"
+                onPress={() => setPeriodFilter('last3Months')}
+                selected={periodFilter === 'last3Months'}
+                style={styles.threeColumnChip}
+              />
+              <Chip
+                align="center"
+                indicator="radio"
+                label="직접 설정"
+                onPress={() => setPeriodFilter('custom')}
+                selected={periodFilter === 'custom'}
+                style={styles.threeColumnChip}
+              />
+            </View>
+            {/* 직접 설정일 때만 공통 DateInput 두 개를 노출해 날짜 범위를 선택합니다. */}
+            {periodFilter === 'custom' ? (
+              <View style={styles.dateRange}>
+                <DateInput
+                  compact
+                  displayFormat="iso"
+                  onChange={setCustomStartDate}
+                  showCalendarIcon
+                  style={styles.dateRangeInput}
+                  value={customStartDate}
+                />
+                <Text style={styles.dateRangeSeparator}>~</Text>
+                <DateInput
+                  compact
+                  displayFormat="iso"
+                  onChange={setCustomEndDate}
+                  showCalendarIcon
+                  style={styles.dateRangeInput}
+                  value={customEndDate}
+                />
+              </View>
+            ) : null}
+          </View>
+
+          <View style={styles.filterSection}>
+            <View style={styles.categoryHeader}>
+              <Text style={styles.filterLabel}>카테고리</Text>
+              <Pressable accessibilityRole="button" hitSlop={6} onPress={toggleAllCategories}>
+                <Text style={styles.resetText}>{hasAllCategoriesSelected ? '전체 해제' : '전체 선택'}</Text>
+              </Pressable>
+            </View>
+            <View style={styles.filterGrid}>
+              {FILTER_CATEGORY_OPTIONS.map((category) => (
+                <Chip
+                  indicator="check"
+                  key={category}
+                  label={category}
+                  onPress={() => toggleCategory(category)}
+                  selected={selectedCategories.includes(category)}
+                  style={styles.twoColumnChip}
+                />
+              ))}
+            </View>
+          </View>
+        </ScrollView>
+      </BottomSheet>
+
       {!isSearching && tab === 'list' ? <FloatingActionButton onPress={handleAddPress} /> : null}
     </>
   );
 }
 
 // 카테고리 아이콘 + 제목/설명 + 금액을 한 줄로 그리는 행. TransactionGroup 밖(검색 결과, 날짜 선택 목록)에서 재사용합니다.
-function TransactionRow({ record, onPress }: { record: TransactionRecord; onPress: () => void }) {
+function ScreenTransactionRow({ record, onPress }: { record: TransactionScreenMock; onPress: () => void }) {
   return (
     <TransactionItem
       amount={record.amount}
@@ -463,6 +679,72 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
+  },
+  filterScroll: {
+    flex: 1,
+  },
+  filterContent: {
+    gap: 20,
+    paddingHorizontal: 20,
+    paddingBottom: 36,
+  },
+  filterHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  filterTitle: {
+    color: Colors.light.cardTitle,
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  filterSection: {
+    gap: 10,
+  },
+  filterLabel: {
+    color: Colors.light.cardTitle,
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  filterGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  dateRange: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  dateRangeInput: {
+    flex: 1,
+  },
+  dateRangeSeparator: {
+    color: Colors.light.textSecondary,
+    fontSize: 16,
+  },
+  twoColumnChip: {
+    width: '48.5%',
+    minHeight: 40,
+    borderRadius: 14,
+    paddingHorizontal: 12,
+  },
+  threeColumnChip: {
+    flex: 1,
+    minWidth: 0,
+    minHeight: 40,
+    borderRadius: 14,
+    paddingHorizontal: 8,
+  },
+  categoryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  resetText: {
+    color: Colors.light.primary,
+    fontSize: 13,
+    fontWeight: '700',
   },
   body: {
     flexGrow: 1,
