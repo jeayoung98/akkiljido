@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { Alert, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import BottomSheet from '@/components/common/BottomSheet';
@@ -26,6 +26,8 @@ const INITIAL_LEVEL = 4;
 const DEFAULT_CENTER: LatLng = { lat: 37.4979, lng: 127.0276 };
 const SEARCH_BAR_HEIGHT = 52;
 const LOCATE_BUTTON_HEIGHT = 44;
+// MapZoom 높이(버튼 44 x 2 + 구분선 1). 로드뷰 버튼을 줌 컨트롤 바로 아래에 붙이는 계산에 쓴다.
+const ZOOM_CONTROL_HEIGHT = 89;
 // 내 장소 상세 모드에서 이동할 줌 레벨. 반경 2km 원(지름 4km)이 폰 화면에 통째로 들어오는 최소 축소 레벨이다.
 const PLACE_DETAIL_LEVEL = 6;
 // 내 장소 시트에서 목록 위에 고정으로 자리 차지하는 영역(드래그 핸들 + "내 장소 N개" 제목)의 대략적인 높이.
@@ -134,6 +136,17 @@ export default function MapScreen() {
   // 카카오맵의 현재 줌 레벨. 줌 버튼으로 바꾸든 손가락으로 핀치줌하든 onLevelChange로 여기 반영된다.
   const [currentLevel, setCurrentLevel] = useState(INITIAL_LEVEL);
 
+  // 로드뷰 모드(도로 파란 선 표시)가 켜져 있는지. 버튼 토글로만 바뀐다.
+  const [roadviewMode, setRoadviewMode] = useState(false);
+  // 로드뷰(거리 사진)가 실제로 화면에 떠 있는지. WebView 쪽에서 열리고 닫힐 때 알려준다.
+  const [roadviewOpen, setRoadviewOpen] = useState(false);
+
+  const handleToggleRoadview = () => {
+    const next = !roadviewMode;
+    setRoadviewMode(next);
+    mapRef.current?.setRoadviewMode(next);
+  };
+
   const [filterVisible, setFilterVisible] = useState(false);
 
   // 시트 안에서 만지는 동안만 쓰이는 임시 값(초안). "적용하기"를 눌러야만 아래 appliedFilter로 반영된다.
@@ -211,8 +224,25 @@ export default function MapScreen() {
   // 클러스터 대신 이 장소 주변 가맹점 개별 마커를 보여주므로 단계 규칙과 충돌하지 않는다.
   const handleSelectPlace = (place: (typeof MY_PLACES)[number]) => {
     setSelectedPlaceId(place.placeId);
+    setHighlightedMerchant(null);
     mapRef.current?.setCenter({ lat: place.latitude, lng: place.longitude });
     mapRef.current?.setLevel(PLACE_DETAIL_LEVEL);
+  };
+
+  // 상세 모드에서 지도 마커를 눌렀을 때 강조할 가맹점 이름(마커 id로도 쓴다),
+  // 그리고 그 카드로 스크롤하기 위한 ref들 (MapPickerScreen의 핀↔카드 연동과 같은 방식).
+  const [highlightedMerchant, setHighlightedMerchant] = useState<string | null>(null);
+  const merchantScrollRef = useRef<ScrollView>(null);
+  const merchantCardOffsets = useRef<Record<string, number>>({});
+
+  // 상세 모드에서 가맹점 마커를 누르면, bottom sheet의 해당 아코디언 카드로 스크롤하고 테두리로 강조한다.
+  const handleMarkerPress = (id: string) => {
+    if (selectedPlaceId == null) {
+      return; // 일반 탐색 모드의 마커(클러스터 등)는 대응하는 카드가 없다.
+    }
+    setHighlightedMerchant(id);
+    const offset = merchantCardOffsets.current[id] ?? 0;
+    merchantScrollRef.current?.scrollTo({ y: offset, animated: true });
   };
 
   // 적용된 필터를 API 쿼리 형태(startDate/endDate/categoryIds)로 변환한 값.
@@ -310,7 +340,9 @@ export default function MapScreen() {
   const markers: MapMarker[] = useMemo(() => {
     if (selectedPlaceId && placeDetail?.success) {
       return placeDetail.data.transactionList.map((merchant) => ({
-        id: `${merchant.latitude},${merchant.longitude}`,
+        // 가맹점 이름을 마커 id로 쓴다. 상세 응답이 이름별로 묶여 있어 유일하고,
+        // 마커를 눌렀을 때 이 id로 bottom sheet의 해당 카드를 찾아간다.
+        id: merchant.name,
         lat: merchant.latitude!,
         lng: merchant.longitude!,
         label: merchant.name,
@@ -353,66 +385,119 @@ export default function MapScreen() {
         markers={markers}
         selectedPin={searchedPlace ? { lat: searchedPlace.lat, lng: searchedPlace.lng } : undefined}
         onLevelChange={setCurrentLevel}
+        onMarkerPress={handleMarkerPress}
+        onRoadviewChange={setRoadviewOpen}
+        onRoadviewUnavailable={() =>
+          Alert.alert('로드뷰가 없는 지점이에요', '파란 선이 표시된 도로 근처를 눌러주세요.')
+        }
         style={{ flex: 1 }}
       />
 
-      {/* 검색줄 + 필터 버튼. 필터에서 적용한 값은 mapFilter로 변환되어 지도 마커·내 장소 데이터에 반영된다. */}
-      <View
-        style={{
-          position: 'absolute',
-          top: insets.top + 16,
-          left: 16,
-          right: 16,
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: 8,
-        }}>
-        <SearchInput
-          value={searchText}
-          onChangeText={setSearchText}
-          onSubmitEditing={handleSearch}
-          onSearchPress={handleSearch}
-          placeholder="장소, 주소 검색"
-          containerStyle={{ flex: 1 }}
-        />
-        <IconButton
-          name="filter"
-          color={Colors.light.primary}
-          onPress={handleOpenFilter}
-          style={{ backgroundColor: Colors.light.cardBackground, borderRadius: 999, padding: 10 }}
-        />
-      </View>
+      {/* 로드뷰(거리 사진)가 떠 있는 동안엔 검색·필터·내 위치 대신 닫기 버튼만 보여준다.
+          다만 지도는 아래쪽 1/3에 그대로 보이니, 그 지도를 조작할 줌 컨트롤은 그 위에 계속 띄워둔다. */}
+      {roadviewOpen ? (
+        <>
+          <IconButton
+            name="close"
+            color={Colors.light.primary}
+            onPress={() => mapRef.current?.closeRoadview()}
+            style={{
+              position: 'absolute',
+              top: insets.top + 16,
+              right: 16,
+              backgroundColor: Colors.light.cardBackground,
+              borderRadius: 999,
+              padding: 10,
+            }}
+          />
+          <MapZoom
+            onZoomIn={handleZoomIn}
+            onZoomOut={handleZoomOut}
+            style={{
+              position: 'absolute',
+              bottom: insets.bottom + 16,
+              right: 16,
+            }}
+          />
+        </>
+      ) : (
+        <>
+          {/* 검색줄 + 필터 버튼. 필터에서 적용한 값은 mapFilter로 변환되어 지도 마커·내 장소 데이터에 반영된다. */}
+          <View
+            style={{
+              position: 'absolute',
+              top: insets.top + 16,
+              left: 16,
+              right: 16,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 8,
+            }}>
+            <SearchInput
+              value={searchText}
+              onChangeText={setSearchText}
+              onSubmitEditing={handleSearch}
+              onSearchPress={handleSearch}
+              placeholder="장소, 주소 검색"
+              containerStyle={{ flex: 1 }}
+            />
+            <IconButton
+              name="filter"
+              color={Colors.light.primary}
+              onPress={handleOpenFilter}
+              style={{ backgroundColor: Colors.light.cardBackground, borderRadius: 999, padding: 10 }}
+            />
+          </View>
 
-      {/* 내 위치 버튼. MapPickerScreen과 같은 위치(검색줄 바로 아래, 오른쪽 정렬)에 둔다. */}
-      <IconButton
-        name="locate"
-        color={Colors.light.primary}
-        onPress={handleLocate}
-        style={{
-          position: 'absolute',
-          top: insets.top + 16 + SEARCH_BAR_HEIGHT + 12,
-          right: 16,
-          backgroundColor: Colors.light.cardBackground,
-          borderRadius: 999,
-          padding: 10,
-        }}
-      />
+          {/* 내 위치 버튼. MapPickerScreen과 같은 위치(검색줄 바로 아래, 오른쪽 정렬)에 둔다. */}
+          <IconButton
+            name="locate"
+            color={Colors.light.primary}
+            onPress={handleLocate}
+            style={{
+              position: 'absolute',
+              top: insets.top + 16 + SEARCH_BAR_HEIGHT + 12,
+              right: 16,
+              backgroundColor: Colors.light.cardBackground,
+              borderRadius: 999,
+              padding: 10,
+            }}
+          />
 
-      {/* 줌 컨트롤. 내 위치 버튼 바로 아래. KakaoMap의 ref로 실제 레벨을 바꾼다(양방향 연결됨). */}
-      <MapZoom
-        onZoomIn={handleZoomIn}
-        onZoomOut={handleZoomOut}
-        style={{
-          position: 'absolute',
-          top: insets.top + 16 + SEARCH_BAR_HEIGHT + 12 + LOCATE_BUTTON_HEIGHT + 12,
-          right: 16,
-        }}
-      />
+          {/* 줌 컨트롤. 내 위치 버튼 바로 아래. KakaoMap의 ref로 실제 레벨을 바꾼다(양방향 연결됨). */}
+          <MapZoom
+            onZoomIn={handleZoomIn}
+            onZoomOut={handleZoomOut}
+            style={{
+              position: 'absolute',
+              top: insets.top + 16 + SEARCH_BAR_HEIGHT + 12 + LOCATE_BUTTON_HEIGHT + 12,
+              right: 16,
+            }}
+          />
+
+          {/* 로드뷰 모드 토글. 켜져 있는 동안엔 버튼이 초록 배경으로 바뀌고,
+              지도에 로드뷰 가능한 도로가 파란 선으로 표시되며 지도를 탭하면 그 지점 로드뷰가 열린다. */}
+          <IconButton
+            name="roadview"
+            color={roadviewMode ? '#fff' : Colors.light.primary}
+            onPress={handleToggleRoadview}
+            style={{
+              position: 'absolute',
+              top: insets.top + 16 + SEARCH_BAR_HEIGHT + 12 + LOCATE_BUTTON_HEIGHT + 12 + ZOOM_CONTROL_HEIGHT + 12,
+              right: 16,
+              backgroundColor: roadviewMode ? Colors.light.primary : Colors.light.cardBackground,
+              borderRadius: 999,
+              padding: 10,
+            }}
+          />
+        </>
+      )}
 
       {/* 내 장소 목록. 드래그로 높이를 바꿀 수 있고, 배경(지도)은 계속 조작 가능하다.
-          "내 장소 N개"는 핸들 바로 아래, 접혔을 때(peek 상태)도 보이는 자리에 가운데 정렬로 둔다. */}
+          "내 장소 N개"는 핸들 바로 아래, 접혔을 때(peek 상태)도 보이는 자리에 가운데 정렬로 둔다.
+          로드뷰가 떠 있는 동안엔 아래쪽 1/3 지도가 시트에 가리지 않도록 숨긴다. */}
       <BottomSheet
-        visible
+        visible={!roadviewOpen}
         modal={false}
         minHeight={0.08}
         maxHeight={0.5}
@@ -430,7 +515,13 @@ export default function MapScreen() {
                 paddingRight: 16,
                 paddingBottom: 8,
               }}>
-              <IconButton name="back" onPress={() => setSelectedPlaceId(null)} />
+              <IconButton
+                name="back"
+                onPress={() => {
+                  setSelectedPlaceId(null);
+                  setHighlightedMerchant(null);
+                }}
+              />
               <View style={{ flex: 1 }}>
                 <Text style={{ fontSize: 15, fontWeight: '700', color: Colors.light.cardTitle }}>
                   {selectedPlace.myPlaceName}
@@ -442,12 +533,25 @@ export default function MapScreen() {
               </Text>
             </View>
 
-            <Scroll height={merchantListHeight} style={{ paddingHorizontal: 16 }}>
+            <Scroll ref={merchantScrollRef} height={merchantListHeight} style={{ paddingHorizontal: 16 }}>
               {/* Scroll은 contentContainerStyle을 안 받아서, 카드 사이 간격(gap)은 View로 한 번 감싸서 준다. */}
               <View style={{ gap: 12 }}>
               {placeMerchants.map((merchant) => (
-                <AccordionCard
+                <View
                   key={merchant.name}
+                  // 각 카드의 세로 위치를 기록해뒀다가, 지도에서 이 가맹점 마커를 누르면 그 위치로 스크롤한다.
+                  onLayout={(event) => {
+                    merchantCardOffsets.current[merchant.name] = event.nativeEvent.layout.y;
+                  }}>
+                <AccordionCard
+                  // 카드를 누르면 지도 중심을 이 가맹점 위치로 옮긴다(아코디언 토글과 함께 동작).
+                  onPress={() =>
+                    merchant.latitude != null &&
+                    mapRef.current?.setCenter({ lat: merchant.latitude, lng: merchant.longitude! })
+                  }
+                  style={
+                    highlightedMerchant === merchant.name && { borderWidth: 2, borderColor: Colors.light.primary }
+                  }
                   header={
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                       <View>
@@ -484,6 +588,7 @@ export default function MapScreen() {
                     ))}
                   </View>
                 </AccordionCard>
+                </View>
               ))}
               </View>
             </Scroll>

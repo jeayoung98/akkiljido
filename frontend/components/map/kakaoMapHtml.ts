@@ -52,10 +52,30 @@ export function buildMapHtml({ initialCenter, initialLevel = 3 }: BuildMapHtmlPa
     }
     .my-location-dot { background: ${MY_LOCATION_COLOR}; }
     .my-place-dot { background: ${PIN_COLOR}; }
+    /* 로드뷰는 평소엔 숨겨져 있다가, 열리면 위쪽 2/3을 덮는다. 아래쪽 1/3은 #map이 그대로 비쳐서
+       지금 어디를 보고 있는지 알 수 있고, 그 부분은 원래 지도라 그대로 줌/이동이 된다. */
+    #roadview { display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 33%; z-index: 10; }
+    /* 로드뷰 위치/시선 방향 마커. 흰 점(위치) 위에 화살표(시선 방향, pan 각도만큼 회전)를 겹친다. */
+    .roadview-marker { position: relative; width: 1px; height: 1px; }
+    .roadview-marker-dot {
+      position: absolute; top: 0; left: 0; transform: translate(-50%, -50%);
+      width: 14px; height: 14px; border-radius: 50%;
+      background: #fff; border: 2px solid #4285F4; box-shadow: 0 0 4px rgba(0,0,0,0.4);
+    }
+    .roadview-marker-arrow {
+      position: absolute; top: 0; left: 0;
+      width: 0; height: 0;
+      border-left: 7px solid transparent;
+      border-right: 7px solid transparent;
+      border-bottom: 16px solid rgba(66,133,244,0.55);
+      transform-origin: 50% 26px;
+      transform: translate(-50%, -26px) rotate(0deg);
+    }
   </style>
 </head>
 <body>
   <div id="map"></div>
+  <div id="roadview"></div>
   <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=${KAKAO_JS_KEY}"></script>
   <script>
     const map = new kakao.maps.Map(document.getElementById('map'), {
@@ -192,8 +212,89 @@ export function buildMapHtml({ initialCenter, initialLevel = 3 }: BuildMapHtmlPa
       });
     }
 
+    // ── 로드뷰 ────────────────────────────────────────────────────────
+    // 모드를 켜면 로드뷰가 있는 도로가 파란 선으로 표시되고, 그 상태에서 지도를 탭하면
+    // 가까운 로드뷰 지점을 찾아 거리 사진을 지도 위에 꽉 채워 띄운다.
+    let roadviewMode = false;
+    let roadview = null;
+    let roadviewClient = null;
+    let roadviewMarker = null; // 아래쪽 지도에 로드뷰 위치/시선 방향을 보여주는 CustomOverlay
+    let roadviewArrowEl = null; // 시선 방향 화살표 DOM. viewpoint_changed 때마다 회전만 갱신한다.
+    const roadviewContainer = document.getElementById('roadview');
+
+    function ensureRoadviewMarker(position) {
+      if (!roadviewMarker) {
+        const wrap = document.createElement('div');
+        wrap.className = 'roadview-marker';
+        wrap.innerHTML = '<div class="roadview-marker-arrow"></div><div class="roadview-marker-dot"></div>';
+        roadviewArrowEl = wrap.querySelector('.roadview-marker-arrow');
+        roadviewMarker = new kakao.maps.CustomOverlay({ content: wrap, zIndex: 5 });
+      }
+      roadviewMarker.setPosition(position);
+      roadviewMarker.setMap(map);
+    }
+
+    function updateRoadviewHeading() {
+      if (!roadview || !roadviewArrowEl) return;
+      const pan = roadview.getViewpoint().pan;
+      roadviewArrowEl.style.transform = 'translate(-50%, -26px) rotate(' + pan + 'deg)';
+    }
+
+    function setRoadviewMode(on) {
+      roadviewMode = on;
+      if (on) {
+        map.addOverlayMapTypeId(kakao.maps.MapTypeId.ROADVIEW);
+      } else {
+        map.removeOverlayMapTypeId(kakao.maps.MapTypeId.ROADVIEW);
+        closeRoadview();
+      }
+    }
+
+    function openRoadviewAt(lat, lng) {
+      const position = new kakao.maps.LatLng(lat, lng);
+      if (!roadviewClient) {
+        roadviewClient = new kakao.maps.RoadviewClient();
+      }
+      // 탭한 지점 반경 50m 안에서 가장 가까운 로드뷰 지점을 찾는다. 없으면 null이 온다.
+      roadviewClient.getNearestPanoId(position, 50, function (panoId) {
+        if (panoId === null) {
+          window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'roadviewUnavailable' }));
+          return;
+        }
+        roadviewContainer.style.display = 'block';
+        if (!roadview) {
+          roadview = new kakao.maps.Roadview(roadviewContainer);
+          // 드래그로 시선을 돌릴 때마다 화살표 방향을 갱신한다.
+          kakao.maps.event.addListener(roadview, 'viewpoint_changed', updateRoadviewHeading);
+        }
+        roadview.setPanoId(panoId, position);
+        ensureRoadviewMarker(position);
+        updateRoadviewHeading();
+        // #map은 화면 전체 크기라서 setCenter만 하면 화면 정중앙(로드뷰에 가려진 위쪽)으로 맞춰진다.
+        // 실제 보이는 건 아래쪽 1/3뿐이라, 그 영역의 가운데(화면 전체 기준 5/6 지점)로 오도록
+        // 화면 세로 길이의 1/3만큼 더 내려(panBy) 보정한다.
+        map.setCenter(position);
+        map.panBy(0, -(window.innerHeight / 3));
+        window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'roadview', open: true }));
+      });
+    }
+
+    function closeRoadview() {
+      if (roadviewContainer.style.display !== 'block') return;
+      roadviewContainer.style.display = 'none';
+      if (roadviewMarker) {
+        roadviewMarker.setMap(null);
+      }
+      window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'roadview', open: false }));
+    }
+
     kakao.maps.event.addListener(map, 'click', function (mouseEvent) {
       const latlng = mouseEvent.latLng;
+      // 로드뷰 모드 중에는 지도 탭이 "위치 선택"이 아니라 "이 지점 로드뷰 열기"로 동작한다.
+      if (roadviewMode) {
+        openRoadviewAt(latlng.getLat(), latlng.getLng());
+        return;
+      }
       window.ReactNativeWebView.postMessage(
         JSON.stringify({ type: 'tap', lat: latlng.getLat(), lng: latlng.getLng() })
       );

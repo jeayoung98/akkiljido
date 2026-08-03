@@ -17,6 +17,11 @@ export type KakaoMapHandle = {
   // 지도 중심을 특정 좌표로 옮긴다. "내 위치로 이동" 버튼처럼, 좌표값이 이전과 같아서
   // HTML이 재생성되지 않는 경우에도(=WebView가 재로딩을 안 하는 경우에도) 확실히 이동시키기 위해 쓴다.
   setCenter: (coords: LatLng) => void;
+  // 로드뷰 모드를 켜고 끈다. 켜면 로드뷰가 있는 도로가 파란 선으로 표시되고,
+  // 그동안 지도 탭은 위치 선택 대신 "그 지점 로드뷰 열기"로 동작한다.
+  setRoadviewMode: (on: boolean) => void;
+  // 열려 있는 로드뷰(거리 사진)를 닫고 지도로 돌아온다. 로드뷰 모드 자체는 유지된다.
+  closeRoadview: () => void;
 };
 
 type KakaoMapProps = {
@@ -40,6 +45,10 @@ type KakaoMapProps = {
   onMarkerPress?: (id: string) => void;
   // 지도 확대/축소 레벨이 바뀔 때마다 알려준다(줌 버튼으로 바꾼 경우 + 사용자가 직접 핀치줌한 경우 둘 다 포함).
   onLevelChange?: (level: number) => void;
+  // 로드뷰(거리 사진)가 열리거나 닫힐 때 알려준다. 화면이 닫기 버튼 표시 여부를 정하는 데 쓴다.
+  onRoadviewChange?: (open: boolean) => void;
+  // 로드뷰 모드에서 탭한 지점 근처(50m)에 로드뷰가 없을 때 알려준다.
+  onRoadviewUnavailable?: () => void;
   style?: StyleProp<ViewStyle>;
 };
 
@@ -56,6 +65,8 @@ export const KakaoMap = forwardRef<KakaoMapHandle, KakaoMapProps>(function Kakao
     onPinPress,
     onMarkerPress,
     onLevelChange,
+    onRoadviewChange,
+    onRoadviewUnavailable,
     style,
   },
   ref
@@ -87,6 +98,12 @@ export const KakaoMap = forwardRef<KakaoMapHandle, KakaoMapProps>(function Kakao
       webViewRef.current?.injectJavaScript(
         `map.setCenter(new kakao.maps.LatLng(${coords.lat}, ${coords.lng})); true;`
       );
+    },
+    setRoadviewMode: (on) => {
+      webViewRef.current?.injectJavaScript(`setRoadviewMode(${on}); true;`);
+    },
+    closeRoadview: () => {
+      webViewRef.current?.injectJavaScript('closeRoadview(); true;');
     },
   }));
 
@@ -135,6 +152,10 @@ export const KakaoMap = forwardRef<KakaoMapHandle, KakaoMapProps>(function Kakao
       onSelectLocation?.({ lat: message.lat, lng: message.lng });
     } else if (message.type === 'level') {
       onLevelChange?.(message.level);
+    } else if (message.type === 'roadview') {
+      onRoadviewChange?.(message.open);
+    } else if (message.type === 'roadviewUnavailable') {
+      onRoadviewUnavailable?.();
     }
   };
 

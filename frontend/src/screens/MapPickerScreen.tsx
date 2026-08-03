@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button } from '@/components/common/button/Button';
@@ -11,6 +11,7 @@ import BaseCard from '@/components/common/card/BaseCard';
 import { SearchInput } from '@/components/common/input/SearchInput';
 import { Scroll } from '@/components/common/Scroll';
 import { KakaoMap, type KakaoMapHandle } from '@/components/map/KakaoMap';
+import { MapZoom } from '@/components/map/MapZoom';
 import Colors from '@/constants/Colors';
 import { useMapPickerStore } from '@/store/mapPickerStore';
 import { reverseGeocode } from '@/utils/kakaoGeocode';
@@ -18,6 +19,9 @@ import { searchPlaces, type PlaceResult } from '@/utils/kakaoSearch';
 
 const DEFAULT_CENTER = { lat: 37.5665, lng: 126.978 };
 const LIST_HEIGHT = 160;
+// 오른쪽에 세로로 쌓이는 컨트롤들의 높이. 검색줄(44) 아래 내 위치 → 줌 → 로드뷰 순서로 배치하는 계산에 쓴다.
+const LOCATE_BUTTON_HEIGHT = 44;
+const ZOOM_CONTROL_HEIGHT = 89; // MapZoom 높이(버튼 44 x 2 + 구분선 1)
 
 // 지도에서 장소를 선택하는 화면
 export default function MapPickerScreen() {
@@ -36,6 +40,11 @@ export default function MapPickerScreen() {
   const [hasSearched, setHasSearched] = useState(false);
   // 현재 위치. 권한 거부/실패 시 null로 남고, 그럴 땐 DEFAULT_CENTER를 대신 쓴다.
   const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number } | null>(null);
+
+  // 로드뷰 모드(도로 파란 선 표시)가 켜져 있는지. 켜져 있는 동안 지도 탭은 위치 선택 대신 로드뷰 열기로 동작한다.
+  const [roadviewMode, setRoadviewMode] = useState(false);
+  // 로드뷰(거리 사진)가 실제로 떠 있는지. WebView 쪽에서 열리고 닫힐 때 알려준다.
+  const [roadviewOpen, setRoadviewOpen] = useState(false);
 
   const mapRef = useRef<KakaoMapHandle>(null);
   const scrollViewRef = useRef<ScrollView>(null);
@@ -138,8 +147,15 @@ export default function MapPickerScreen() {
 
   // 지도를 탭했을 때 호출되는 함수. 탭한 좌표를 selected로 반영한다.
   // (검색과 달리 리스트에서 고르는 게 아니라 좌표 하나뿐이라, 확정 전에 주소를 보여주고 확인받는 단계가 필요하다.)
+  // 로드뷰 모드 중에는 WebView 쪽에서 탭을 로드뷰 열기로 가로채기 때문에 이 함수는 호출되지 않는다.
   const handleMapTap = (coords: { lat: number; lng: number }) => {
     selectLocation(coords);
+  };
+
+  const handleToggleRoadview = () => {
+    const next = !roadviewMode;
+    setRoadviewMode(next);
+    mapRef.current?.setRoadviewMode(next);
   };
 
   // 지도 탭으로 뜬 확인 카드의 "선택" 버튼을 눌렀을 때 호출되는 함수. 고른 위치를 전역 store에 저장하고 이전 화면으로 돌아간다.
@@ -165,30 +181,91 @@ export default function MapPickerScreen() {
         selectedPin={selected ? { lat: selected.lat, lng: selected.lng } : undefined}
         onSelectLocation={handleMapTap}
         onPinPress={handlePinPress}
+        onRoadviewChange={setRoadviewOpen}
+        onRoadviewUnavailable={() =>
+          Alert.alert('로드뷰가 없는 지점이에요', '파란 선이 표시된 도로 근처를 눌러주세요.')
+        }
         style={{ flex: 1 }}
       />
 
-      <SearchInput
-        value={searchText}
-        onChangeText={setSearchText}
-        onSubmitEditing={() => handleSearch(searchText)}
-        onSearchPress={() => handleSearch(searchText)}
-        containerStyle={{ position: 'absolute', top: insets.top + 16, left: 16, right: 16 }}
-      />
+      {/* 로드뷰(거리 사진)가 떠 있는 동안엔 검색 대신 닫기 버튼만 보여준다.
+          다만 지도는 아래쪽 1/3에 그대로 보이니, 그 지도를 조작할 줌 컨트롤은 그 위에 계속 띄워둔다. */}
+      {roadviewOpen ? (
+        <>
+          <IconButton
+            name="close"
+            color={Colors.light.primary}
+            onPress={() => mapRef.current?.closeRoadview()}
+            style={{
+              position: 'absolute',
+              top: insets.top + 16,
+              right: 16,
+              backgroundColor: '#fff',
+              borderRadius: 999,
+              padding: 10,
+            }}
+          />
+          <MapZoom
+            onZoomIn={() => mapRef.current?.zoomIn()}
+            onZoomOut={() => mapRef.current?.zoomOut()}
+            style={{
+              position: 'absolute',
+              bottom: insets.bottom + 16,
+              right: 16,
+            }}
+          />
+        </>
+      ) : (
+        <>
+          <SearchInput
+            value={searchText}
+            onChangeText={setSearchText}
+            onSubmitEditing={() => handleSearch(searchText)}
+            onSearchPress={() => handleSearch(searchText)}
+            containerStyle={{ position: 'absolute', top: insets.top + 16, left: 16, right: 16 }}
+          />
 
-      <IconButton
-        name="locate"
-        color={Colors.light.primary}
-        onPress={handleLocate}
-        style={{
-          position: 'absolute',
-          top: insets.top + 16 + 44 + 16,
-          right: 16,
-          backgroundColor: '#fff',
-          borderRadius: 999,
-          padding: 10,
-        }}
-      />
+          <IconButton
+            name="locate"
+            color={Colors.light.primary}
+            onPress={handleLocate}
+            style={{
+              position: 'absolute',
+              top: insets.top + 16 + 44 + 16,
+              right: 16,
+              backgroundColor: '#fff',
+              borderRadius: 999,
+              padding: 10,
+            }}
+          />
+
+          {/* 줌 컨트롤. 지도 탭과 달리 단계 점프 없이 한 레벨씩 확대/축소한다. */}
+          <MapZoom
+            onZoomIn={() => mapRef.current?.zoomIn()}
+            onZoomOut={() => mapRef.current?.zoomOut()}
+            style={{
+              position: 'absolute',
+              top: insets.top + 16 + 44 + 16 + LOCATE_BUTTON_HEIGHT + 12,
+              right: 16,
+            }}
+          />
+
+          {/* 로드뷰 모드 토글. 켜면 초록 배경으로 바뀌고, 지도 탭이 위치 선택 대신 로드뷰 열기로 동작한다. */}
+          <IconButton
+            name="roadview"
+            color={roadviewMode ? '#fff' : Colors.light.primary}
+            onPress={handleToggleRoadview}
+            style={{
+              position: 'absolute',
+              top: insets.top + 16 + 44 + 16 + LOCATE_BUTTON_HEIGHT + 12 + ZOOM_CONTROL_HEIGHT + 12,
+              right: 16,
+              backgroundColor: roadviewMode ? Colors.light.primary : '#fff',
+              borderRadius: 999,
+              padding: 10,
+            }}
+          />
+        </>
+      )}
 
       {hasSearched && !selected && (
         results.length > 0 ? (

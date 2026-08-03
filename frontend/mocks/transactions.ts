@@ -161,7 +161,7 @@ export type Transaction = {
 };
 
 const START_DATE = new Date('2026-05-05T00:00:00+09:00');
-const END_DATE = new Date('2026-08-02T00:00:00+09:00');
+const END_DATE = new Date('2026-08-10T00:00:00+09:00');
 const PAYMENT_METHODS = ['카카오페이', '신한카드', '현금'];
 
 function generateTransactions(): Transaction[] {

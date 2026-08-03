@@ -15,11 +15,13 @@ type AccordionCardProps = {
   header: ReactNode; // 항상 보이는 부분. 헤더 줄 전체를 눌러도 토글된다.
   children: ReactNode; // 펼쳤을 때만 보이는 상세 내용
   defaultOpen?: boolean; // 처음부터 펼쳐진 상태로 시작할지 여부
+  // 헤더를 눌렀을 때 토글에 더해서 실행할 동작 (예: 지도 탭에서 카드를 누르면 지도 중심을 그 가게로 이동)
+  onPress?: () => void;
   style?: StyleProp<ViewStyle>;
 };
 
 // 펼침/접힘 기능을 가진 공통 카드 컴포넌트
-export default function AccordionCard({ header, children, defaultOpen = false, style }: AccordionCardProps) {
+export default function AccordionCard({ header, children, defaultOpen = false, onPress, style }: AccordionCardProps) {
   const [open, setOpen] = useState(defaultOpen);
 
   // 펼침/접힘 상태 변경
@@ -31,7 +33,12 @@ export default function AccordionCard({ header, children, defaultOpen = false, s
 
   return (
     <View style={[styles.card, style]}>
-      <Pressable style={styles.header} onPress={toggle}>
+      <Pressable
+        style={styles.header}
+        onPress={() => {
+          toggle();
+          onPress?.();
+        }}>
         <View style={styles.headerContent}>{header}</View>
         {/* chevronDown 아이콘을 별도로 만들지 않고, 열렸을 때 180도 회전시켜 위쪽을 가리키게 한다 */}
         <IconButton
