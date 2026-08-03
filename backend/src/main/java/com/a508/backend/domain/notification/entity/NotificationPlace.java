@@ -39,8 +39,6 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class NotificationPlace {
 
-	private static final long NOTIFICATION_WINDOW_MINUTES = 30L;
-
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	@Column(name = "notification_place_id")
@@ -89,7 +87,8 @@ public class NotificationPlace {
 		String notificationPlaceName,
 		String address,
 		Point coordinate,
-		LocalTime notificationTime,
+		LocalTime startTime,
+		LocalTime endTime,
 		String reason
 	) {
 		this.user = user;
@@ -97,17 +96,18 @@ public class NotificationPlace {
 		this.address = address;
 		this.coordinate = coordinate;
 		this.reason = reason;
-		updateNotificationTime(notificationTime);
+		updateNotificationTimeRange(startTime, endTime);
 	}
 
-	/** 기준 알림 시각을 중심으로 전후 30분의 알림 장소를 생성한다. */
+	/** 사용자가 지정한 시작 및 종료 시각으로 알림 장소를 생성한다. */
 	public static NotificationPlace create(
 		User user,
 		String notificationPlaceName,
 		String address,
 		Double latitude,
 		Double longitude,
-		LocalTime notificationTime,
+		LocalTime startTime,
+		LocalTime endTime,
 		String reason
 	) {
 		return new NotificationPlace(
@@ -115,15 +115,16 @@ public class NotificationPlace {
 			notificationPlaceName,
 			address,
 			GeometryUtils.toPoint(latitude, longitude),
-			notificationTime,
+			startTime,
+			endTime,
 			reason
 		);
 	}
 
-	/** 기준 알림 시각을 중심으로 시작 및 종료 시각을 각각 30분 전후로 변경한다. */
-	public void updateNotificationTime(LocalTime notificationTime) {
-		this.startTime = notificationTime.minusMinutes(NOTIFICATION_WINDOW_MINUTES);
-		this.endTime = notificationTime.plusMinutes(NOTIFICATION_WINDOW_MINUTES);
+	/** 알림이 활성화되는 시작 및 종료 시각을 함께 변경한다. */
+	public void updateNotificationTimeRange(LocalTime startTime, LocalTime endTime) {
+		this.startTime = startTime;
+		this.endTime = endTime;
 	}
 
 	public Double getLatitude() {
