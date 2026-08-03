@@ -1,8 +1,5 @@
 package com.a508.backend.domain.analysis.service;
 
-import java.time.LocalDate;
-import java.time.OffsetDateTime;
-import java.time.YearMonth;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
@@ -16,6 +13,7 @@ import com.a508.backend.domain.analysis.repository.CategoryExpenseSummary;
 import com.a508.backend.domain.mypage.domain.MyPlace;
 import com.a508.backend.domain.mypage.service.MyPlaceService;
 import com.a508.backend.domain.transaction_history.entity.TransactionHistory;
+import com.a508.backend.global.util.DateTimeRange;
 import com.a508.backend.global.util.DateTimeUtils;
 import com.a508.backend.global.util.GeometryUtils;
 
@@ -34,15 +32,10 @@ public class AnalysisService {
     /** 선택한 연도와 월을 기준으로 카테고리별 지출 금액과 비율을 조회한다. */
     @Transactional(readOnly = true)
     public CategoryAnalysisResponse getCategoryAnalysis(Long userId, int year, int month) {
-        YearMonth selectedMonth = YearMonth.of(year, month);
-        LocalDate startDate = selectedMonth.atDay(1);
-        LocalDate endDate = selectedMonth.plusMonths(1).atDay(1);
-
-        OffsetDateTime startDateTime = DateTimeUtils.startOfDay(startDate);
-        OffsetDateTime endDateTime = DateTimeUtils.startOfDay(endDate);
+        DateTimeRange range = DateTimeUtils.monthRange(year, month);
 
         List<CategoryExpenseSummary> summaries =
-                analysisRepository.findCategoryExpenses(userId, startDateTime, endDateTime);
+                analysisRepository.findCategoryExpenses(userId, range.start(), range.end());
 
         return CategoryAnalysisResponse.from(summaries);
     }
@@ -50,15 +43,10 @@ public class AnalysisService {
     /** 선택한 월의 전체 지출과 등록한 내 장소별 반경 2km 내 지출을 조회한다. */
     @Transactional(readOnly = true)
     public MyPlaceAnalysisResponse getMyPlaceAnalysis(Long userId, int year, int month) {
-        YearMonth selectedMonth = YearMonth.of(year, month);
-        LocalDate startDate = selectedMonth.atDay(1);
-        LocalDate endDate = selectedMonth.plusMonths(1).atDay(1);
-
-        OffsetDateTime startDateTime = DateTimeUtils.startOfDay(startDate);
-        OffsetDateTime endDateTime = DateTimeUtils.startOfDay(endDate);
+        DateTimeRange range = DateTimeUtils.monthRange(year, month);
 
         List<TransactionHistory> expenses =
-                analysisRepository.findExpenses(userId, startDateTime, endDateTime);
+                analysisRepository.findExpenses(userId, range.start(), range.end());
 
         long totalAmount = expenses.stream()
                 .mapToLong(TransactionHistory::getAmount)

@@ -1,9 +1,11 @@
 package com.a508.backend.global.util;
 
 import java.time.DayOfWeek;
+import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
+import java.time.YearMonth;
 import java.time.ZoneId;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.TemporalAdjusters;
@@ -71,5 +73,24 @@ public final class DateTimeUtils {
     /** 조회 종료 경계(미만 비교용). 다음 날의 00:00:00(KST). */
     public static OffsetDateTime startOfNextDay(LocalDate date) {
         return date.plusDays(1).atStartOfDay(SERVICE_ZONE).toOffsetDateTime();
+    }
+
+    /** 선택한 연월의 시작 시각(포함)과 다음 달 시작 시각(미포함)을 반환한다. */
+    public static DateTimeRange monthRange(int year, int month) {
+        YearMonth selectedMonth = YearMonth.of(year, month);
+
+        OffsetDateTime start = startOfDay(selectedMonth.atDay(1));
+        OffsetDateTime end = startOfDay(selectedMonth.plusMonths(1).atDay(1));
+
+        return new DateTimeRange(start, end);
+    }
+
+    /** 연도·월·일을 날짜로 만들고, 존재하지 않는 날짜이면 캘린더 날짜 오류를 던진다. */
+    public static LocalDate createDate(int year, int month, int day) {
+        try {
+            return LocalDate.of(year, month, day);
+        } catch (DateTimeException e) {
+            throw new BusinessException(ExceptionType.INVALID_CALENDAR_DATE);
+        }
     }
 }
