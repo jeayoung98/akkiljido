@@ -20,6 +20,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import com.a508.backend.domain.fcm.dto.FcmTestResponse;
 import com.a508.backend.domain.fcm.dto.FcmTokenRegisterRequest;
+import com.a508.backend.domain.fcm.dto.FcmTokenUnregisterRequest;
 import com.a508.backend.domain.fcm.entity.DeviceType;
 import com.a508.backend.domain.fcm.service.FcmService;
 import com.a508.backend.global.exception.BusinessException;
@@ -129,6 +130,43 @@ class FcmControllerTest {
 			.andExpect(status().isBadRequest())
 			.andExpect(jsonPath("$.success").value(false))
 			.andExpect(jsonPath("$.code").value("C004"));
+
+		verifyNoInteractions(fcmService);
+	}
+
+	@Test
+	@DisplayName("DELETE /api/v1/fcm은 로그인 사용자의 푸시 토큰을 해제한다")
+	void unregisterPushToken() throws Exception {
+		mockMvc.perform(delete("/api/v1/fcm")
+				.contentType(APPLICATION_JSON)
+				.content("""
+					{
+					  "pushToken": "fcm-push-token"
+					}
+					"""))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.success").value(true));
+
+		verify(fcmService).unregisterPushToken(
+			USER_ID,
+			new FcmTokenUnregisterRequest(PUSH_TOKEN)
+		);
+	}
+
+	@Test
+	@DisplayName("해제할 푸시 토큰이 공백이면 400과 C002를 반환한다")
+	void rejectBlankUnregisterPushToken() throws Exception {
+		mockMvc.perform(delete("/api/v1/fcm")
+				.contentType(APPLICATION_JSON)
+				.content("""
+					{
+					  "pushToken": " "
+					}
+					"""))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.success").value(false))
+			.andExpect(jsonPath("$.code").value("C002"))
+			.andExpect(jsonPath("$.msg").value("푸시 토큰은 필수입니다."));
 
 		verifyNoInteractions(fcmService);
 	}

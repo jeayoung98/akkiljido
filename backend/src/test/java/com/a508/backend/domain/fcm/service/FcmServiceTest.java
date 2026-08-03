@@ -17,6 +17,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import com.a508.backend.domain.fcm.dto.FcmTestResponse;
 import com.a508.backend.domain.fcm.dto.FcmTokenRegisterRequest;
+import com.a508.backend.domain.fcm.dto.FcmTokenUnregisterRequest;
 import com.a508.backend.domain.fcm.entity.DeviceType;
 import com.a508.backend.domain.fcm.entity.UserPushToken;
 import com.a508.backend.domain.fcm.repository.UserPushTokenRepository;
@@ -97,6 +98,41 @@ class FcmServiceTest {
 		assertThat(existingPushToken.getPushToken()).isEqualTo(PUSH_TOKEN);
 
 		verify(userPushTokenRepository, never()).save(any(UserPushToken.class));
+	}
+
+	@Test
+	@DisplayName("현재 사용자의 푸시 토큰을 정규화하여 해제한다")
+	void unregisterPushToken() {
+		User user = User.createGoogleGuest("provider-sub");
+		FcmTokenUnregisterRequest request =
+			new FcmTokenUnregisterRequest("  " + PUSH_TOKEN + "  ");
+
+		when(userService.getUser(USER_ID)).thenReturn(user);
+		when(userPushTokenRepository.deleteByUser_IdAndPushToken(USER_ID, PUSH_TOKEN))
+			.thenReturn(1L);
+
+		fcmService.unregisterPushToken(USER_ID, request);
+
+		verify(userPushTokenRepository)
+			.deleteByUser_IdAndPushToken(USER_ID, PUSH_TOKEN);
+	}
+
+	@Test
+	@DisplayName("등록되지 않은 푸시 토큰을 해제해도 예외를 던지지 않는다")
+	void unregisterMissingPushToken() {
+		User user = User.createGoogleGuest("provider-sub");
+		FcmTokenUnregisterRequest request =
+			new FcmTokenUnregisterRequest(PUSH_TOKEN);
+
+		when(userService.getUser(USER_ID)).thenReturn(user);
+		when(userPushTokenRepository.deleteByUser_IdAndPushToken(USER_ID, PUSH_TOKEN))
+			.thenReturn(0L);
+
+		assertThatCode(() -> fcmService.unregisterPushToken(USER_ID, request))
+			.doesNotThrowAnyException();
+
+		verify(userPushTokenRepository)
+			.deleteByUser_IdAndPushToken(USER_ID, PUSH_TOKEN);
 	}
 
 	// TODO: 테스트 알림 API 삭제 시 아래 테스트 전용 발송 로직 테스트들을 함께 삭제한다.
