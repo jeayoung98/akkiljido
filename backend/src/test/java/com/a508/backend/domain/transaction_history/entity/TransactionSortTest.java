@@ -7,7 +7,6 @@ import java.util.Locale;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.data.domain.Sort;
 
 import com.a508.backend.global.exception.BusinessException;
 import com.a508.backend.global.exception.ExceptionType;
@@ -55,9 +54,9 @@ class TransactionSortTest {
 	}
 
 	@Test
-	@DisplayName("정렬 기준은 datetime 컬럼이며 최신순은 내림차순이다")
-	void convertsToSort() {
-		assertThat(TransactionSort.LATEST.toSort()).isEqualTo(Sort.by(Sort.Direction.DESC, "datetime"));
-		assertThat(TransactionSort.OLDEST.toSort()).isEqualTo(Sort.by(Sort.Direction.ASC, "datetime"));
+	@DisplayName("최신순은 내림차순, 과거순은 오름차순이다")
+	void exposesSortDirection() {
+		assertThat(TransactionSort.LATEST.isAscending()).isFalse();
+		assertThat(TransactionSort.OLDEST.isAscending()).isTrue();
 	}
 }

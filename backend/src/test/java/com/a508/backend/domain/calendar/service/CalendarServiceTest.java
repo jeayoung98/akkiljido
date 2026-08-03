@@ -51,7 +51,7 @@ class CalendarServiceTest {
                 createTransaction(LocalDateTime.of(2024, 7, 13, 10, 0), 45000L, TransactionType.EXPENSE));
 
         when(transactionHistoryRepository
-                .findAllByUser_IdAndDatetimeGreaterThanEqualAndDatetimeLessThanOrderByDatetimeAsc(
+                .findAllByUserIdAndDatetimeRange(
                         USER_ID, startDateTime, endDateTime))
                 .thenReturn(transactions);
 
@@ -70,7 +70,7 @@ class CalendarServiceTest {
         assertThat(july13.income()).isZero();
 
         verify(transactionHistoryRepository)
-                .findAllByUser_IdAndDatetimeGreaterThanEqualAndDatetimeLessThanOrderByDatetimeAsc(
+                .findAllByUserIdAndDatetimeRange(
                         USER_ID, startDateTime, endDateTime);
     }
 
@@ -81,7 +81,7 @@ class CalendarServiceTest {
         OffsetDateTime endDateTime = DateTimeUtils.startOfDay(LocalDate.of(2024, 8, 1));
 
         when(transactionHistoryRepository
-                .findAllByUser_IdAndDatetimeGreaterThanEqualAndDatetimeLessThanOrderByDatetimeAsc(
+                .findAllByUserIdAndDatetimeRange(
                         USER_ID, startDateTime, endDateTime))
                 .thenReturn(List.of());
 
@@ -105,7 +105,7 @@ class CalendarServiceTest {
                 .build();
 
         when(transactionHistoryRepository
-                .findAllByUser_IdAndDatetimeGreaterThanEqualAndDatetimeLessThanOrderByDatetimeAsc(
+                .findAllByUserIdAndDatetimeRange(
                         USER_ID, startDateTime, endDateTime))
                 .thenReturn(List.of(transaction));
 
@@ -135,7 +135,7 @@ class CalendarServiceTest {
                         "장보기", 82400L, TransactionType.EXPENSE));
 
         when(transactionHistoryRepository
-                .findAllByUser_IdAndDatetimeGreaterThanEqualAndDatetimeLessThanOrderByDatetimeAsc(
+                .findAllByUserIdAndDatetimeRange(
                         USER_ID, startDateTime, endDateTime))
                 .thenReturn(transactions);
 
@@ -156,7 +156,7 @@ class CalendarServiceTest {
         assertThat(response.transactionList().get(1).type()).isEqualTo(TransactionType.EXPENSE);
 
         verify(transactionHistoryRepository)
-                .findAllByUser_IdAndDatetimeGreaterThanEqualAndDatetimeLessThanOrderByDatetimeAsc(
+                .findAllByUserIdAndDatetimeRange(
                         USER_ID, startDateTime, endDateTime);
     }
 
@@ -168,7 +168,7 @@ class CalendarServiceTest {
         OffsetDateTime endDateTime = DateTimeUtils.startOfNextDay(selectedDate);
 
         when(transactionHistoryRepository
-                .findAllByUser_IdAndDatetimeGreaterThanEqualAndDatetimeLessThanOrderByDatetimeAsc(
+                .findAllByUserIdAndDatetimeRange(
                         USER_ID, startDateTime, endDateTime))
                 .thenReturn(List.of());
 
@@ -198,7 +198,7 @@ class CalendarServiceTest {
         OffsetDateTime endDateTime = DateTimeUtils.startOfNextDay(selectedDate);
 
         when(transactionHistoryRepository
-                .findAllByUser_IdAndDatetimeGreaterThanEqualAndDatetimeLessThanOrderByDatetimeAsc(
+                .findAllByUserIdAndDatetimeRange(
                         USER_ID, startDateTime, endDateTime))
                 .thenReturn(List.of());
 
@@ -206,7 +206,7 @@ class CalendarServiceTest {
 
         assertThat(response.date()).isEqualTo(selectedDate);
         verify(transactionHistoryRepository)
-                .findAllByUser_IdAndDatetimeGreaterThanEqualAndDatetimeLessThanOrderByDatetimeAsc(
+                .findAllByUserIdAndDatetimeRange(
                         USER_ID, startDateTime, endDateTime);
     }
 

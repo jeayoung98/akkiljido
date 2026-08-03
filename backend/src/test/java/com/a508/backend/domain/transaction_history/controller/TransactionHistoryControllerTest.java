@@ -90,7 +90,7 @@ class TransactionHistoryControllerTest {
 			  "amount": 15000,
 			  "type": "EXPENSE",
 			  "payment_method": "카드",
-			  "category": 3,
+			  "categoryId": 3,
 			  "datetime": "2026-07-27 15:30:00",
 			  "address": "서울 강남구 테헤란로",
 			  "latitude": 37.5006,
@@ -133,7 +133,7 @@ class TransactionHistoryControllerTest {
 			  "amount": 15000,
 			  "type": "EXPENSE",
 			  "payment_method": "카드",
-			  "category": 3,
+			  "categoryId": 3,
 			  "datetime": "2026-07-27 15:30:00"
 			}
 			""";
@@ -194,7 +194,7 @@ class TransactionHistoryControllerTest {
 			  "amount": 20000,
 			  "type": "EXPENSE",
 			  "payment_method": "현금",
-			  "category": 5,
+			  "categoryId": 5,
 			  "datetime": "2026-07-24 09:00:00",
 			  "address": "서울 강남구 역삼동",
 			  "latitude": 35.1796,

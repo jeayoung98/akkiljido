@@ -94,33 +94,36 @@ public class TransactionHistoryService {
 
 	@Transactional(readOnly = true)
 	public TransactionListResponse getTransactionList(
-		Long userId, String sort, String type, String startDate, String endDate, Long categoryId) {
+		Long userId, String sort, String type, String startDate, String endDate, List<Long> categoryIds) {
 		return TransactionListResponse.of(
-			findTransactions(userId, null, sort, type, startDate, endDate, categoryId));
+			findTransactions(userId, null, sort, type, startDate, endDate, categoryIds));
 	}
 
 	@Transactional(readOnly = true)
 	public TransactionSearchResponse searchTransactions(
-		Long userId, String query, String sort, String type, String startDate, String endDate, Long categoryId) {
+		Long userId, String query, String sort, String type, String startDate, String endDate,
+		List<Long> categoryIds) {
 		return TransactionSearchResponse.of(
-			findTransactions(userId, query, sort, type, startDate, endDate, categoryId));
+			findTransactions(userId, query, sort, type, startDate, endDate, categoryIds));
 	}
 
 	/**
 	 * 목록 조회와 검색이 공유하는 조회 로직. 검색어(query)만 다르고 나머지 필터·정렬·검증은 동일하다.
 	 *
-	 * @param query 정규화된 검색어. null 이면 검색어 필터 없이 전체 조회
+	 * @param query       정규화된 검색어. null 이면 검색어 필터 없이 전체 조회
+	 * @param categoryIds 카테고리 다중 필터. null 이거나 비어 있으면 카테고리 필터 없이 전체 조회
 	 */
 	private List<TransactionHistory> findTransactions(
-		Long userId, String query, String sort, String type, String startDate, String endDate, Long categoryId) {
+		Long userId, String query, String sort, String type, String startDate, String endDate,
+		List<Long> categoryIds) {
 		TransactionSort transactionSort = TransactionSort.from(sort);
 		TransactionType typeFilter = parseTypeFilter(type);
 		DateRange dateRange = DateRange.ofThisMonth(startDate, endDate);
-		categoryService.validateOwnership(userId, categoryId);
+		categoryService.validateOwnership(userId, categoryIds);
 
 		return transactionHistoryRepository.searchTransactions(
-			userId, dateRange.startDateTime(), dateRange.endDateTime(), typeFilter, categoryId,
-			normalizeQuery(query), transactionSort.toSort());
+			userId, dateRange.startDateTime(), dateRange.endDateTime(), typeFilter, categoryIds,
+			normalizeQuery(query), transactionSort);
 	}
 
 	/**

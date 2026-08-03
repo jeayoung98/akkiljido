@@ -2,6 +2,7 @@ package com.a508.backend.domain.category.service;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,15 +44,23 @@ public class CategoryService {
 	}
 
 	/**
-	 * 카테고리 필터가 지정된 경우, 해당 카테고리가 요청 회원 소유인지 검증한다.
-	 * categoryId 가 null 이면 전체 조회이므로 검증하지 않는다.
+	 * 카테고리 필터가 지정된 경우, 해당 카테고리들이 모두 요청 회원 소유인지 검증한다.
+	 * null 이거나 비어 있으면 전체 조회이므로 검증하지 않는다.
+	 * 중복 ID 나 null 원소(예: {@code categoryId=1,})가 섞여 들어와도 개수 비교가 어긋나지 않도록 정리한 뒤 비교한다.
+	 * 하나라도 없거나 다른 회원 소유면 예외를 던진다(부분 무시하지 않음).
 	 */
 	@Transactional(readOnly = true)
-	public void validateOwnership(Long userId, Long categoryId) {
-		if (categoryId == null) {
+	public void validateOwnership(Long userId, List<Long> categoryIds) {
+		if (categoryIds == null || categoryIds.isEmpty()) {
 			return;
 		}
-		getOwnedCategory(userId, categoryId);
+		List<Long> distinctIds = categoryIds.stream().filter(Objects::nonNull).distinct().toList();
+		if (distinctIds.isEmpty()) {
+			return;
+		}
+		if (categoryRepository.countByIdInAndUser_Id(distinctIds, userId) != distinctIds.size()) {
+			throw new BusinessException(ExceptionType.CATEGORY_NOT_FOUND);
+		}
 	}
 
 	/**

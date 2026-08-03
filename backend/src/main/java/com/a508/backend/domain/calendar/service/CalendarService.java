@@ -29,7 +29,7 @@ public class CalendarService {
         DateTimeRange range = DateTimeUtils.monthRange(year, month);
 
         List<TransactionHistory> transactions =
-                transactionHistoryRepository.findAllByUser_IdAndDatetimeGreaterThanEqualAndDatetimeLessThanOrderByDatetimeAsc(
+                transactionHistoryRepository.findAllByUserIdAndDatetimeRange(
                         userId, range.start(), range.end());
 
         return MonthlyCalendarResponse.from(transactions);
@@ -43,7 +43,7 @@ public class CalendarService {
         OffsetDateTime endDateTime = DateTimeUtils.startOfNextDay(selectedDate);
 
         List<TransactionHistory> transactions =
-                transactionHistoryRepository.findAllByUser_IdAndDatetimeGreaterThanEqualAndDatetimeLessThanOrderByDatetimeAsc(
+                transactionHistoryRepository.findAllByUserIdAndDatetimeRange(
                         userId, startDateTime, endDateTime);
 
         return DailyCalendarResponse.of(selectedDate, transactions);

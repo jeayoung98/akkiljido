@@ -12,6 +12,7 @@ import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
@@ -38,7 +39,9 @@ import com.a508.backend.global.util.GeometryUtils;
 
 /**
  * 지도 조회 서비스 단위 테스트. DB(PostGIS) 없이 기간 기본값, 좌표/행정구역 그룹핑,
- * 내 장소 반경 2km 필터, 검증 로직을 확인한다.
+ * 내 장소 반경 파라미터 전달, 검증 로직을 확인한다.
+ * <p>
+ * 반경 경계 판정 자체는 PostGIS ST_DWithin 이 담당하므로 여기서 검증하지 않는다(통합 테스트 영역).
  */
 @ExtendWith(MockitoExtension.class)
 class TransactionMapServiceTest {
@@ -178,13 +181,27 @@ class TransactionMapServiceTest {
 	@DisplayName("카테고리 필터가 내 카테고리가 아니면 CATEGORY_NOT_FOUND 예외를 던진다")
 	void getPlaceMapWithOtherUsersCategory() {
 		doThrow(new BusinessException(ExceptionType.CATEGORY_NOT_FOUND))
-			.when(categoryService).validateOwnership(USER_ID, 99L);
+			.when(categoryService).validateOwnership(USER_ID, List.of(99L));
 
 		assertThatThrownBy(() -> transactionMapService.getPlaceMap(
-			USER_ID, 37.49, 126.91, 37.58, 127.05, null, null, 99L))
+			USER_ID, 37.49, 126.91, 37.58, 127.05, null, null, List.of(99L)))
 			.isInstanceOf(BusinessException.class)
 			.extracting(e -> ((BusinessException)e).getExceptionType())
 			.isEqualTo(ExceptionType.CATEGORY_NOT_FOUND);
+	}
+
+	@Test
+	@DisplayName("카테고리 필터를 여러 개 넘기면 그대로 공간 쿼리에 전달한다")
+	void getPlaceMapWithMultipleCategories() {
+		when(transactionHistoryRepository.findExpensesWithinArea(
+			eq(USER_ID), any(), any(), any(), eq(List.of(1L, 3L))))
+			.thenReturn(List.of());
+
+		transactionMapService.getPlaceMap(USER_ID, 37.49, 126.91, 37.58, 127.05, null, null, List.of(1L, 3L));
+
+		verify(transactionHistoryRepository).findExpensesWithinArea(
+			eq(USER_ID), any(Polygon.class), any(), any(), eq(List.of(1L, 3L)));
+		verify(categoryService).validateOwnership(USER_ID, List.of(1L, 3L));
 	}
 
 	@Test
@@ -238,31 +255,32 @@ class TransactionMapServiceTest {
 	}
 
 	@Test
-	@DisplayName("내 장소 목록 조회는 반경 2km 밖의 거래를 합계에서 제외한다")
-	void getMyPlaceMapFiltersByRadius() {
+	@DisplayName("내 장소 목록 조회는 반경 안 거래의 금액을 장소별로 합산한다")
+	void getMyPlaceMapSumsAmounts() {
 		LocalDateTime datetime = LocalDateTime.of(2026, 7, 27, 12, 0, 0);
-		// 위도 +0.009 도는 약 1km, +0.045 도는 약 5km 떨어진 지점이다.
 		when(myPlaceService.getOwnedMyPlaces(USER_ID)).thenReturn(List.of(myPlace(1L, "집")));
-		when(transactionHistoryRepository.findExpensesWithinArea(eq(USER_ID), any(), any(), any(), isNull()))
+		when(transactionHistoryRepository.findExpensesWithinRadius(
+			eq(USER_ID), any(Point.class), anyDouble(), any(), any(), isNull()))
 			.thenReturn(List.of(
 				transaction(1L, "가까운가게", 3000L, datetime, CENTER_LATITUDE + 0.009, CENTER_LONGITUDE,
 					"서울특별시", "중구", "태평로1가"),
-				transaction(2L, "먼가게", 7000L, datetime, CENTER_LATITUDE + 0.045, CENTER_LONGITUDE,
-					"서울특별시", "종로구", "청운동")));
+				transaction(2L, "옆가게", 7000L, datetime, CENTER_LATITUDE + 0.010, CENTER_LONGITUDE,
+					"서울특별시", "중구", "태평로1가")));
 
 		List<MyPlaceMapResponse> response = transactionMapService.getMyPlaceMap(USER_ID, null, null);
 
 		assertThat(response).hasSize(1);
 		assertThat(response.get(0).placeId()).isEqualTo(1L);
 		assertThat(response.get(0).myPlaceName()).isEqualTo("집");
-		assertThat(response.get(0).totalAmount()).isEqualTo(3000L);
+		assertThat(response.get(0).totalAmount()).isEqualTo(10_000L);
 	}
 
 	@Test
 	@DisplayName("내 장소 상세조회는 같은 좌표/항목/카테고리 결제를 묶어 dateList 로 내려준다")
 	void getMyPlaceDetailGroupsByItem() {
 		when(myPlaceService.getOwnedMyPlace(USER_ID, 1L)).thenReturn(myPlace(1L, "집"));
-		when(transactionHistoryRepository.findExpensesWithinArea(eq(USER_ID), any(), any(), any(), isNull()))
+		when(transactionHistoryRepository.findExpensesWithinRadius(
+			eq(USER_ID), any(Point.class), anyDouble(), any(), any(), isNull()))
 			.thenReturn(List.of(
 				transaction(1L, "스타벅스", 2460L, LocalDateTime.of(2024, 7, 17, 9, 20, 10),
 					CENTER_LATITUDE, CENTER_LONGITUDE, "서울특별시", "중구", "태평로1가"),
@@ -303,23 +321,21 @@ class TransactionMapServiceTest {
 	}
 
 	@Test
-	@DisplayName("2km 경계 근처의 거래도 후보 조회 범위에 포함되도록 사각형을 넉넉히 잡는다")
-	void myPlaceCandidateEnvelopeCoversFullRadius() {
+	@DisplayName("내 장소 조회는 장소 좌표와 반경 2km 를 그대로 반경 쿼리에 넘긴다")
+	void myPlaceQueryPassesCenterAndRadius() {
 		LocalDate date = LocalDate.of(2026, 7, 27);
 		when(myPlaceService.getOwnedMyPlaces(USER_ID)).thenReturn(List.of(myPlace(1L, "집")));
-		when(transactionHistoryRepository.findExpensesWithinArea(eq(USER_ID), any(), any(), any(), isNull()))
+		when(transactionHistoryRepository.findExpensesWithinRadius(
+			eq(USER_ID), any(Point.class), anyDouble(), any(), any(), isNull()))
 			.thenReturn(List.of());
 
 		transactionMapService.getMyPlaceMap(USER_ID, date.toString(), date.toString());
 
-		ArgumentCaptor<Polygon> areaCaptor = ArgumentCaptor.forClass(Polygon.class);
-		verify(transactionHistoryRepository).findExpensesWithinArea(eq(USER_ID), areaCaptor.capture(),
-			any(), any(), isNull());
+		ArgumentCaptor<Point> centerCaptor = ArgumentCaptor.forClass(Point.class);
+		verify(transactionHistoryRepository).findExpensesWithinRadius(eq(USER_ID), centerCaptor.capture(),
+			eq(2_000.0), any(), any(), isNull());
 
-		Polygon area = areaCaptor.getValue();
-		assertThat(GeometryUtils.distanceMeters(
-			GeometryUtils.toPoint(CENTER_LATITUDE, CENTER_LONGITUDE),
-			GeometryUtils.toPoint(area.getEnvelopeInternal().getMaxY(), CENTER_LONGITUDE)))
-			.isGreaterThan(1_999.0);
+		Point expectedCenter = GeometryUtils.toPoint(CENTER_LATITUDE, CENTER_LONGITUDE);
+		assertThat(centerCaptor.getValue().equalsExact(expectedCenter)).isTrue();
 	}
 }

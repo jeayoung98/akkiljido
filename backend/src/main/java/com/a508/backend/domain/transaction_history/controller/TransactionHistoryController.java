@@ -1,5 +1,7 @@
 package com.a508.backend.domain.transaction_history.controller;
 
+import java.util.List;
+
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,6 +24,7 @@ import com.a508.backend.global.response.ResponseUtil;
 import com.a508.backend.global.security.AuthenticatedUser;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +34,10 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/transaction")
 public class TransactionHistoryController {
+
+	/** 카테고리 다중 필터는 categoryId=1&categoryId=3 또는 categoryId=1,3 두 형식을 모두 허용한다. */
+	private static final String CATEGORY_ID_DESCRIPTION =
+		"카테고리 ID 목록. 여러 개 지정 가능(categoryId=1&categoryId=3 또는 categoryId=1,3). 미지정 시 전체 조회";
 
 	private final TransactionHistoryService transactionHistoryService;
 
@@ -52,7 +59,8 @@ public class TransactionHistoryController {
 		@RequestParam(required = false) String type,
 		@RequestParam(required = false) String startDate,
 		@RequestParam(required = false) String endDate,
-		@RequestParam(required = false) Long categoryId) {
+		@Parameter(description = CATEGORY_ID_DESCRIPTION)
+		@RequestParam(required = false) List<Long> categoryId) {
 		TransactionListResponse response = transactionHistoryService.getTransactionList(
 			authenticatedUser.getUserId(), sort, type, startDate, endDate, categoryId);
 		return ResponseUtil.createSuccessResponse(response);
@@ -68,7 +76,8 @@ public class TransactionHistoryController {
 		@RequestParam(required = false) String type,
 		@RequestParam(required = false) String startDate,
 		@RequestParam(required = false) String endDate,
-		@RequestParam(required = false) Long categoryId) {
+		@Parameter(description = CATEGORY_ID_DESCRIPTION)
+		@RequestParam(required = false) List<Long> categoryId) {
 		TransactionSearchResponse response = transactionHistoryService.searchTransactions(
 			authenticatedUser.getUserId(), query, sort, type, startDate, endDate, categoryId);
 		return ResponseUtil.createSuccessResponse(response);

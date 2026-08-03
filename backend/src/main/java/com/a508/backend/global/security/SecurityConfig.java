@@ -45,6 +45,8 @@ public class SecurityConfig {
 
 					.requestMatchers("/api/v1/transaction/**").hasRole("USER")
 
+					.requestMatchers("/api/v1/home/**").hasRole("USER")
+
 					.anyRequest().hasRole("USER"))
 			.oauth2ResourceServer(resourceServer -> resourceServer.jwt(
 				jwt -> jwt.decoder(serviceJwtDecoder).jwtAuthenticationConverter(authenticationConverter)));

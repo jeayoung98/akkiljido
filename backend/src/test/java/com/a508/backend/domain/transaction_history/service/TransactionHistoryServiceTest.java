@@ -19,7 +19,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.domain.Sort;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import com.a508.backend.domain.category.entity.Category;
@@ -28,6 +27,7 @@ import com.a508.backend.domain.transaction_history.dto.request.TransactionHistor
 import com.a508.backend.domain.transaction_history.dto.request.TransactionHistoryUpdateRequest;
 import com.a508.backend.domain.transaction_history.dto.response.TransactionHistoryResponse;
 import com.a508.backend.domain.transaction_history.entity.TransactionHistory;
+import com.a508.backend.domain.transaction_history.entity.TransactionSort;
 import com.a508.backend.domain.transaction_history.entity.TransactionType;
 import com.a508.backend.domain.transaction_history.repository.TransactionHistoryRepository;
 import com.a508.backend.domain.user.service.UserService;
@@ -214,7 +214,7 @@ class TransactionHistoryServiceTest {
 	@DisplayName("getTransactionList 는 검색어 없이(null) 조회하고 기본값(최신순, 이번 달 1일~오늘)을 적용한다")
 	void getTransactionList() {
 		when(transactionHistoryRepository.searchTransactions(
-			eq(USER_ID), any(), any(), isNull(), isNull(), isNull(), any(Sort.class)))
+			eq(USER_ID), any(), any(), isNull(), isNull(), isNull(), any(TransactionSort.class)))
 			.thenReturn(List.of(storedEntity(10L)));
 
 		transactionHistoryService.getTransactionList(USER_ID, null, null, null, null, null);
@@ -226,42 +226,57 @@ class TransactionHistoryServiceTest {
 			isNull(),
 			isNull(),
 			isNull(),
-			eq(Sort.by(Sort.Direction.DESC, "datetime")));
+			eq(TransactionSort.LATEST));
 		verify(categoryService).validateOwnership(USER_ID, null);
+	}
+
+	@Test
+	@DisplayName("getTransactionList 는 카테고리 ID 를 여러 개 받아 그대로 필터로 넘긴다")
+	void getTransactionListWithMultipleCategories() {
+		when(transactionHistoryRepository.searchTransactions(
+			eq(USER_ID), any(), any(), isNull(), eq(List.of(1L, 3L)), isNull(), any(TransactionSort.class)))
+			.thenReturn(List.of(storedEntity(10L)));
+
+		transactionHistoryService.getTransactionList(USER_ID, null, null, null, null, List.of(1L, 3L));
+
+		verify(transactionHistoryRepository).searchTransactions(
+			eq(USER_ID), any(), any(), isNull(), eq(List.of(1L, 3L)), isNull(), eq(TransactionSort.LATEST));
+		verify(categoryService).validateOwnership(USER_ID, List.of(1L, 3L));
 	}
 
 	@Test
 	@DisplayName("searchTransactions 는 검색어를 trim 해서 넘기고, 필터/정렬 처리는 목록 조회와 동일하다")
 	void searchTransactions() {
 		when(transactionHistoryRepository.searchTransactions(
-			eq(USER_ID), any(), any(), eq(TransactionType.EXPENSE), eq(3L), eq("스타벅스"), any(Sort.class)))
+			eq(USER_ID), any(), any(), eq(TransactionType.EXPENSE), eq(List.of(3L)), eq("스타벅스"),
+			any(TransactionSort.class)))
 			.thenReturn(List.of(storedEntity(10L)));
 
 		transactionHistoryService.searchTransactions(
-			USER_ID, "  스타벅스  ", "oldest", "expense", "2026-07-01", "2026-07-27", 3L);
+			USER_ID, "  스타벅스  ", "oldest", "expense", "2026-07-01", "2026-07-27", List.of(3L));
 
 		verify(transactionHistoryRepository).searchTransactions(
 			eq(USER_ID),
 			eq(DateTimeUtils.startOfDay(LocalDate.of(2026, 7, 1))),
 			eq(DateTimeUtils.startOfDay(LocalDate.of(2026, 7, 28))),
 			eq(TransactionType.EXPENSE),
-			eq(3L),
+			eq(List.of(3L)),
 			eq("스타벅스"),
-			eq(Sort.by(Sort.Direction.ASC, "datetime")));
-		verify(categoryService).validateOwnership(USER_ID, 3L);
+			eq(TransactionSort.OLDEST));
+		verify(categoryService).validateOwnership(USER_ID, List.of(3L));
 	}
 
 	@Test
 	@DisplayName("검색어가 공백뿐이면 검색어 필터 없이(null) 조회한다")
 	void searchTransactionsWithBlankQuery() {
 		when(transactionHistoryRepository.searchTransactions(
-			eq(USER_ID), any(), any(), isNull(), isNull(), isNull(), any(Sort.class)))
+			eq(USER_ID), any(), any(), isNull(), isNull(), isNull(), any(TransactionSort.class)))
 			.thenReturn(List.of());
 
 		transactionHistoryService.searchTransactions(USER_ID, "   ", null, null, null, null, null);
 
 		verify(transactionHistoryRepository).searchTransactions(
-			eq(USER_ID), any(), any(), isNull(), isNull(), isNull(), any(Sort.class));
+			eq(USER_ID), any(), any(), isNull(), isNull(), isNull(), any(TransactionSort.class));
 	}
 
 	@Test
@@ -284,13 +299,14 @@ class TransactionHistoryServiceTest {
 		Locale.setDefault(Locale.forLanguageTag("tr"));
 		try {
 			when(transactionHistoryRepository.searchTransactions(
-				eq(USER_ID), any(), any(), eq(TransactionType.INCOME), isNull(), isNull(), any(Sort.class)))
+				eq(USER_ID), any(), any(), eq(TransactionType.INCOME), isNull(), isNull(), any(TransactionSort.class)))
 				.thenReturn(List.of());
 
 			transactionHistoryService.getTransactionList(USER_ID, null, "income", null, null, null);
 
 			verify(transactionHistoryRepository).searchTransactions(
-				eq(USER_ID), any(), any(), eq(TransactionType.INCOME), isNull(), isNull(), any(Sort.class));
+				eq(USER_ID), any(), any(), eq(TransactionType.INCOME), isNull(), isNull(),
+				any(TransactionSort.class));
 		} finally {
 			Locale.setDefault(defaultLocale);
 		}

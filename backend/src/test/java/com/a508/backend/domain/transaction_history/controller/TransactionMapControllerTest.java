@@ -90,7 +90,7 @@ class TransactionMapControllerTest {
 				.param("east", "127.0500")
 				.param("startDate", "2024-07-15")
 				.param("endDate", "2024-07-21")
-				.param("categoryId", "3"))
+				.param("categoryId", "3", "5"))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.success").value(true))
 			.andExpect(jsonPath("$.data.placeList[0].address").value("서울 마포구 서교동 123-4"))
@@ -103,7 +103,26 @@ class TransactionMapControllerTest {
 			.andExpect(jsonPath("$.data.placeList[0].transactionList[0].categoryName").value("음식점"))
 			.andExpect(jsonPath("$.data.placeList[0].transactionList[0].datetime").value("2024-07-17 09:20:10"));
 
-		verify(service).getPlaceMap(MOCK_USER_ID, 37.49, 126.91, 37.57, 127.05, "2024-07-15", "2024-07-21", 3L);
+		verify(service).getPlaceMap(MOCK_USER_ID, 37.49, 126.91, 37.57, 127.05, "2024-07-15", "2024-07-21",
+			List.of(3L, 5L));
+	}
+
+	@Test
+	@DisplayName("GET /map 은 categoryId=3,5 처럼 콤마로 묶은 형식도 목록으로 바인딩한다")
+	void getPlaceMapBindsCommaSeparatedCategoryIds() throws Exception {
+		when(service.getPlaceMap(eq(MOCK_USER_ID), anyDouble(), anyDouble(), anyDouble(), anyDouble(),
+			any(), any(), any())).thenReturn(new MapPlaceListResponse(List.of()));
+
+		mockMvc.perform(get("/api/v1/transaction/map")
+				.param("south", "37.4900")
+				.param("west", "126.9100")
+				.param("north", "37.5700")
+				.param("east", "127.0500")
+				.param("categoryId", "3,5"))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.success").value(true));
+
+		verify(service).getPlaceMap(MOCK_USER_ID, 37.49, 126.91, 37.57, 127.05, null, null, List.of(3L, 5L));
 	}
 
 	@Test
