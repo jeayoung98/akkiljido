@@ -1,0 +1,220 @@
+import type { TransactionType } from '@/components/transaction/TransactionItem';
+
+// 거래 화면의 캘린더·분석·상세 UI를 먼저 확인하기 위한 전용 목업 데이터입니다.
+// 지도 브랜치의 mocks/transactions.ts가 공통 원본으로 머지되면, 이 파일은 아래처럼
+// 공통 MOCK_TRANSACTIONS를 import하고 월/일/분석용 가공 함수만 남기도록 교체합니다.
+// import { MOCK_TRANSACTIONS } from '@/mocks/transactions';
+export type TransactionRecord = {
+  transactionId: number;
+  name: string;
+  /** 항상 양수. 부호(+/-)는 type으로 표현합니다. */
+  amount: number;
+  type: TransactionType;
+  categoryId: number;
+  categoryName: string;
+  paymentMethod: string;
+  /** "YYYY-MM-DD HH:mm:ss+09" 형식. 화면에서 날짜별로 묶을 때는 앞 10자리(YYYY-MM-DD)만 씁니다. */
+  datetime: string;
+  address: string;
+  latitude: number;
+  longitude: number;
+  memo: string;
+};
+
+export const MOCK_TRANSACTIONS: TransactionRecord[] = [
+  {
+    transactionId: 1,
+    name: '스타벅스 강남역점',
+    amount: 4500,
+    type: 'expense',
+    categoryId: 2,
+    categoryName: '카페·간식',
+    paymentMethod: '카카오페이',
+    datetime: '2026-07-17 09:12:00+09',
+    address: '서울 강남구 역삼동',
+    latitude: 37.4996,
+    longitude: 127.0357,
+    memo: '-',
+  },
+  {
+    transactionId: 2,
+    name: '쿠팡 로켓배송',
+    amount: 32000,
+    type: 'expense',
+    categoryId: 4,
+    categoryName: '쇼핑',
+    paymentMethod: '신한카드',
+    datetime: '2026-07-17 21:40:00+09',
+    address: '온라인',
+    latitude: 0,
+    longitude: 0,
+    memo: '-',
+  },
+  {
+    transactionId: 3,
+    name: 'GS25 편의점',
+    amount: 2300,
+    type: 'expense',
+    categoryId: 3,
+    categoryName: '편의점·마트',
+    paymentMethod: '신한카드',
+    datetime: '2026-07-16 08:05:00+09',
+    address: '서울 강남구 역삼동',
+    latitude: 37.5006,
+    longitude: 127.0364,
+    memo: '-',
+  },
+  {
+    transactionId: 4,
+    name: '네이버페이',
+    amount: 100000,
+    type: 'income',
+    categoryId: 11,
+    categoryName: '기타',
+    paymentMethod: '네이버페이',
+    datetime: '2026-07-16 18:00:00+09',
+    address: '-',
+    latitude: 0,
+    longitude: 0,
+    memo: '용돈',
+  },
+  {
+    transactionId: 5,
+    name: '올리브영',
+    amount: 18500,
+    type: 'expense',
+    categoryId: 9,
+    categoryName: '미용',
+    paymentMethod: '신한카드',
+    datetime: '2026-07-15 14:20:00+09',
+    address: '서울 강남구 역삼동',
+    latitude: 37.4998,
+    longitude: 127.036,
+    memo: '-',
+  },
+  {
+    transactionId: 6,
+    name: 'CGV 강남',
+    amount: 14000,
+    type: 'expense',
+    categoryId: 5,
+    categoryName: '여가',
+    paymentMethod: '카카오페이',
+    datetime: '2026-07-15 19:30:00+09',
+    address: '서울 강남구 역삼동',
+    latitude: 37.4989,
+    longitude: 127.0269,
+    memo: '-',
+  },
+  {
+    transactionId: 7,
+    name: '배달의민족',
+    amount: 18000,
+    type: 'expense',
+    categoryId: 1,
+    categoryName: '음식점',
+    paymentMethod: '신한카드',
+    datetime: '2026-07-14 12:10:00+09',
+    address: '서울 강남구 역삼동',
+    latitude: 37.4993,
+    longitude: 127.0358,
+    memo: '-',
+  },
+];
+
+// GET /transactions/calendar?year&month 응답의 dateList 모양입니다.
+export type MonthDateSummary = {
+  date: number;
+  expense: number;
+  income: number;
+};
+
+// 캘린더 월별 조회 API가 붙기 전까지, 같은 모양을 목업으로 흉내 냅니다.
+// (나중엔 이 함수 호출을 fetch로 바꾸기만 하면 화면 쪽 코드는 그대로 씁니다.)
+export function getMockMonthDateList(year: number, month: number): MonthDateSummary[] {
+  const monthKey = `${year}-${String(month).padStart(2, '0')}`;
+  const byDate = new Map<number, { expense: number; income: number }>();
+
+  for (const record of MOCK_TRANSACTIONS) {
+    const dateStr = record.datetime.slice(0, 10);
+    if (!dateStr.startsWith(monthKey)) continue;
+
+    const day = Number(dateStr.slice(8, 10));
+    const entry = byDate.get(day) ?? { expense: 0, income: 0 };
+    if (record.type === 'expense') {
+      entry.expense += record.amount;
+    } else {
+      entry.income += record.amount;
+    }
+    byDate.set(day, entry);
+  }
+
+  return Array.from(byDate.entries())
+    .map(([date, totals]) => ({ date, ...totals }))
+    .sort((a, b) => a.date - b.date);
+}
+
+// GET /transactions/calendar/day?year&month&day 응답의 transactionList 모양입니다.
+// TODO: 캘린더 탭 하루 목록에도 카테고리 아이콘을 넣기로 해서 categoryName을 우선 추가해뒀는데,
+// 현재 API 스펙엔 이 필드가 없다. 백엔드에 필드 추가를 요청해둔 상태라, 응답이 확정되면
+// 실제로 안 내려주는 경우 이 필드부터 지우고 아이콘도 다시 빼야 한다.
+export type DayTransactionSummary = {
+  transactionId: number;
+  name: string;
+  amount: number;
+  type: TransactionType;
+  categoryName: string;
+};
+
+export type DayDetail = {
+  date: string;
+  amount: number;
+  transactionList: DayTransactionSummary[];
+};
+
+export function getMockDayDetail(year: number, month: number, day: number): DayDetail {
+  const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  const dayRecords = MOCK_TRANSACTIONS.filter((record) => record.datetime.slice(0, 10) === dateStr);
+  const amount = dayRecords.reduce(
+    (sum, record) => sum + (record.type === 'income' ? record.amount : -record.amount),
+    0,
+  );
+
+  return {
+    date: dateStr,
+    amount,
+    transactionList: dayRecords.map((record) => ({
+      transactionId: record.transactionId,
+      name: record.name,
+      amount: record.amount,
+      type: record.type,
+      categoryName: record.categoryName,
+    })),
+  };
+}
+
+// 분석 탭의 "장소 분석" 응답(placeId/myPlaceName) 모양입니다.
+export type PlaceAnalysisItem = {
+  placeId: number;
+  myPlaceName: string;
+  amount: number;
+  percent: number;
+};
+
+// TODO: "등록한 내 장소 반경 내 소비 집계" API가 아직 없어서, 예시 장소 4곳(회사/집/학교/기타)에
+// 이번 달 소비 총액을 나눠 담은 목업입니다. 실제 API가 나오면 이 함수를 걷어내고 그 응답을
+// 그대로 쓰면 됩니다. (월과 무관하게 항상 같은 값을 돌려주는 것도 이 때문입니다.)
+export function getMockPlaceAnalysis(): PlaceAnalysisItem[] {
+  const items = [
+    { placeId: 1, myPlaceName: '회사', amount: 40000 },
+    { placeId: 2, myPlaceName: '집', amount: 25000 },
+    { placeId: 3, myPlaceName: '학교', amount: 15000 },
+    { placeId: 4, myPlaceName: '기타', amount: 9300 },
+  ];
+  const totalAmount = items.reduce((sum, item) => sum + item.amount, 0);
+
+  return items.map((item) => ({
+    ...item,
+    percent: totalAmount === 0 ? 0 : Math.round((item.amount / totalAmount) * 100),
+  }));
+}

@@ -43,7 +43,8 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   label: {
-    fontSize: 15,
+    // 추가 폼의 항목명·금액·카테고리·날짜 라벨과 같은 위계를 사용합니다.
+    fontSize: 13,
     fontWeight: '700',
     color: Colors.light.text,
   },
