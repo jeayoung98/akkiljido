@@ -11,4 +11,6 @@ import com.a508.backend.domain.notification.entity.NotificationPlace;
 public interface NotificationPlaceRepository extends JpaRepository<NotificationPlace, Long> {
 
 	List<NotificationPlace> findAllByUser_IdOrderByIdAsc(Long userId);
+
+	boolean existsByUser_IdAndNotificationPlaceName(Long userId, String notificationPlaceName);
 }
