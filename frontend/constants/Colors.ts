@@ -47,5 +47,9 @@ export default {
     summaryInfoLabel: "#8198C3",
     summaryInfoText: "#647AA5",
     summaryInfoCaption: "#91A5CA",
+    // 주간 리포트 모달의 딥그린 헤더/CTA 버튼에 쓰는 색
+    reportHeaderBackground: "#1F7A4C",
+    reportHeaderBadge: "#3C9A66", // 헤더 안 캐릭터 뒤 연두색 사각형
+    reportHeaderSubtitle: "#B7E4C7", // 헤더 안 "주간 리포트" 소제목
   },
 };
