@@ -29,6 +29,7 @@ function formatPlace(address: string) {
  */
 export default function TransactionDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  // 삭제 버튼을 누른 뒤 사용자 확인을 받을 때만 공통 모달을 표시합니다.
   const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
 
   // 수정 화면에서 저장 후 router.back()으로 돌아오면, 이 화면은 계속 마운트돼 있던 상태라

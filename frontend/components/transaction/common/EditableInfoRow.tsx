@@ -90,6 +90,8 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
+    // 읽기 전용 InfoRow와 동일한 안쪽 여백을 적용합니다.
+    paddingHorizontal: 12,
     paddingVertical: 12,
   },
   divider: {
@@ -97,7 +99,8 @@ const styles = StyleSheet.create({
     borderBottomColor: Colors.light.border,
   },
   label: {
-    width: 84,
+    // 수정 화면에서도 기준명과 입력값 사이의 간격을 동일하게 유지합니다.
+    width: 72,
     color: Colors.light.textSecondary,
     fontSize: 14,
   },
