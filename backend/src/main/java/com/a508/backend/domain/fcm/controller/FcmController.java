@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.a508.backend.domain.fcm.dto.FcmTestResponse;
 import com.a508.backend.domain.fcm.dto.FcmTokenRegisterRequest;
 import com.a508.backend.domain.fcm.service.FcmService;
 import com.a508.backend.global.response.ResponseBody;
@@ -35,6 +36,18 @@ public class FcmController {
 
 		return ResponseEntity.ok(
 			ResponseUtil.createSuccessResponse()
+		);
+	}
+
+	@PostMapping("/test")
+	public ResponseEntity<ResponseBody<FcmTestResponse>> sendTestNotification(
+		@AuthenticationPrincipal AuthenticatedUser authenticatedUser
+	) {
+		FcmTestResponse data =
+			fcmService.sendTestNotification(authenticatedUser.getUserId());
+
+		return ResponseEntity.ok(
+			ResponseUtil.createSuccessResponse(data)
 		);
 	}
 }

@@ -49,6 +49,10 @@ public enum ExceptionType {
 	INVALID_LATITUDE(BAD_REQUEST, "G001", "위도는 -90 이상 90 이하여야 합니다."),
 	INVALID_LONGITUDE(BAD_REQUEST, "G002", "경도는 -180 이상 180 이하여야 합니다."),
 
+	// FCM
+	FCM_PUSH_TOKEN_NOT_FOUND(NOT_FOUND, "F001", "등록된 FCM 푸시 토큰이 없습니다."),
+	FCM_NOT_CONFIGURED(SERVICE_UNAVAILABLE, "F002", "FCM 서버 설정이 완료되지 않았습니다."),
+
 	;
 
 	private final HttpStatus status;
