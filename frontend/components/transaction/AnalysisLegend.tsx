@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 
-import { getAnalysisColor } from '@/components/transaction/common/analysisColors';
+import { getAnalysisColor } from '@/components/transaction/analysisColors';
 import Colors from '@/constants/Colors';
 
 export type AnalysisLegendItem = {

@@ -2,7 +2,7 @@ import { StyleProp, View, ViewStyle } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 
 import Colors from '@/constants/Colors';
-import { getAnalysisColor } from '@/components/transaction/common/analysisColors';
+import { getAnalysisColor } from '@/components/transaction/analysisColors';
 
 export type PieChartSlice = {
   /**

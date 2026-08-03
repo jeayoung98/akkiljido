@@ -6,9 +6,9 @@ import AppScreen from '@/components/common/AppScreen';
 import { Button } from '@/components/common/button/Button';
 import { AppHeader } from '@/components/common/header/AppHeader';
 import { ConfirmModal } from '@/components/common/modal/ConfirmModal';
-import { CategoryIcon } from '@/components/transaction/common/CategoryIcon';
-import { InfoRow } from '@/components/transaction/common/InfoRow';
-import { TransactionDetailCard } from '@/components/transaction/common/TransactionDetailCard';
+import { CategoryIcon } from '@/components/transaction/CategoryIcon';
+import { InfoRow } from '@/components/transaction/InfoRow';
+import { TransactionDetailCard } from '@/components/transaction/TransactionDetailCard';
 import Colors from '@/constants/Colors';
 import { MOCK_TRANSACTIONS } from '@/mocks/transactions';
 
