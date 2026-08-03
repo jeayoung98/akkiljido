@@ -54,7 +54,7 @@ const PLACES: Place[] = [
 // ── 내 장소 (마이페이지/지도의 "내 장소"에 등록해둔 장소, GET /api/v1/my/place 대응) ──
 export const MY_PLACES = [
   { placeId: 'home', name: '집', address: '서울 강남구 역삼동 754-11', lat: 37.5003, lng: 127.0365 },
-  { placeId: 'workcafe', name: '작업 거점(강남역)', address: '서울 강남구 역삼동 823', lat: 37.4985, lng: 127.0281 },
+  { placeId: 'workcafe', name: '직장(강남역)', address: '서울 강남구 역삼동 823', lat: 37.4985, lng: 127.0281 },
   { placeId: 'client', name: '클라이언트사(삼성동)', address: '서울 강남구 삼성동 143', lat: 37.5088, lng: 127.0631 },
 ];
 
@@ -298,7 +298,7 @@ export function toMyPlaceDetailResponse(placeId: string, transactions: Transacti
     return { success: false as const, code: 'V001', message: '존재하지 않는 장소입니다.' };
   }
 
-  const NEARBY_RADIUS_DEG = 0.01; // 대략 1km 이내를 "이 내 장소 근처"로 취급 (더미 데이터용 단순 근사치)
+  const NEARBY_RADIUS_DEG = 0.018; // 대략 2km 이내를 "이 내 장소 근처"로 취급 (더미 데이터용 단순 근사치)
   const nearby = transactions.filter(
     (tx) =>
       tx.type === 'expense' &&

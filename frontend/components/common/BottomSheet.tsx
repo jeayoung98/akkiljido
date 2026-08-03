@@ -92,11 +92,7 @@ export default function BottomSheet(props: BottomSheetProps) {
   useEffect(() => {
     if (visible) {
       setMounted(true);
-      translateY.value = withSpring(
-        maxHeightPx - initialHeightPx,
-        SPRING_CONFIG,
-      );
-    } else {
+    } else if (mounted) {
       translateY.value = withSpring(maxHeightPx, SPRING_CONFIG, (finished) => {
         if (finished) {
           runOnJS(setMounted)(false);
@@ -105,6 +101,16 @@ export default function BottomSheet(props: BottomSheetProps) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
+
+  // Animated.View가 실제로 화면에 마운트된 뒤에 여는 애니메이션을 시작한다.
+  // mounted=true로 바뀌는 것과 같은 effect에서 곧바로 애니메이션을 걸면, 웹에서는
+  // 그 View가 아직 DOM에 없어서 reanimated가 애니메이션을 놓치는 경우가 있었다.
+  useEffect(() => {
+    if (mounted && visible) {
+      translateY.value = withSpring(maxHeightPx - initialHeightPx, SPRING_CONFIG);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mounted]);
 
   // 드래그 핸들 영역에만 붙는 제스처. 시트 안쪽 리스트 등의 제스처와 겹치지 않는다.
   const panGesture = Gesture.Pan()
@@ -151,14 +157,19 @@ export default function BottomSheet(props: BottomSheetProps) {
         sheetStyle,
       ]}
     >
-      {draggable && (
-        <GestureDetector gesture={panGesture}>
-          <View style={styles.handleArea}>
-            <View style={styles.handle} />
-          </View>
-        </GestureDetector>
-      )}
-      <View style={styles.content}>{children}</View>
+      {/* sheet 자체는 오버드래그 여유분(OVERDRAG_BUFFER)까지 포함해서 화면보다 훨씬 크다.
+          그 여유분이 handle/content의 flex 계산에 섞이지 않도록, "실제로 보이는 영역"만큼만인
+          이 박스로 한 번 더 감싼다. 이 안에서는 flex:1이 항상 이 박스 기준으로만 계산된다. */}
+      <View style={{ height: maxHeightPx }}>
+        {draggable && (
+          <GestureDetector gesture={panGesture}>
+            <View style={styles.handleArea}>
+              <View style={styles.handle} />
+            </View>
+          </GestureDetector>
+        )}
+        <View style={styles.content}>{children}</View>
+      </View>
     </Animated.View>
   );
 
@@ -169,6 +180,7 @@ export default function BottomSheet(props: BottomSheetProps) {
         visible={mounted}
         animationType="none"
         onRequestClose={handleClose}
+        statusBarTranslucent
       >
         {/* Modal은 별도의 네이티브 화면으로 뜨기 때문에 앱 루트의 GestureHandlerRootView가 안 닿는다.
             제스처를 쓰려면 Modal 안에서 한 번 더 감싸야 한다. */}
