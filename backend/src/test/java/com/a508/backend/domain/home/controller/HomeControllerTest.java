@@ -87,7 +87,7 @@ class HomeControllerTest {
 	}
 
 	@Test
-	@DisplayName("limit 이 허용 범위를 벗어나면 400(H002)을 반환한다")
+	@DisplayName("limit 이 1 미만이면 400(H002)을 반환한다")
 	void getCategorySummary_invalidLimit() throws Exception {
 		when(homeService.getCategorySummary(anyLong(), any()))
 			.thenThrow(new BusinessException(ExceptionType.INVALID_CATEGORY_LIMIT));

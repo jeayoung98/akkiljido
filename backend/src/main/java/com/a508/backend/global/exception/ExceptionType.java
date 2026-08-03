@@ -60,8 +60,12 @@ public enum ExceptionType {
 =======
 	// home
 	INVALID_RADIUS(BAD_REQUEST, "H001", "반경은 1m 이상 50000m 이하여야 합니다."),
+<<<<<<< HEAD
 	INVALID_CATEGORY_LIMIT(BAD_REQUEST, "H002", "카테고리 개수는 1 이상 20 이하여야 합니다."),
 >>>>>>> 07edbe2 (✨ feat: 홈 화면 카테고리별 지출·내 주변 지출 조회 API 추가 #S15P11A508-124)
+=======
+	INVALID_CATEGORY_LIMIT(BAD_REQUEST, "H002", "카테고리 개수는 1 이상이어야 합니다."),
+>>>>>>> bebc40e (🐛 fix: 카테고리 개수 상한 제거)
 
 	;
 

@@ -32,6 +32,7 @@ public class HomeController {
 	@Operation(
 		summary = "카테고리별 지출 Top N 조회",
 		description = "이번 달 누적 지출을 카테고리별로 합산해 금액 상위 N개를 조회한다. limit 미전달 시 4개다. "
+			+ "limit 이 조회된 카테고리 수보다 크면 있는 만큼만 내려간다. "
 			+ "percent 는 상위 N개 밖 카테고리까지 포함한 이번 달 전체 지출 대비 비율을 반올림한 값이라 "
 			+ "limit 을 바꿔도 값이 달라지지 않는다.")
 	@ApiResponses({
@@ -43,7 +44,7 @@ public class HomeController {
 	public ResponseBody<CategorySummaryResponse> getCategorySummary(
 		@AuthenticationPrincipal AuthenticatedUser authenticatedUser,
 
-		@Parameter(description = "노출할 카테고리 개수. 미전달 시 4, 허용 범위 1~20", example = "4")
+		@Parameter(description = "노출할 카테고리 개수. 미전달 시 4, 1 이상", example = "4")
 		@RequestParam(required = false) Integer limit) {
 		CategorySummaryResponse response = homeService.getCategorySummary(authenticatedUser.getUserId(), limit);
 		return ResponseUtil.createSuccessResponse(response);

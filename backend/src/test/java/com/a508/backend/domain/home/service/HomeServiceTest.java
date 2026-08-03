@@ -139,19 +139,30 @@ class HomeServiceTest {
 	}
 
 	@Test
-	@DisplayName("limit 이 허용 범위를 벗어나면 INVALID_CATEGORY_LIMIT 예외가 발생한다")
-	void getCategorySummary_throwsWhenLimitOutOfRange() {
+	@DisplayName("limit 이 1 미만이면 INVALID_CATEGORY_LIMIT 예외가 발생한다")
+	void getCategorySummary_throwsWhenLimitBelowMin() {
 		assertThatThrownBy(() -> homeService.getCategorySummary(USER_ID, 0))
 			.isInstanceOf(BusinessException.class)
 			.extracting(e -> ((BusinessException)e).getExceptionType())
 			.isEqualTo(ExceptionType.INVALID_CATEGORY_LIMIT);
 
-		assertThatThrownBy(() -> homeService.getCategorySummary(USER_ID, 21))
+		assertThatThrownBy(() -> homeService.getCategorySummary(USER_ID, -1))
 			.isInstanceOf(BusinessException.class)
 			.extracting(e -> ((BusinessException)e).getExceptionType())
 			.isEqualTo(ExceptionType.INVALID_CATEGORY_LIMIT);
 
 		verifyNoInteractions(homeStatisticsRepository);
+	}
+
+	@Test
+	@DisplayName("limit 에 상한은 없고 조회된 카테고리 수보다 크면 있는 만큼만 내려간다")
+	void getCategorySummary_hasNoUpperLimit() {
+		given(homeStatisticsRepository.sumExpenseAmountsByCategory(eq(USER_ID), any(), any()))
+			.willReturn(sampleCategoryAmounts());
+
+		CategorySummaryResponse response = homeService.getCategorySummary(USER_ID, Integer.MAX_VALUE);
+
+		assertThat(response.categories()).hasSize(5);
 	}
 
 	@Test

@@ -31,7 +31,6 @@ public class HomeService {
 	public static final int DEFAULT_CATEGORY_LIMIT = 4;
 
 	private static final int MIN_CATEGORY_LIMIT = 1;
-	private static final int MAX_CATEGORY_LIMIT = 20;
 
 	/** "최근 일주일" 의 정의: 오늘 포함 7일. */
 	private static final int RECENT_EXPENSE_DAYS = 7;
@@ -50,7 +49,8 @@ public class HomeService {
 	 * percent 는 상위 N개에 들지 못한 카테고리까지 포함한 <b>이번 달 전체 지출</b>을 분모로 계산한다.
 	 * 따라서 limit 을 바꿔도 각 카테고리의 percent 값은 달라지지 않는다.
 	 *
-	 * @param limit 노출할 카테고리 개수. null 이면 {@link #DEFAULT_CATEGORY_LIMIT} 를 사용한다.
+	 * @param limit 노출할 카테고리 개수(1 이상). null 이면 {@link #DEFAULT_CATEGORY_LIMIT} 를 사용하고,
+	 *              조회된 카테고리 수보다 큰 값이면 있는 만큼만 반환한다.
 	 */
 	@Transactional(readOnly = true)
 	public CategorySummaryResponse getCategorySummary(Long userId, Integer limit) {
@@ -108,12 +108,15 @@ public class HomeService {
 		return RecentExpenseResponse.of(nearbyExpenses);
 	}
 
-	/** 카테고리 개수 기본값 적용 및 범위 검증. */
+	/**
+	 * 카테고리 개수 기본값 적용 및 하한 검증.
+	 * 상한은 두지 않는다. 조회된 카테고리 수보다 큰 값이 들어오면 있는 만큼만 내려간다.
+	 */
 	private int resolveCategoryLimit(Integer limit) {
 		if (limit == null) {
 			return DEFAULT_CATEGORY_LIMIT;
 		}
-		if (limit < MIN_CATEGORY_LIMIT || limit > MAX_CATEGORY_LIMIT) {
+		if (limit < MIN_CATEGORY_LIMIT) {
 			throw new BusinessException(ExceptionType.INVALID_CATEGORY_LIMIT);
 		}
 		return limit;
