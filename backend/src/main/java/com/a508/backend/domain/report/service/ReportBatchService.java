@@ -112,11 +112,7 @@ public class ReportBatchService {
 		ReportStatistics statistics = ReportStatistics.from(source);
 		List<Fact> facts = factExtractor.selectTop(factExtractor.extractAll(source));
 
-		OffsetDateTime cooldownSince = OffsetDateTime.now(DateTimeUtils.SERVICE_ZONE)
-			.minusWeeks(RecommendationExtractor.COOLDOWN_WEEKS);
-		Set<String> excluded = Set.copyOf(
-			recommendationLogRepository.findRecommendedPlaceNamesSince(userId, cooldownSince));
-		List<RecommendationItem> recommendations = recommendationExtractor.extract(source, excluded);
+		List<RecommendationItem> recommendations = recommendWithFallback(source, userId);
 
 		LlmResult result = callLlmWithRetry(type, period, statistics, facts, userId);
 		if (!result.success()) {
@@ -131,6 +127,36 @@ public class ReportBatchService {
 			recommendations);
 
 		return reportWriter.save(userId, type, statistics, envelope);
+	}
+
+	/**
+	 * 장소알림 추천 — 쿨다운(최근 {@value RecommendationExtractor#COOLDOWN_WEEKS}주 내 추천 제외)을 적용해
+	 * 최대 3건을 뽑고, 그 결과가 0건이면 쿨다운을 무시한 폴백으로 1건을 구제한다(팀 결정 2026-08-04).
+	 * <p>
+	 * 폴백으로 나간 추천도 리포트 저장 시 추천 이력에 기록된다({@link ReportWriter}) — 쿨다운 타이머가
+	 * 갱신되므로, 조용한 주에는 같은 단골이 계속 뜨고 새 장소에 가면 그쪽이 밀어내는 식으로 굴러간다.
+	 * <p>
+	 * 제외 목록이 비어 있는데 0건이면 후보 자체가 없는 주이므로 폴백을 시도하지 않는다(결과가 같다).
+	 */
+	private List<RecommendationItem> recommendWithFallback(ReportSource source, Long userId) {
+		OffsetDateTime cooldownSince = OffsetDateTime.now(DateTimeUtils.SERVICE_ZONE)
+			.minusWeeks(RecommendationExtractor.COOLDOWN_WEEKS);
+		Set<String> excluded = Set.copyOf(
+			recommendationLogRepository.findRecommendedPlaceNamesSince(userId, cooldownSince));
+
+		List<RecommendationItem> recommendations = recommendationExtractor.extract(source, excluded);
+		if (!recommendations.isEmpty() || excluded.isEmpty()) {
+			return recommendations;
+		}
+
+		List<RecommendationItem> fallback = recommendationExtractor.extractFallback(source);
+		if (fallback.isEmpty()) {
+			log.info("추천 폴백도 0건 — 후보 자체가 없음 (userId={}, {})", userId, source.period().start());
+		} else {
+			log.info("추천 폴백 발동 — 쿨다운 무시하고 1건 ({}, userId={}, {})",
+				fallback.get(0).placeName(), userId, source.period().start());
+		}
+		return fallback;
 	}
 
 	private LlmResult callLlmWithRetry(ReportType type, ReportPeriod period,
