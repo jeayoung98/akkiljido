@@ -169,7 +169,8 @@ export function CurrencyInput({
 }
 
 const styles = StyleSheet.create({
-  label: { color: Colors.light.placeholder, fontSize: 13, fontWeight: '600' },
+  // 거래 추가 폼의 다른 필드 라벨과 동일한 색상·굵기로 표시합니다.
+  label: { color: Colors.light.text, fontSize: 13, fontWeight: '700' },
   field: {
     minHeight: 60,
     justifyContent: 'center',

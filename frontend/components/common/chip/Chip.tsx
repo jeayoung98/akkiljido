@@ -10,6 +10,8 @@ export type ChipProps = {
   label: string;
   selected?: boolean;
   indicator?: ChipIndicator;
+  /** 카테고리 칩은 left, 정렬·기간 칩은 center 정렬로 사용할 수 있습니다. */
+  align?: 'left' | 'center';
   disabled?: boolean;
   onPress?: () => void;
   style?: StyleProp<ViewStyle>;
@@ -22,6 +24,7 @@ export function Chip({
   label,
   selected = false,
   indicator,
+  align = 'left',
   disabled = false,
   onPress,
   style,
@@ -41,6 +44,7 @@ export function Chip({
       onPress={onPress}
       style={({ pressed }) => [
         styles.container,
+        align === 'center' && styles.centeredContainer,
         selected ? styles.selectedContainer : styles.unselectedContainer,
         pressed && !disabled && styles.pressed,
         disabled && styles.disabled,
@@ -59,7 +63,9 @@ export function Chip({
         </View>
       ) : null}
 
-      <Text numberOfLines={1} style={[styles.label, selected && styles.selectedLabel]}>
+      <Text
+        numberOfLines={1}
+        style={[styles.label, align === 'center' && styles.centeredLabel, selected && styles.selectedLabel]}>
         {label}
       </Text>
     </Pressable>
@@ -81,6 +87,9 @@ const styles = StyleSheet.create({
   selectedContainer: {
     borderColor: Colors.light.primary,
     backgroundColor: Colors.light.inputBackground,
+  },
+  centeredContainer: {
+    justifyContent: 'center',
   },
   unselectedContainer: {
     borderColor: Colors.light.border,
@@ -118,6 +127,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     fontWeight: '600',
+  },
+  centeredLabel: {
+    flex: 0,
+    textAlign: 'center',
   },
   selectedLabel: {
     color: Colors.light.primary,

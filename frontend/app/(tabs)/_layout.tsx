@@ -3,6 +3,7 @@
 import { Tabs } from 'expo-router';
 import type { ComponentProps, ComponentType } from 'react';
 import { Image, Platform, Pressable, StyleSheet, View, type GestureResponderEvent } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import Colors from '@/constants/Colors';
 
@@ -79,6 +80,8 @@ function TabIcon({ name, focused }: { name: keyof typeof icons; focused: boolean
 
 // 탭 네비게이터 등록. 헤더/라벨은 숨기고, 탭 5개(홈/내역/지도/리포트/마이)를 순서대로 배치한다.
 export default function TabLayout() {
+  const insets = useSafeAreaInsets();
+
   return (
     <Tabs
       screenOptions={{
@@ -86,7 +89,9 @@ export default function TabLayout() {
         tabBarShowLabel: false,
         tabBarStyle: {
           paddingTop: 10,
-          height: 60,
+          // 기기 하단 안전 영역(홈 인디케이터/제스처 바)만큼 띄운다.
+          paddingBottom: insets.bottom,
+          height: 60 + insets.bottom,
         },
         // Expo Router와 Pressable의 ref 타입 차이를 변환해 ref와 기존 투명 리플 동작을 모두 유지한다.
         tabBarButton: ({ ref, ...props }) => (

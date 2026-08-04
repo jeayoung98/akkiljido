@@ -29,6 +29,8 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
+    // 카드 테두리에 텍스트가 붙지 않도록 양쪽 여백을 통일합니다.
+    paddingHorizontal: 12,
     paddingVertical: 14,
   },
   divider: {
@@ -36,7 +38,8 @@ const styles = StyleSheet.create({
     borderBottomColor: Colors.light.border,
   },
   label: {
-    width: 84,
+    // 기준명과 값 사이가 과도하게 벌어지지 않도록 고정 폭을 줄입니다.
+    width: 72,
     color: Colors.light.textSecondary,
     fontSize: 14,
   },

@@ -21,6 +21,8 @@ export type TextInputProps = NativeTextInputProps & {
   errorMessage?: string;
   /** 배경이 채워진 입력창과 밑줄 입력창 중 하나를 선택합니다. */
   variant?: TextInputVariant;
+  /** 추가 폼처럼 라벨을 채워진 입력 칸 안에 고정해 표시할 때 사용합니다. */
+  labelInside?: boolean;
   containerStyle?: StyleProp<ViewStyle>;
   inputStyle?: StyleProp<TextStyle>;
 };
@@ -34,6 +36,7 @@ export function TextInput({
   label,
   errorMessage,
   variant = 'filled',
+  labelInside = false,
   containerStyle,
   inputStyle,
   editable = true,
@@ -58,26 +61,48 @@ export function TextInput({
 
   return (
     <View style={[styles.container, containerStyle]}>
-      {label ? <Text style={[styles.label, hasError && styles.errorText]}>{label}</Text> : null}
+      {label && !labelInside ? <Text style={[styles.label, hasError && styles.errorText]}>{label}</Text> : null}
 
-      <NativeTextInput
-        // value, onChangeText, maxLength, multiline 등 기본 입력 props를 그대로 전달합니다.
-        {...props}
-        accessibilityLabel={accessibilityLabel ?? label}
-        editable={editable}
-        onBlur={handleBlur}
-        onFocus={handleFocus}
-        placeholderTextColor={Colors.light.placeholder}
-        style={[
-          styles.input,
-          // 화면 디자인에 따라 filled와 underline 중 하나를 선택합니다.
-          variant === 'filled' ? styles.filled : styles.underline,
-          isFocused && styles.focused,
-          hasError && styles.error,
-          !editable && styles.disabled,
-          inputStyle,
-        ]}
-      />
+      {labelInside ? (
+        // 거래 추가처럼 라벨과 입력값을 하나의 필드 안에 배치해야 하는 화면에서 사용합니다.
+        <View
+          style={[
+            styles.insideField,
+            isFocused && styles.focused,
+            hasError && styles.error,
+            !editable && styles.disabled,
+          ]}>
+          <Text style={[styles.insideLabel, hasError && styles.errorText]}>{label}</Text>
+          <NativeTextInput
+            {...props}
+            accessibilityLabel={accessibilityLabel ?? label}
+            editable={editable}
+            onBlur={handleBlur}
+            onFocus={handleFocus}
+            placeholderTextColor={Colors.light.placeholder}
+            style={[styles.input, styles.insideInput, inputStyle]}
+          />
+        </View>
+      ) : (
+        <NativeTextInput
+          // value, onChangeText, maxLength, multiline 등 기본 입력 props를 그대로 전달합니다.
+          {...props}
+          accessibilityLabel={accessibilityLabel ?? label}
+          editable={editable}
+          onBlur={handleBlur}
+          onFocus={handleFocus}
+          placeholderTextColor={Colors.light.placeholder}
+          style={[
+            styles.input,
+            // 화면 디자인에 따라 filled와 underline 중 하나를 선택합니다.
+            variant === 'filled' ? styles.filled : styles.underline,
+            isFocused && styles.focused,
+            hasError && styles.error,
+            !editable && styles.disabled,
+            inputStyle,
+          ]}
+        />
+      )}
 
       {errorMessage ? (
         <Text style={[styles.supportingText, styles.errorText]}>{errorMessage}</Text>
@@ -96,11 +121,32 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
   },
+  insideField: {
+    // SelectInput·DateInput과 함께 2열로 놓여도 높이가 일정하게 유지됩니다.
+    minHeight: 76,
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: 'transparent',
+    borderRadius: 14,
+    backgroundColor: Colors.light.inputBackground,
+  },
+  insideLabel: {
+    color: Colors.light.text,
+    fontSize: 13,
+    fontWeight: '700',
+  },
   input: {
     minHeight: 52,
     paddingHorizontal: 16,
     color: Colors.light.text,
     fontSize: 16,
+  },
+  insideInput: {
+    minHeight: 36,
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+    backgroundColor: 'transparent',
   },
   filled: {
     borderWidth: 1,
