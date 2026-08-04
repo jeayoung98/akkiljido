@@ -48,6 +48,13 @@ public enum ExceptionType {
 	DUPLICATE_PLACE_NAME(CONFLICT, "P001", "이미 등록된 장소 이름입니다."),
 	MY_PLACE_NOT_FOUND(NOT_FOUND, "P002", "등록된 장소를 찾을 수 없습니다."),
 
+	// notification place
+	INVALID_NOTIFICATION_PLACE_COORDINATE(BAD_REQUEST, "N001", "유효하지 않은 알림 장소 좌표입니다."),
+	DUPLICATE_NOTIFICATION_PLACE_NAME(CONFLICT, "N002", "이미 등록된 알림 장소 이름입니다."),
+	INVALID_NOTIFICATION_PLACE_TIME(BAD_REQUEST, "N003", "알림 시간이 올바르지 않습니다."),
+	INVALID_NOTIFICATION_PLACE_INPUT(BAD_REQUEST, "N004", "알림 장소 입력값이 올바르지 않습니다."),
+	NOTIFICATION_PLACE_NOT_FOUND(NOT_FOUND, "N005", "알림 장소를 찾을 수 없습니다."),
+
 	// geometry(좌표)
 	INVALID_LATITUDE(BAD_REQUEST, "G001", "위도는 -90 이상 90 이하여야 합니다."),
 	INVALID_LONGITUDE(BAD_REQUEST, "G002", "경도는 -180 이상 180 이하여야 합니다."),
