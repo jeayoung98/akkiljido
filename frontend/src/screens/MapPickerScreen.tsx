@@ -108,7 +108,13 @@ export default function MapPickerScreen() {
 
   // 검색창에서 검색을 실행했을 때 호출되는 함수. 결과를 저장하고, 지도는 첫 번째 결과 위치로 옮긴다.
   const handleSearch = async (query: string) => {
-    const places = await searchPlaces(query);
+    let places;
+    try {
+      places = await searchPlaces(query);
+    } catch {
+      Alert.alert('검색에 실패했어요', '잠시 후 다시 시도해주세요.');
+      return;
+    }
     setResults(places);
     setHasSearched(true);
     setSelected(null);

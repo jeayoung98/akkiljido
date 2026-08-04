@@ -385,9 +385,18 @@ export default function MapScreen() {
     if (!searchText.trim()) {
       return;
     }
-    const results = await searchPlaces(searchText);
+    let results;
+    try {
+      results = await searchPlaces(searchText);
+    } catch {
+      Alert.alert('검색에 실패했어요', '잠시 후 다시 시도해주세요.');
+      return;
+    }
     if (results.length > 0) {
       setSearchedPlace(results[0]);
+      // 좌표값이 이전과 같으면 initialCenter가 안 바뀌어 지도가 안 움직일 수 있으니,
+      // 명령형으로 직접 지도 중심을 옮겨서 항상 확실히 이동시킨다("내 위치" 버튼과 같은 방식).
+      mapRef.current?.setCenter({ lat: results[0].lat, lng: results[0].lng });
     }
   };
 

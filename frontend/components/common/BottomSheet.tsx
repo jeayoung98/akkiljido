@@ -177,7 +177,7 @@ export default function BottomSheet(props: BottomSheetProps) {
       <View style={{ height: maxHeightPx }}>
         {draggable && (
           <GestureDetector gesture={panGesture}>
-            <View style={styles.handleArea}>
+            <View style={styles.handleArea} hitSlop={{top:20,bottom:20}}>
               <View style={styles.handle} />
             </View>
           </GestureDetector>
