@@ -34,7 +34,10 @@ public record NotificationPlaceUpdateRequest(
         String endTime,
 
         @Schema(description = "알림 설정 이유", example = "근무 시간 소비 알림")
-        String reason
+        String reason,
+
+        @Schema(description = "알림 장소 활성 여부", example = "true")
+        Boolean active
 ) {
 
     private static final int MAX_NAME_LENGTH = 20;
@@ -76,7 +79,8 @@ public record NotificationPlaceUpdateRequest(
                 && longitude == null
                 && startTime == null
                 && endTime == null
-                && reason == null) {
+                && reason == null
+                && active == null) {
             throw new BusinessException(ExceptionType.INVALID_NOTIFICATION_PLACE_INPUT);
         }
     }

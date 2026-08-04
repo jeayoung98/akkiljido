@@ -12,7 +12,8 @@ public record NotificationPlaceResult(
 	Double longitude,
 	LocalTime startTime,
 	LocalTime endTime,
-	String reason
+	String reason,
+	boolean active
 ) {
 
 	public static NotificationPlaceResult from(NotificationPlace notificationPlace) {
@@ -24,7 +25,8 @@ public record NotificationPlaceResult(
 			notificationPlace.getLongitude(),
 			notificationPlace.getStartTime(),
 			notificationPlace.getEndTime(),
-			notificationPlace.getReason()
+			notificationPlace.getReason(),
+			notificationPlace.isActive()
 		);
 	}
 }

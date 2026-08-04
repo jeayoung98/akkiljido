@@ -63,6 +63,9 @@ public class NotificationPlace {
 	@Column(name = "reason", nullable = false, length = 100)
 	private String reason;
 
+	@Column(name = "active", nullable = false, columnDefinition = "boolean default true")
+	private boolean active = true;
+
 	private NotificationPlace(
 			User user,
 			String notificationPlaceName,
@@ -122,6 +125,11 @@ public class NotificationPlace {
 	/** 알림 설정 이유를 변경한다. */
 	public void updateReason(String reason) {
 		this.reason = reason;
+	}
+
+	/** 알림 장소의 활성 상태를 변경한다. */
+	public void updateActive(boolean active) {
+		this.active = active;
 	}
 
 	public Double getLatitude() {

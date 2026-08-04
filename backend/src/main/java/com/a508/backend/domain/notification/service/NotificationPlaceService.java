@@ -81,6 +81,7 @@ public class NotificationPlaceService {
 		updateLocation(request, notificationPlace);
 		updateTimeRange(request, notificationPlace);
 		updateReason(request, notificationPlace);
+		updateActive(request, notificationPlace);
 
 		return NotificationPlaceResult.from(notificationPlace);
 	}
@@ -147,6 +148,15 @@ public class NotificationPlaceService {
 	) {
 		if (request.reason() != null) {
 			notificationPlace.updateReason(request.reason().trim());
+		}
+	}
+
+	private void updateActive(
+			NotificationPlaceUpdateRequest request,
+			NotificationPlace notificationPlace
+	) {
+		if (request.active() != null) {
+			notificationPlace.updateActive(request.active());
 		}
 	}
 
