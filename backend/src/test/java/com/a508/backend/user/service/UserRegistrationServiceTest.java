@@ -1,14 +1,11 @@
 package com.a508.backend.user.service;
 
-import com.a508.backend.auth.token.AuthTokens;
-import com.a508.backend.auth.token.RefreshTokenService;
-import com.a508.backend.auth.token.TokenIssuer;
-import com.a508.backend.global.exception.BusinessException;
-import com.a508.backend.global.exception.ExceptionType;
-import com.a508.backend.user.domain.User;
-import com.a508.backend.user.domain.UserRole;
-import com.a508.backend.user.dto.NicknameRegistrationResult;
-import com.a508.backend.user.repository.UserRepository;
+import static org.assertj.core.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.BDDMockito.*;
+
+import java.time.Instant;
+import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -18,15 +15,17 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import java.time.Instant;
-import java.util.Optional;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
+import com.a508.backend.auth.token.AuthTokens;
+import com.a508.backend.auth.token.RefreshTokenService;
+import com.a508.backend.auth.token.TokenIssuer;
+import com.a508.backend.domain.category.service.CategoryService;
+import com.a508.backend.domain.user.service.UserRegistrationService;
+import com.a508.backend.global.exception.BusinessException;
+import com.a508.backend.global.exception.ExceptionType;
+import com.a508.backend.domain.user.domain.User;
+import com.a508.backend.domain.user.domain.UserRole;
+import com.a508.backend.domain.user.dto.NicknameRegistrationResult;
+import com.a508.backend.domain.user.repository.UserRepository;
 
 @ExtendWith(MockitoExtension.class)
 class UserRegistrationServiceTest {
@@ -40,11 +39,15 @@ class UserRegistrationServiceTest {
 	@Mock
 	private RefreshTokenService refreshTokenService;
 
+	@Mock
+	private CategoryService categoryService;
+
 	private UserRegistrationService userRegistrationService;
 
 	@BeforeEach
 	void setUp() {
-		userRegistrationService = new UserRegistrationService(userRepository, tokenIssuer, refreshTokenService);
+		userRegistrationService = new UserRegistrationService(userRepository, tokenIssuer, refreshTokenService,
+			categoryService);
 	}
 
 	@Test

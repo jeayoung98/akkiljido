@@ -15,11 +15,16 @@
 | `DB_PASSWORD` | Backend, PostgreSQL | 데이터베이스 인증 비밀번호 | 공유 기본값 없음 | Secret 관리 도구의 값 | 예 | 예 |
 | `REDIS_HOST` | Backend | Redis 호스트 | `localhost` | Compose 서비스명 `redis` | 운영: 예 | 아니오 |
 | `REDIS_PORT` | Backend, Redis | Redis 포트 | `6379` | 컨테이너 내부 포트 `6379` | 아니오 | 아니오 |
-| `KAKAO_API_KEY` | Backend | 향후 Kakao API 연동에 사용할 예정인 변수 | 공유 기본값 없음 | 현재 운영 배포에서는 미사용 | 아니오 | 예 |
+| `KAKAO_API_KEY` | Backend | Kakao Local API 인증 키 | 공유 기본값 없음 | EC2 환경파일의 값 | 예 | 예 |
+| `GMS_BASE_URL` | Backend | GMS/OpenAI 호환 API 주소 | 코드 기본값 | 코드 기본값 또는 EC2 환경파일의 값 | 아니오 | 아니오 |
+| `GMS_KEY` | Backend | GMS API 인증 키 | 공유 기본값 없음 | EC2 환경파일의 값 | 예 | 예 |
+| `GMS_MODEL` | Backend | 리포트 생성에 사용할 GMS 모델 | `gpt-5.4-mini` | 기본값 또는 EC2 환경파일의 값 | 아니오 | 아니오 |
 | `GOOGLE_CLIENT_ID` | Backend | Google ID Token Audience 검증 (`auth.google.allowed-audiences`) | 개인 개발용 Client ID | EC2 환경파일의 값 | 예 | 아니오 |
 | `JWT_SECRET` | Backend | JWT 서명 및 검증 (`auth.jwt.secret`) | 개인 개발용 Secret | EC2 환경파일의 값 | 예 | 예 |
+| `FCM_ENABLED` | Backend | Firebase 푸시 발송 활성화 여부 | `false` | EC2 환경파일의 값, 기본 `false` | 아니오 | 아니오 |
+| `GOOGLE_APPLICATION_CREDENTIALS` | Backend | Firebase 서비스 계정 파일의 컨테이너 경로 | 로컬 파일 경로 | `/app/secrets/...json` | 운영: 예 | 아니오 |
 
-`KAKAO_API_KEY`는 현재 Backend 코드에서 소비하지 않으며 운영 Compose도 필수값으로 요구하거나 Container에 전달하지 않는다. 실제 Kakao 연동 코드와 Spring Property 경로가 추가될 때 환경변수 전달 설정을 함께 정의한다.
+`KAKAO_API_KEY`와 `GMS_KEY`는 운영 Compose가 필수값으로 검증하여 Backend Container에 전달한다. 실제 Secret 값은 EC2의 환경파일에서만 관리한다.
 
 `JWT_SECRET`은 Base64로 디코딩했을 때 최소 32바이트 이상이어야 한다. 값을 변경하면 기존에 발급한 JWT가 무효화될 수 있다.
 
@@ -28,7 +33,7 @@
 - `.env.example`은 변수명과 안전한 개발 예시만 공유하는 Git 추적 파일이다.
 - 개인 개발 값은 저장소 루트의 `.env.local`에 작성하며 Git에 커밋하지 않는다.
 - `.env`, `.env.prod`, `.env.production`, `.env.*.local` 등 실제 값이 들어갈 수 있는 파일은 `.gitignore`의 `.env`와 `.env.*` 규칙으로 제외한다.
-- `DB_PASSWORD`, `KAKAO_API_KEY`, `JWT_SECRET`을 비롯한 실제 Secret은 코드, 문서, Docker 이미지, Notion에 기록하지 않는다.
+- `DB_PASSWORD`, `KAKAO_API_KEY`, `GMS_KEY`, `JWT_SECRET`을 비롯한 실제 Secret은 코드, 문서, Docker 이미지, Notion에 기록하지 않는다.
 - 운영 Runtime Secret은 EC2의 `/opt/akkiljido/.env.prod`에서만 관리하며 GitLab CI/CD Variable에 복제하지 않는다.
 - `/opt/akkiljido/.env.prod`는 소유자만 읽고 쓸 수 있도록 권한 `600`을 유지한다.
 - Secret이 Git 이력에 포함된 경우 파일 삭제만으로 해결하지 않고 해당 Credential을 폐기·재발급한 뒤 이력 정리 필요성을 별도로 검토한다.

@@ -2,7 +2,7 @@ package com.a508.backend.auth.token;
 
 import java.time.Instant;
 
-import com.a508.backend.user.domain.User;
+import com.a508.backend.domain.user.domain.User;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

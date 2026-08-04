@@ -45,15 +45,31 @@ services:
     environment:
       SERVER_PORT: "8080"
       SPRING_PROFILES_ACTIVE: prod
+
       DB_HOST: postgres
       DB_PORT: "5432"
       DB_NAME: ${DB_NAME:?DB_NAME must be set}
       DB_USERNAME: ${DB_USERNAME:?DB_USERNAME must be set}
       DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set}
+
       REDIS_HOST: redis
       REDIS_PORT: "6379"
+
+      KAKAO_API_KEY: ${KAKAO_API_KEY:?KAKAO_API_KEY is required}
+
+      GMS_BASE_URL: ${GMS_BASE_URL:-https://gms.ssafy.io/gmsapi/api.openai.com/v1}
+      GMS_KEY: ${GMS_KEY:?GMS_KEY is required}
+      GMS_MODEL: ${GMS_MODEL:-gpt-5.4-mini}
+
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:?GOOGLE_CLIENT_ID is required}
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+
+      FCM_ENABLED: ${FCM_ENABLED:-false}
+      GOOGLE_APPLICATION_CREDENTIALS: ${GOOGLE_APPLICATION_CREDENTIALS:?GOOGLE_APPLICATION_CREDENTIALS is required}
+
+    volumes:
+      - /opt/akkiljido/secrets/ssafycommon-6de18-firebase-adminsdk-fbsvc-c4d200273a.json:/app/secrets/ssafycommon-6de18-firebase-adminsdk-fbsvc-c4d200273a.json:ro
+
     depends_on:
       postgres:
         condition: service_healthy

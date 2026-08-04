@@ -2,7 +2,6 @@ package com.a508.backend.auth.token;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.BDDMockito.*;
-import static org.mockito.Mockito.*;
 
 import java.time.Instant;
 import java.util.Optional;
@@ -20,8 +19,8 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import com.a508.backend.global.exception.BusinessException;
 import com.a508.backend.global.exception.ExceptionType;
-import com.a508.backend.user.domain.User;
-import com.a508.backend.user.repository.UserRepository;
+import com.a508.backend.domain.user.domain.User;
+import com.a508.backend.domain.user.repository.UserRepository;
 
 @ExtendWith(MockitoExtension.class)
 class RefreshTokenValidatorTest {
