@@ -1,5 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { CategoryIcon } from '@/components/transaction/CategoryIcon';
+import { getCategoryColorById } from '@/constants/categories';
 import Colors from '@/constants/Colors';
 import type { CategorySummaryItem } from '@/mocks/home';
 
@@ -22,19 +24,25 @@ export function CategorySummaryCard({ categories, onPressMore }: CategorySummary
         </Pressable>
       </View>
 
-      <View style={styles.card}>
-        {categories.map((category, index) => (
+      {categories.map((category, index) => {
+        const categoryColor = getCategoryColorById(category.categoryId);
+        return (
           <View key={category.categoryId} style={[styles.row, index > 0 && styles.rowSpacing]}>
-            <View style={styles.rowHeader}>
-              <Text style={styles.categoryName}>{category.categoryName}</Text>
-              <Text style={styles.categoryAmount}>{category.amount.toLocaleString('ko-KR')}원</Text>
+            <View style={[styles.iconBadge, { backgroundColor: `${categoryColor}26` }]}>
+              <CategoryIcon categoryId={category.categoryId} categoryName={category.categoryName} size={18} />
             </View>
-            <View style={styles.barTrack}>
-              <View style={[styles.barFill, { width: `${Math.min(category.percent, 100)}%` }]} />
+            <View style={styles.rowInfo}>
+              <View style={styles.rowHeader}>
+                <Text style={styles.categoryName}>{category.categoryName}</Text>
+                <Text style={styles.categoryAmount}>{category.amount.toLocaleString('ko-KR')}원</Text>
+              </View>
+              <View style={styles.barTrack}>
+                <View style={[styles.barFill, { width: `${Math.min(category.percent, 100)}%`, backgroundColor: categoryColor }]} />
+              </View>
             </View>
           </View>
-        ))}
-      </View>
+        );
+      })}
     </View>
   );
 }
@@ -42,6 +50,14 @@ export function CategorySummaryCard({ categories, onPressMore }: CategorySummary
 const styles = StyleSheet.create({
   section: {
     gap: 12,
+    padding: 16,
+    borderRadius: 20,
+    backgroundColor: Colors.light.cardBackground,
+    elevation: 3,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
   },
   headerRow: {
     flexDirection: 'row',
@@ -62,16 +78,23 @@ const styles = StyleSheet.create({
     color: Colors.light.cardDescription,
     fontSize: 13,
   },
-  card: {
-    padding: 16,
-    borderRadius: 16,
-    backgroundColor: Colors.light.cardBackground,
-    borderWidth: 1,
-    borderColor: Colors.light.border,
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
-  row: {},
   rowSpacing: {
     marginTop: 16,
+  },
+  iconBadge: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rowInfo: {
+    flex: 1,
   },
   rowHeader: {
     flexDirection: 'row',

@@ -21,7 +21,11 @@ const styles = StyleSheet.create({
   card: {
     padding: 20,
     borderRadius: 20,
-    backgroundColor: Colors.light.primary,
+    // 화면 배경(SafeArea)이 이제 이 카드랑 같은 초록색이라, 반투명 흰색을 덮어서
+    // 배경보다 살짝 밝게 떠 보이게 하는 걸로 카드 경계를 구분한다.
+    backgroundColor: 'rgba(255, 255, 255, 0.16)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.22)',
   },
   label: {
     color: Colors.onboarding.lightText,

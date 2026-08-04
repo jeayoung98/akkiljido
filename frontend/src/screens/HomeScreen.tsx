@@ -22,15 +22,15 @@ export default function HomeScreen() {
   const nearbyExpenses = mockRecentExpensesResponse().data;
 
   return (
-    <AppScreen backgroundColor={Colors.light.background} scrollable>
+    <AppScreen backgroundColor={Colors.light.primary} scrollable>
       <View style={styles.header}>
         <View style={styles.profileRow}>
-          <Ionicons color={Colors.light.primary} name="person-circle" size={32} />
+          <Ionicons color="#FFFFFF" name="person-circle" size={32} />
           <Text style={styles.greeting}>안녕하세요, {NICKNAME}님</Text>
         </View>
 
         <View>
-          <IconButton name="notification" size={24} />
+          <IconButton color="#FFFFFF" name="notification" size={24} />
           {MOCK_UNREAD_NOTIFICATION_COUNT > 0 ? (
             <View style={styles.badge}>
               <Text style={styles.badgeText}>{MOCK_UNREAD_NOTIFICATION_COUNT}</Text>
@@ -39,8 +39,12 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      <View style={styles.content}>
+      <View style={styles.topContent}>
         <TodaySpendingCard amount={MOCK_TODAY_EXPENSE} />
+      </View>
+
+      {/* 오늘 지출액 카드까지만 초록 배경이고, 그 아래부터는 흰 배경으로 이어진다. */}
+      <View style={styles.body}>
         <NearbyWeekSpendingCard places={nearbyExpenses.placeList} totalAmount={nearbyExpenses.totalAmount} />
         <CategorySummaryCard categories={categories} onPressMore={() => router.push('/list?tab=analysis')} />
       </View>
@@ -62,7 +66,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   greeting: {
-    color: Colors.light.cardTitle,
+    color: '#FFFFFF',
     fontSize: 17,
     fontWeight: '700',
   },
@@ -83,7 +87,15 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
   },
-  content: {
+  topContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 20,
+  },
+  body: {
+    flexGrow: 1,
+    backgroundColor: Colors.light.background,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     padding: 16,
     gap: 24,
   },

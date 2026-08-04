@@ -27,6 +27,10 @@ export type MapMarker = {
 export type BuildMapHtmlParams = {
   initialCenter: LatLng;
   initialLevel?: number;
+  // false면 드래그(이동)를 막는다.
+  draggable?: boolean;
+  // false면 확대·축소(핀치줌·휠줌)를 막는다. draggable과 독립적인 옵션이다.
+  zoomable?: boolean;
 };
 
 // 검색 결과 핀(파랑)과 선택된 핀(초록)은 모양은 같고 색만 다르게 구분한다.
@@ -36,7 +40,7 @@ const SELECTED_PIN_COLOR = '#63A061';
 const MY_LOCATION_COLOR = '#8BC34A';
 
 // 지도 생성 자체(중심좌표/레벨)만 굽고, 마커/핀/선택핀/내 위치는 전부 RN에서 injectJavaScript로 채워 넣는다.
-export function buildMapHtml({ initialCenter, initialLevel = 3 }: BuildMapHtmlParams) {
+export function buildMapHtml({ initialCenter, initialLevel = 3, draggable = true, zoomable = true }: BuildMapHtmlParams) {
   return `
 <!DOCTYPE html>
 <html>
@@ -82,6 +86,8 @@ export function buildMapHtml({ initialCenter, initialLevel = 3 }: BuildMapHtmlPa
     const map = new kakao.maps.Map(document.getElementById('map'), {
       center: new kakao.maps.LatLng(${initialCenter.lat}, ${initialCenter.lng}),
       level: ${initialLevel},
+      draggable: ${draggable},
+      zoomable: ${zoomable},
     });
 
     const pinImageSize = new kakao.maps.Size(24, 34);
@@ -140,6 +146,22 @@ export function buildMapHtml({ initialCenter, initialLevel = 3 }: BuildMapHtmlPa
         content: '<div class="my-place-dot"></div>',
       });
       myPlaceDotOverlay.setMap(map);
+    }
+
+    // ── 내 장소 점만(반경 원 없이) ────────────────────────────────────
+    // setMyPlaceCircle과 같은 파란 점(.my-place-dot)이지만 원은 그리지 않는다.
+    let myPlaceDotOnlyOverlay = null;
+    function setMyPlaceDot(place) {
+      if (myPlaceDotOnlyOverlay) {
+        myPlaceDotOnlyOverlay.setMap(null);
+        myPlaceDotOnlyOverlay = null;
+      }
+      if (!place) return;
+      myPlaceDotOnlyOverlay = new kakao.maps.CustomOverlay({
+        position: new kakao.maps.LatLng(place.lat, place.lng),
+        content: '<div class="my-place-dot"></div>',
+      });
+      myPlaceDotOnlyOverlay.setMap(map);
     }
 
     // ── 검색 결과 등 단순 핀 목록 ─────────────────────────────────────
