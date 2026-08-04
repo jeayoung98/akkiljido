@@ -10,6 +10,11 @@ type CategorySummaryCardProps = {
   onPressMore?: () => void;
 };
 
+// 서버 값이 이상하게 와도(음수거나 100 초과) 막대가 화면 밖으로 넘치거나 안 보이지 않게 0~100으로 잘라낸다.
+function clampPercent(percent: number) {
+  return Math.max(0, Math.min(percent, 100));
+}
+
 /** 홈 화면의 "카테고리별 지출" 섹션. 이번 달 누적 기준 상위 4개(서버가 이미 top4로 잘라서 줌)를 막대그래프로 보여준다. */
 export function CategorySummaryCard({ categories, onPressMore }: CategorySummaryCardProps) {
   return (
@@ -24,25 +29,35 @@ export function CategorySummaryCard({ categories, onPressMore }: CategorySummary
         </Pressable>
       </View>
 
-      {categories.map((category, index) => {
-        const categoryColor = getCategoryColorById(category.categoryId);
-        return (
-          <View key={category.categoryId} style={[styles.row, index > 0 && styles.rowSpacing]}>
-            <View style={[styles.iconBadge, { backgroundColor: `${categoryColor}26` }]}>
-              <CategoryIcon categoryId={category.categoryId} categoryName={category.categoryName} size={18} />
-            </View>
-            <View style={styles.rowInfo}>
-              <View style={styles.rowHeader}>
-                <Text style={styles.categoryName}>{category.categoryName}</Text>
-                <Text style={styles.categoryAmount}>{category.amount.toLocaleString('ko-KR')}원</Text>
+      {/* 이번 달에 쓴 내역이 없어서 카테고리가 하나도 없는 경우, 빈 목록 대신 안내 문구를 보여준다. */}
+      {categories.length === 0 ? (
+        <Text style={styles.emptyText}>이번 달 지출 내역이 아직 없어요.</Text>
+      ) : (
+        categories.map((category, index) => {
+          const categoryColor = getCategoryColorById(category.categoryId);
+          return (
+            <View key={category.categoryId} style={[styles.row, index > 0 && styles.rowSpacing]}>
+              <View style={[styles.iconBadge, { backgroundColor: `${categoryColor}26` }]}>
+                <CategoryIcon categoryId={category.categoryId} categoryName={category.categoryName} size={18} />
               </View>
-              <View style={styles.barTrack}>
-                <View style={[styles.barFill, { width: `${Math.min(category.percent, 100)}%`, backgroundColor: categoryColor }]} />
+              <View style={styles.rowInfo}>
+                <View style={styles.rowHeader}>
+                  <Text style={styles.categoryName}>{category.categoryName}</Text>
+                  <Text style={styles.categoryAmount}>{category.amount.toLocaleString('ko-KR')}원</Text>
+                </View>
+                <View style={styles.barTrack}>
+                  <View
+                    style={[
+                      styles.barFill,
+                      { width: `${clampPercent(category.percent)}%`, backgroundColor: categoryColor },
+                    ]}
+                  />
+                </View>
               </View>
             </View>
-          </View>
-        );
-      })}
+          );
+        })
+      )}
     </View>
   );
 }
@@ -74,6 +89,12 @@ const styles = StyleSheet.create({
   moreText: {
     color: Colors.light.cardDescription,
     fontSize: 13,
+  },
+  emptyText: {
+    paddingVertical: 12,
+    color: Colors.light.cardDescription,
+    fontSize: 13,
+    textAlign: 'center',
   },
   row: {
     flexDirection: 'row',

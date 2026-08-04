@@ -32,6 +32,9 @@ type NearbyWeekSpendingCardProps = {
  */
 export function NearbyWeekSpendingCard({ totalAmount, places }: NearbyWeekSpendingCardProps) {
   const [currentLocation, setCurrentLocation] = useState<LatLng | null>(null);
+  // 권한 거부·조회 실패로 실제 위치를 못 받아온 경우를 구분해서, "현위치 기준" 문구를 그대로
+  // 보여주면 안 되는 상태(기본 위치로 대체됨)를 화면에서 알 수 있게 한다.
+  const [locationUnavailable, setLocationUnavailable] = useState(false);
   // WebView 안의 카카오맵 SDK가 실제로 준비되기 전에 setCenter를 부르면 조용히 무시된다.
   // GPS 위치를 지도 준비보다 먼저 받아오는 경우가 많아서, 준비 신호를 따로 기다린다.
   const [mapReady, setMapReady] = useState(false);
@@ -41,10 +44,15 @@ export function NearbyWeekSpendingCard({ totalAmount, places }: NearbyWeekSpendi
     (async () => {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
+        setLocationUnavailable(true);
         return;
       }
-      const position = await Location.getCurrentPositionAsync({});
-      setCurrentLocation({ lat: position.coords.latitude, lng: position.coords.longitude });
+      try {
+        const position = await Location.getCurrentPositionAsync({});
+        setCurrentLocation({ lat: position.coords.latitude, lng: position.coords.longitude });
+      } catch {
+        setLocationUnavailable(true);
+      }
     })();
   }, []);
 
@@ -62,7 +70,9 @@ export function NearbyWeekSpendingCard({ totalAmount, places }: NearbyWeekSpendi
   const markers: MapMarker[] = places.map((place, index) => {
     const offset = MARKER_OFFSETS[index % MARKER_OFFSETS.length];
     return {
-      id: place.name,
+      // place.name은 같은 이름의 다른 지점이 있을 수 있어 고유하지 않다. 좌표 조합을 id로 쓴다
+      // (MapScreen의 일반 가게 마커도 같은 방식을 쓴다).
+      id: `${place.latitude},${place.longitude}`,
       lat: center.lat + offset.lat,
       lng: center.lng + offset.lng,
       label: place.name,
@@ -74,7 +84,11 @@ export function NearbyWeekSpendingCard({ totalAmount, places }: NearbyWeekSpendi
   return (
     <View style={styles.section}>
       <Text style={styles.title}>내 주변 7일간 지출</Text>
-      <Text style={styles.subtitle}>현위치 기준 2km 반경 · 총 {totalAmount.toLocaleString('ko-KR')}원</Text>
+      <Text style={styles.subtitle}>
+        {locationUnavailable
+          ? '현재 위치를 가져올 수 없어 기본 위치 기준으로 보여드려요'
+          : `현위치 기준 2km 반경 · 총 ${totalAmount.toLocaleString('ko-KR')}원`}
+      </Text>
 
       <View style={styles.mapCard}>
         <KakaoMap
