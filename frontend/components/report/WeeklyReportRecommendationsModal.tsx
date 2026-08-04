@@ -7,6 +7,8 @@ import { BrandLogo } from '@/components/onboarding/BrandLogo';
 import Colors from '@/constants/Colors';
 
 export type ReportRecommendation = {
+  // 리스트 key용 고유 ID. placeName+timeRange 조합은 같은 장소·시간대 추천이 여러 개면 겹칠 수 있어 따로 둔다.
+  id: string;
   // 강조 앞까지의 설명 문장. 뒤에 "{placeName} {timeRange}에 알림을 설정해 보세요!"가 자동으로 붙는다.
   description: string;
   placeName: string; // 초록으로 강조되는 장소명
@@ -59,7 +61,7 @@ export function WeeklyReportRecommendationsModal({
 
         {recommendations.map((rec, index) => (
           <Pressable
-            key={`${rec.placeName}-${rec.timeRange}`}
+            key={rec.id}
             onPress={() => onSelectRecommendation(rec)}
             style={({ pressed }) => [styles.recCard, pressed && styles.recCardPressed]}>
             <Text style={styles.recIndex}>{index + 1}.</Text>
