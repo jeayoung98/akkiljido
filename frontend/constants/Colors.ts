@@ -1,5 +1,20 @@
 // 앱 전체에서 쓰는 색상 팔레트. 다크모드 없이 라이트 팔레트 하나만 관리한다.
 
+/** 백엔드 categoryId 1~11 순서와 같은 카테고리 전용 색상입니다. */
+export const categoryColors = [
+  '#B388EB', // 라이트 퍼플
+  '#F48FB1', // 핑크
+  '#FFB74D', // 오렌지
+  '#FFD54F', // 옐로우
+  '#4A784F', // 메인 초록
+  '#80CBC4', // 민트
+  '#81D4FA', // 하늘
+  '#90CAF9', // 블루
+  '#9FA8DA', // 인디고
+  '#AED581', // 연두
+  '#D7B899', // 베이지
+] as const;
+
 export default {
   onboarding: {
     green: "#4A784F",
@@ -10,19 +25,21 @@ export default {
     inverseText: "#FFFFFF",
     surface: "#FFFFFF",
   },
-  // 카테고리별 지정색 (백엔드 categoryId 1~11 기준). 지도 마커 테두리 등에 쓴다.
+
+  // 백엔드 categoryId(1~11)와 같은 순서로 관리하는 카테고리 전용 색상입니다.
+  // 지도 마커, 카테고리 아이콘, 분석 차트가 동일한 색을 사용합니다.
   category: {
-    1: "#F2994A", // 음식점 - 주황
-    2: "#B08968", // 카페·간식 - 브라운
-    3: "#56A3D9", // 편의점·마트 - 파랑
-    4: "#E85D9E", // 쇼핑 - 핑크
-    5: "#9B7FD4", // 여가 - 보라
-    6: "#3EB8A1", // 교통 - 청록
-    7: "#E8595E", // 건강·의료 - 빨강
-    8: "#E8B84B", // 생활 - 겨자
-    9: "#F2A0C4", // 미용 - 연분홍
-    10: "#6B7FD7", // 교육 - 남색
-    11: "#A3A8AC", // 기타 - 회색
+    1: categoryColors[0],
+    2: categoryColors[1],
+    3: categoryColors[2],
+    4: categoryColors[3],
+    5: categoryColors[4],
+    6: categoryColors[5],
+    7: categoryColors[6],
+    8: categoryColors[7],
+    9: categoryColors[8],
+    10: categoryColors[9],
+    11: categoryColors[10],
   } as Record<number, string>,
   light: {
     text: "#000", // 기본 텍스트 색

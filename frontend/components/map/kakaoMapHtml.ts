@@ -94,7 +94,7 @@ export function buildMapHtml({ initialCenter, initialLevel = 3 }: BuildMapHtmlPa
     const pinImage = makePinImage('${PIN_COLOR}');
     const selectedPinImage = makePinImage('${SELECTED_PIN_COLOR}');
 
-    // ── 내 위치(연두색 점) ────────────────────────────────────────────
+
     let myLocationOverlay = null;
     function setMyLocation(loc) {
       if (myLocationOverlay) {
@@ -297,6 +297,7 @@ export function buildMapHtml({ initialCenter, initialLevel = 3 }: BuildMapHtmlPa
         openRoadviewAt(latlng.getLat(), latlng.getLng());
         return;
       }
+
       window.ReactNativeWebView.postMessage(
         JSON.stringify({ type: 'tap', lat: latlng.getLat(), lng: latlng.getLng() })
       );
