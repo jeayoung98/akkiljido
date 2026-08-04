@@ -40,7 +40,7 @@ export function AddCircleButton({
         style,
       ]}>
       {/* 아이콘이 원보다 꽉 차 보이면 답답해 보여서, 원 지름의 60% 정도로 여백을 남긴다. */}
-      <Ionicons color="#fff" name="add" size={Math.round(size * 0.6)} />
+      <Ionicons color={Colors.light.cardBackground} name="add" size={Math.round(size * 0.6)} />
     </Pressable>
   );
 }
