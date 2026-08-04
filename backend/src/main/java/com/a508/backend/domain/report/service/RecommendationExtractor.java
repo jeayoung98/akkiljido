@@ -1,6 +1,5 @@
 package com.a508.backend.domain.report.service;
 
-import java.time.DayOfWeek;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -47,11 +46,6 @@ public class RecommendationExtractor {
 	/** 근거 하한 — 커피 한 잔으로 알림을 권하지 않는다: 2회 이상 방문 또는 1회 3만 원 이상. */
 	private static final int MIN_VISITS = 2;
 	private static final long MIN_SINGLE_AMOUNT = 30_000;
-	/** 요일 지정은 보수적으로: 3회 이상 방문 + 단일 요일 70% 집중일 때만. 아니면 null(매일). */
-	private static final int DAY_MIN_VISITS = 3;
-	private static final double DAY_MIN_SHARE = 0.7;
-
-	private static final String[] DOW_KO = {"일", "월", "화", "수", "목", "금", "토"};
 
 	/**
 	 * 기간 내 거래에서 추천 최대 3건을 만든다. 점수 = 그 기간 그 장소의 지출 총액.
@@ -119,9 +113,7 @@ public class RecommendationExtractor {
 		long inWindow = hours.stream()
 			.filter(h -> h >= windowStart && h < windowStart + WINDOW_HOURS).count();
 
-		Integer day = pickDay(visits);
-		String when = (day != null ? DOW_KO[day] + "요일 " : "")
-			+ ampm(windowStart) + " " + windowStart + "~" + (windowStart + WINDOW_HOURS) + "시";
+		String when = ampm(windowStart) + " " + windowStart + "~" + (windowStart + WINDOW_HOURS) + "시";
 		boolean allInWindow = inWindow == n;
 
 		return new RecommendationItem(
@@ -131,7 +123,6 @@ public class RecommendationExtractor {
 			GeometryUtils.longitudeOf(first.getCoordinate()),
 			String.format("%02d:00", windowStart),
 			String.format("%02d:00", windowStart + WINDOW_HOURS),
-			day,
 			reasonShort(n, amount, when, allInWindow),
 			reasonMessage(first.getTransactionName(), n, amount, when, windowStart, allInWindow));
 	}
@@ -151,24 +142,11 @@ public class RecommendationExtractor {
 		return bestStart;
 	}
 
-	/** 요일 지정(0=일 … 6=토, notification_place.day 체계). 대부분 null — 지오펜스가 요일 필터 역할을 한다(§5.3). */
-	private static Integer pickDay(List<TransactionHistory> visits) {
-		if (visits.size() < DAY_MIN_VISITS) {
-			return null;
-		}
-		int[] byDow = new int[7];
-		for (TransactionHistory t : visits) {
-			DayOfWeek dow = DateTimeUtils.toServiceLocal(t.getDatetime()).getDayOfWeek();
-			byDow[dow == DayOfWeek.SUNDAY ? 0 : dow.getValue()]++;
-		}
-		int top = 0;
-		for (int d = 1; d < 7; d++) {
-			if (byDow[d] > byDow[top]) {
-				top = d;
-			}
-		}
-		return (double)byDow[top] / visits.size() >= DAY_MIN_SHARE ? top : null;
-	}
+	// [삭제] 요일 지정(pickDay) — 알림은 요일 없이 "장소 + 시간대"로만 건다.
+	//   근거: ① notification_place 엔티티에 day 컬럼이 없어 저장할 곳이 없다
+	//        ② 지오펜스가 요일 필터 역할을 한다 — 그날 그 근처에 없으면 울리지 않는다
+	//        ③ 특정 요일로 못 박으면 오히려 놓친다: 이 데이터의 단일 요일 집중도는 44~63%인데
+	//           주말(토+일) 집중도는 71~100%다(실험 로그 #181). 실측 추천 131건 중 지정 0건.
 
 	// ── 이유 템플릿 — 수량 부사("두 번 다")는 반드시 전량 검사(allInWindow)와 짝을 이룬다 ──
 

@@ -1,5 +1,7 @@
 package com.a508.backend.domain.report.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 
 /**
@@ -7,7 +9,10 @@ import io.swagger.v3.oas.annotations.media.Schema;
  * recommendation_log 테이블에는 시간대·이유 컬럼이 없으므로, 이 값들이 프론트까지 가는 유일한 통로가 봉투다.
  * <p>
  * reasonShort/reasonMessage 는 LLM 이 아니라 추출기 템플릿이 만든다(결정적 — 설계 문서 §4.4 분업표).
+ * <p>
+ * 알림 요일(day)은 두지 않는다 — notification_place 에 컬럼이 없고, 지오펜스가 요일 필터 역할을 한다.
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 @Schema(description = "장소알림 추천 항목")
 public record RecommendationItem(
 
@@ -28,9 +33,6 @@ public record RecommendationItem(
 
 	@Schema(description = "알림 종료 시각", example = "17:00")
 	String endTime,
-
-	@Schema(description = "알림 요일. null 이면 매일 — 지오펜스가 요일 필터 역할을 하므로 null 이 기본이다", example = "null")
-	Integer day,
 
 	@Schema(description = "추천 이유 1줄 단문", example = "오후 14~17시에 3번, 모두 23,700원")
 	String reasonShort,
