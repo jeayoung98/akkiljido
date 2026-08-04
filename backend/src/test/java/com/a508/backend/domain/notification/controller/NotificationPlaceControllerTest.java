@@ -73,7 +73,8 @@ class NotificationPlaceUpdateControllerTest {
 						127.0292,
 						"10:00",
 						"19:00",
-						"퇴근 전 소비 알림"
+						"퇴근 전 소비 알림",
+						null
 				);
 
 		NotificationPlaceResult result = new NotificationPlaceResult(
@@ -84,7 +85,8 @@ class NotificationPlaceUpdateControllerTest {
 				127.0292,
 				LocalTime.of(10, 0),
 				LocalTime.of(19, 0),
-				"퇴근 전 소비 알림"
+				"퇴근 전 소비 알림",
+				true
 		);
 
 		given(
@@ -112,7 +114,8 @@ class NotificationPlaceUpdateControllerTest {
 				.andExpect(jsonPath("$.data.longitude").value(127.0292))
 				.andExpect(jsonPath("$.data.startTime").value("10:00"))
 				.andExpect(jsonPath("$.data.endTime").value("19:00"))
-				.andExpect(jsonPath("$.data.reason").value("퇴근 전 소비 알림"));
+				.andExpect(jsonPath("$.data.reason").value("퇴근 전 소비 알림"))
+				.andExpect(jsonPath("$.data.active").value(true));
 
 		then(notificationPlaceService)
 				.should()
@@ -134,7 +137,8 @@ class NotificationPlaceUpdateControllerTest {
 						null,
 						null,
 						null,
-						"점심 소비 주의"
+						"점심 소비 주의",
+						null
 				);
 
 		NotificationPlaceResult result = new NotificationPlaceResult(
@@ -145,7 +149,8 @@ class NotificationPlaceUpdateControllerTest {
 				127.0365,
 				LocalTime.of(9, 0),
 				LocalTime.of(18, 0),
-				"점심 소비 주의"
+				"점심 소비 주의",
+				true
 		);
 
 		given(
@@ -167,7 +172,65 @@ class NotificationPlaceUpdateControllerTest {
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.success").value(true))
 				.andExpect(jsonPath("$.data.notificationPlaceName").value("회사"))
-				.andExpect(jsonPath("$.data.reason").value("점심 소비 주의"));
+				.andExpect(jsonPath("$.data.reason").value("점심 소비 주의"))
+				.andExpect(jsonPath("$.data.active").value(true));
+	}
+
+	@Test
+	@DisplayName("active만 입력해 알림 장소를 비활성화한다")
+	void deactivateNotificationPlace() throws Exception {
+		NotificationPlaceUpdateRequest request =
+				new NotificationPlaceUpdateRequest(
+						null,
+						null,
+						null,
+						null,
+						null,
+						null,
+						null,
+						false
+				);
+
+		NotificationPlaceResult result = new NotificationPlaceResult(
+				NOTIFICATION_PLACE_ID,
+				"회사",
+				"서울 강남구 역삼동",
+				37.5007,
+				127.0365,
+				LocalTime.of(9, 0),
+				LocalTime.of(18, 0),
+				"근무 시간 소비 알림",
+				false
+		);
+
+		given(
+				notificationPlaceService.updateNotificationPlace(
+						USER_ID,
+						NOTIFICATION_PLACE_ID,
+						request
+				)
+		).willReturn(result);
+
+		mockMvc.perform(
+						patch(
+								"/api/v1/notification/{notificationPlaceId}",
+								NOTIFICATION_PLACE_ID
+						)
+								.contentType(MediaType.APPLICATION_JSON)
+								.content(objectMapper.writeValueAsString(request))
+				)
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.success").value(true))
+				.andExpect(jsonPath("$.data.notificationPlaceId").value(1))
+				.andExpect(jsonPath("$.data.active").value(false));
+
+		then(notificationPlaceService)
+				.should()
+				.updateNotificationPlace(
+						USER_ID,
+						NOTIFICATION_PLACE_ID,
+						request
+				);
 	}
 
 	@Test
@@ -175,6 +238,7 @@ class NotificationPlaceUpdateControllerTest {
 	void rejectEmptyUpdateRequest() throws Exception {
 		NotificationPlaceUpdateRequest request =
 				new NotificationPlaceUpdateRequest(
+						null,
 						null,
 						null,
 						null,
@@ -212,6 +276,7 @@ class NotificationPlaceUpdateControllerTest {
 						null,
 						null,
 						null,
+						null,
 						null
 				);
 
@@ -243,6 +308,7 @@ class NotificationPlaceUpdateControllerTest {
 						null,
 						"09:00",
 						"09:00",
+						null,
 						null
 				);
 

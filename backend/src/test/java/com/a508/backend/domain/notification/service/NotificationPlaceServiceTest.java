@@ -104,6 +104,7 @@ class NotificationPlaceUpdateServiceTest {
 		assertThat(result.startTime()).isEqualTo(LocalTime.of(10, 0));
 		assertThat(result.endTime()).isEqualTo(LocalTime.of(19, 0));
 		assertThat(result.reason()).isEqualTo("퇴근 전 소비 알림");
+		assertThat(result.active()).isTrue();
 
 		then(notificationPlaceRepository)
 				.should()
@@ -145,6 +146,7 @@ class NotificationPlaceUpdateServiceTest {
 		assertThat(result.startTime()).isEqualTo(LocalTime.of(9, 0));
 		assertThat(result.endTime()).isEqualTo(LocalTime.of(18, 0));
 		assertThat(result.reason()).isEqualTo("점심 소비 주의");
+		assertThat(result.active()).isTrue();
 
 		then(notificationPlaceRepository)
 				.should(never())
@@ -153,6 +155,39 @@ class NotificationPlaceUpdateServiceTest {
 						anyString(),
 						anyLong()
 				);
+	}
+
+	@Test
+	@DisplayName("알림 장소를 비활성화한다")
+	void deactivateNotificationPlace() {
+		NotificationPlaceUpdateRequest request =
+				new NotificationPlaceUpdateRequest(
+						null,
+						null,
+						null,
+						null,
+						null,
+						null,
+						null,
+						false
+				);
+
+		givenOwnedNotificationPlace();
+
+		NotificationPlaceResult result =
+				notificationPlaceService.updateNotificationPlace(
+						USER_ID,
+						NOTIFICATION_PLACE_ID,
+						request
+				);
+
+		assertThat(result.active()).isFalse();
+		assertThat(notificationPlace.isActive()).isFalse();
+
+		then(notificationPlaceRepository)
+				.should()
+				.findByIdAndUser_Id(NOTIFICATION_PLACE_ID, USER_ID);
+		then(notificationPlaceRepository).should(never()).save(any());
 	}
 
 	@Test
@@ -352,7 +387,8 @@ class NotificationPlaceUpdateServiceTest {
 				longitude,
 				startTime,
 				endTime,
-				reason
+				reason,
+				null
 		);
 	}
 }

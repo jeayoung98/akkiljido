@@ -34,6 +34,17 @@ class NotificationPlaceTest {
 	}
 
 	@Test
+	@DisplayName("새 알림 장소는 활성 상태로 생성된다")
+	void createActiveNotificationPlace() {
+		NotificationPlace notificationPlace = createNotificationPlace(
+			LocalTime.of(9, 0),
+			LocalTime.of(18, 0)
+		);
+
+		assertThat(notificationPlace.isActive()).isTrue();
+	}
+
+	@Test
 	@DisplayName("알림 시작 및 종료 시각을 함께 변경한다")
 	void updateNotificationTimeRange() {
 		NotificationPlace notificationPlace = createNotificationPlace(
@@ -50,6 +61,23 @@ class NotificationPlaceTest {
 			.isEqualTo(LocalTime.of(10, 30));
 		assertThat(notificationPlace.getEndTime())
 			.isEqualTo(LocalTime.of(19, 30));
+	}
+
+	@Test
+	@DisplayName("알림 장소의 활성 상태를 변경한다")
+	void updateActive() {
+		NotificationPlace notificationPlace = createNotificationPlace(
+			LocalTime.of(9, 0),
+			LocalTime.of(18, 0)
+		);
+
+		notificationPlace.updateActive(false);
+
+		assertThat(notificationPlace.isActive()).isFalse();
+
+		notificationPlace.updateActive(true);
+
+		assertThat(notificationPlace.isActive()).isTrue();
 	}
 
 	private NotificationPlace createNotificationPlace(
