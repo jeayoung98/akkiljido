@@ -19,6 +19,7 @@ import {
 import { Button } from '@/components/common/button/Button';
 import { IconButton } from '@/components/common/button/IconButton';
 import { MapInput } from '@/components/common/input/MapInput';
+import { TimeInput } from '@/components/common/input/TimeInput';
 import Colors from '@/constants/Colors';
 import { useMapPickerStore } from '@/store/mapPickerStore';
 
@@ -69,7 +70,8 @@ export type AlarmRecommendation = {
   name: string;
   placeId?: number;
   placeName: string;
-  time: string;
+  startTime: string;
+  endTime: string;
   reason: string;
 };
 
@@ -131,9 +133,10 @@ export function RecommendedAlarmModal({
 
   const isNameEmpty = !form.name.trim();
   const isPlaceEmpty = !form.placeName.trim();
-  const isTimeEmpty = !form.time.trim();
+  const isStartTimeEmpty = !form.startTime.trim();
+  const isEndTimeEmpty = !form.endTime.trim();
   // 알림 추가 이유는 AI 설명용 선택 항목이며 이름·장소·시간만 필수로 검사합니다.
-  const hasError = isNameEmpty || isPlaceEmpty || isTimeEmpty;
+  const hasError = isNameEmpty || isPlaceEmpty || isStartTimeEmpty || isEndTimeEmpty;
 
   const handleSave = () => {
     if (hasError) {
@@ -146,7 +149,8 @@ export function RecommendedAlarmModal({
       ...form,
       name: form.name.trim(),
       placeName: form.placeName.trim(),
-      time: form.time.trim(),
+      startTime: form.startTime.trim(),
+      endTime: form.endTime.trim(),
       reason: form.reason.trim(),
     });
   };
@@ -164,15 +168,6 @@ export function RecommendedAlarmModal({
     isReturningFromMapRef.current = true;
     onClose();
     router.push('/map-picker');
-  };
-
-  const handleTimeChange = (value: string) => {
-    // 숫자만 유지하고 세 번째 숫자부터 HH:mm 형태로 구분자를 자동 적용합니다.
-    const digits = value.replace(/\D/g, '').slice(0, 4);
-    const formattedTime =
-      digits.length > 2 ? `${digits.slice(0, 2)}:${digits.slice(2)}` : digits;
-
-    updateField('time', formattedTime);
   };
 
   return (
@@ -239,28 +234,39 @@ export function RecommendedAlarmModal({
                 ) : null}
               </View>
 
-              {/* 알림 시간·이유는 항상 같은 세로 높이를 유지해야 해서 나란히 한 줄에 배치한다. */}
+              {/* 알림 시작·끝 시간은 항상 같은 세로 높이를 유지해야 해서 나란히 한 줄에 배치한다. */}
               <View style={styles.row}>
-                <FieldInput
-                  containerStyle={styles.timeField}
-                  errorMessage={showErrors && isTimeEmpty ? '시간을 입력해 주세요.' : undefined}
-                  inputMode="numeric"
-                  label="알림 시간"
-                  maxLength={5}
-                  onChangeText={handleTimeChange}
-                  placeholder="18:30"
-                  value={form.time}
-                  valueStyle={styles.timeValue}
-                />
+                <View style={[styles.fieldBox, styles.timeField, showErrors && isStartTimeEmpty && styles.fieldBoxError]}>
+                  <Text style={styles.fieldLabel}>알림 시작 시간</Text>
+                  <TimeInput
+                    containerStyle={styles.timeInputContainer}
+                    inputStyle={styles.timeInputValue}
+                    onChangeText={(value) => updateField('startTime', value)}
+                    placeholder="18:30"
+                    value={form.startTime}
+                  />
+                  {showErrors && isStartTimeEmpty ? <Text style={styles.errorText}>시작 시간을 입력해 주세요.</Text> : null}
+                </View>
 
-                <FieldInput
-                  containerStyle={styles.reasonField}
-                  label="알림 추가 이유"
-                  onChangeText={(value) => updateField('reason', value)}
-                  placeholder="AI 추천 이유"
-                  value={form.reason}
-                />
+                <View style={[styles.fieldBox, styles.timeField, showErrors && isEndTimeEmpty && styles.fieldBoxError]}>
+                  <Text style={styles.fieldLabel}>알림 끝 시간</Text>
+                  <TimeInput
+                    containerStyle={styles.timeInputContainer}
+                    inputStyle={styles.timeInputValue}
+                    onChangeText={(value) => updateField('endTime', value)}
+                    placeholder="19:30"
+                    value={form.endTime}
+                  />
+                  {showErrors && isEndTimeEmpty ? <Text style={styles.errorText}>끝 시간을 입력해 주세요.</Text> : null}
+                </View>
               </View>
+
+              <FieldInput
+                label="알림 추가 이유"
+                onChangeText={(value) => updateField('reason', value)}
+                placeholder="AI 추천 이유"
+                value={form.reason}
+              />
             </ScrollView>
 
             <Button loading={saveLoading} onPress={handleSave} style={styles.saveButton}>
@@ -354,8 +360,19 @@ const styles = StyleSheet.create({
     color: Colors.light.text,
     fontSize: 14,
   },
-  timeValue: {
-    textAlign: 'center',
+  // TimeInput은 기본적으로 자기 배경(연한 초록 필드)을 갖고 있는데, 여기선 fieldBox 안에 이미
+  // 같은 톤의 배경이 있어서 이중 박스로 보이지 않게 투명하게 덮어쓴다.
+  timeInputContainer: {
+    alignSelf: 'flex-start',
+  },
+  timeInputValue: {
+    padding: 0,
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+    minHeight: 0,
+    color: Colors.light.text,
+    fontSize: 14,
+    textAlign: 'left',
   },
   row: {
     flexDirection: 'row',
@@ -365,12 +382,10 @@ const styles = StyleSheet.create({
   timeField: {
     flex: 1,
   },
-  reasonField: {
-    flex: 1.6,
-  },
   saveButton: {
     height: 56,
-    marginTop: 18,
+    // 폼(ScrollView) 마지막 항목과의 간격을 다른 필드 사이 간격(form.gap)만큼 확실히 띄운다.
+    marginTop: 20,
     borderRadius: 16,
   },
 });
