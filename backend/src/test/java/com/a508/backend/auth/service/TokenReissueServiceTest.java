@@ -3,7 +3,6 @@ package com.a508.backend.auth.service;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.*;
-import static org.mockito.Mockito.*;
 
 import java.time.Instant;
 
@@ -22,7 +21,7 @@ import com.a508.backend.auth.token.RefreshTokenValidator;
 import com.a508.backend.auth.token.TokenIssuer;
 import com.a508.backend.global.exception.BusinessException;
 import com.a508.backend.global.exception.ExceptionType;
-import com.a508.backend.user.domain.User;
+import com.a508.backend.domain.user.domain.User;
 
 @ExtendWith(MockitoExtension.class)
 class TokenReissueServiceTest {

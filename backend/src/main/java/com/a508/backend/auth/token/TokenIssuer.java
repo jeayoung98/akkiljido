@@ -1,6 +1,6 @@
 package com.a508.backend.auth.token;
 
-import com.a508.backend.user.domain.User;
+import com.a508.backend.domain.user.domain.User;
 
 public interface TokenIssuer {
 

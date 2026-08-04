@@ -11,8 +11,8 @@ import org.springframework.util.StringUtils;
 
 import com.a508.backend.global.exception.BusinessException;
 import com.a508.backend.global.exception.ExceptionType;
-import com.a508.backend.user.domain.User;
-import com.a508.backend.user.repository.UserRepository;
+import com.a508.backend.domain.user.domain.User;
+import com.a508.backend.domain.user.repository.UserRepository;
 
 @Component
 public class RefreshTokenValidator {

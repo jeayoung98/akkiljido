@@ -2,7 +2,6 @@ package com.a508.backend.auth.controller;
 
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.*;
-import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -32,7 +31,7 @@ import com.a508.backend.global.exception.BusinessException;
 import com.a508.backend.global.exception.ExceptionType;
 import com.a508.backend.global.exception.GlobalExceptionHandler;
 import com.a508.backend.global.security.AuthenticatedUser;
-import com.a508.backend.user.domain.UserRole;
+import com.a508.backend.domain.user.domain.UserRole;
 
 @ExtendWith(MockitoExtension.class)
 class AuthControllerTest {

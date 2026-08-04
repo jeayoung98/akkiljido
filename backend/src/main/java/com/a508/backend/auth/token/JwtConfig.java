@@ -20,7 +20,7 @@ import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.util.StringUtils;
 
-import com.a508.backend.user.domain.UserRole;
+import com.a508.backend.domain.user.domain.UserRole;
 
 @Configuration
 public class JwtConfig {

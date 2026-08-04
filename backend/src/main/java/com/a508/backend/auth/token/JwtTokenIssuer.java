@@ -15,7 +15,7 @@ import org.springframework.stereotype.Component;
 
 import com.a508.backend.global.exception.BusinessException;
 import com.a508.backend.global.exception.ExceptionType;
-import com.a508.backend.user.domain.User;
+import com.a508.backend.domain.user.domain.User;
 
 @Component
 public class JwtTokenIssuer implements TokenIssuer {

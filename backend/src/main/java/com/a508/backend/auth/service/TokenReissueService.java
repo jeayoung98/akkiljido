@@ -8,7 +8,7 @@ import com.a508.backend.auth.token.AuthTokens;
 import com.a508.backend.auth.token.RefreshTokenService;
 import com.a508.backend.auth.token.RefreshTokenValidator;
 import com.a508.backend.auth.token.TokenIssuer;
-import com.a508.backend.user.domain.User;
+import com.a508.backend.domain.user.domain.User;
 
 @Service
 public class TokenReissueService {

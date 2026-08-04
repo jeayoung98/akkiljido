@@ -9,9 +9,9 @@ import com.a508.backend.auth.google.GoogleIdentity;
 import com.a508.backend.auth.token.AuthTokens;
 import com.a508.backend.auth.token.RefreshTokenService;
 import com.a508.backend.auth.token.TokenIssuer;
-import com.a508.backend.user.domain.OAuthProvider;
-import com.a508.backend.user.domain.User;
-import com.a508.backend.user.repository.UserRepository;
+import com.a508.backend.domain.user.domain.OAuthProvider;
+import com.a508.backend.domain.user.domain.User;
+import com.a508.backend.domain.user.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
 
