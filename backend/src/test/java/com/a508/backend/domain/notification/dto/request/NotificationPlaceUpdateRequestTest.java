@@ -29,6 +29,25 @@ class NotificationPlaceUpdateRequestTest {
     }
 
     @Test
+    @DisplayName("활성 상태만 입력한 수정 요청을 허용한다")
+    void validateActiveOnlyUpdateRequest() {
+        NotificationPlaceUpdateRequest request =
+                new NotificationPlaceUpdateRequest(
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        false
+                );
+
+        assertThatCode(request::validate).doesNotThrowAnyException();
+        assertThat(request.active()).isFalse();
+    }
+
+    @Test
     @DisplayName("주소와 좌표를 함께 입력한 수정 요청을 허용한다")
     void validateLocationUpdateRequest() {
         NotificationPlaceUpdateRequest request = request(
@@ -262,7 +281,8 @@ class NotificationPlaceUpdateRequestTest {
                 longitude,
                 startTime,
                 endTime,
-                reason
+                reason,
+                null
         );
     }
 }

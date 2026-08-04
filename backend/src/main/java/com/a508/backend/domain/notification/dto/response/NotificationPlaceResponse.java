@@ -34,7 +34,10 @@ public record NotificationPlaceResponse(
 	LocalTime endTime,
 
 	@Schema(description = "알림 설정 이유", example = "점심시간 과소비 방지")
-	String reason
+	String reason,
+
+	@Schema(description = "알림 장소 활성 여부", example = "true")
+	boolean active
 ) {
 
 	public static NotificationPlaceResponse from(NotificationPlaceResult result) {
@@ -46,7 +49,8 @@ public record NotificationPlaceResponse(
 			result.longitude(),
 			result.startTime(),
 			result.endTime(),
-			result.reason()
+			result.reason(),
+			result.active()
 		);
 	}
 }
