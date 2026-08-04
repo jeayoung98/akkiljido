@@ -12,14 +12,8 @@ import { Switch } from '@/components/my/Switch';
 import Colors from '@/constants/Colors';
 import { MOCK_NOTIFICATION_PLACES, type NotificationPlace } from '@/mocks/notifications';
 
-// 요일 배열을 mockup과 동일한 "월·화·수·목·금" 형태로 합친다. null(매일)이면 표시하지 않는다.
-function formatDayLabel(day: string[] | null) {
-  return day ? ` · ${day.join('·')}` : '';
-}
-
 /**
  * 마이페이지 > 알림 설정 화면입니다. 소비 리포트(주간/월간) 알림과, 등록한 위치 알림 목록을 보여줍니다.
- * day(요일)·enabled(활성 상태) 필드는 백엔드 확정 전이라 로컬 상태로만 관리합니다(mocks/notifications.ts 참고).
  * 위치 알림 추가/수정 화면은 아직 없어서 각 버튼은 자리만 잡아뒀습니다.
  */
 export default function NotificationSettingsScreen() {
@@ -29,7 +23,7 @@ export default function NotificationSettingsScreen() {
   const [deleteTarget, setDeleteTarget] = useState<NotificationPlace | null>(null);
 
   const handleTogglePlace = (id: number, next: boolean) => {
-    setPlaces((prev) => prev.map((place) => (place.notificationPlaceId === id ? { ...place, enabled: next } : place)));
+    setPlaces((prev) => prev.map((place) => (place.notificationPlaceId === id ? { ...place, active: next } : place)));
   };
 
   const handleAddPlace = () => {
@@ -77,46 +71,50 @@ export default function NotificationSettingsScreen() {
           </View>
           <Text style={styles.sectionDescription}>등록한 장소에 도착하면 설정한 시간에 알려드려요</Text>
 
-          <View style={styles.placeList}>
-            {places.map((place) => (
-              <View key={place.notificationPlaceId} style={styles.placeCard}>
-                <View style={styles.placeInfo}>
-                  <View style={styles.timeRow}>
-                    <Ionicons color={Colors.light.cardAccent} name="time-outline" size={12} />
-                    <Text style={styles.timeText}>
-                      {place.startTime}-{place.endTime}
-                      {formatDayLabel(place.day)}
+          {/* 등록한 위치 알림이 하나도 없으면 + 버튼만 덩그러니 남지 않게 안내 문구를 보여준다. */}
+          {places.length === 0 ? (
+            <Text style={styles.emptyText}>아직 등록한 위치 알림이 없어요.</Text>
+          ) : (
+            <View style={styles.placeList}>
+              {places.map((place) => (
+                <View key={place.notificationPlaceId} style={styles.placeCard}>
+                  <View style={styles.placeInfo}>
+                    <View style={styles.timeRow}>
+                      <Ionicons color={Colors.light.cardAccent} name="time-outline" size={12} />
+                      <Text style={styles.timeText}>
+                        {place.startTime}-{place.endTime}
+                      </Text>
+                    </View>
+                    <Text numberOfLines={1} style={styles.placeTitle}>
+                      {place.notificationPlaceName}
+                    </Text>
+                    <Text numberOfLines={1} style={styles.placeDescription}>
+                      {place.reason}
                     </Text>
                   </View>
-                  <Text numberOfLines={1} style={styles.placeTitle}>
-                    {place.notificationPlaceName}
-                  </Text>
-                  <Text numberOfLines={1} style={styles.placeDescription}>
-                    {place.reason}
-                  </Text>
-                </View>
 
-                <View style={styles.placeActions}>
-                  <Switch
-                    onValueChange={(next) => handleTogglePlace(place.notificationPlaceId, next)}
-                    value={place.enabled}
-                  />
-                  <KebabMenu
-                    accessibilityLabel={`${place.notificationPlaceName} 더보기`}
-                    actions={[
-                      { key: 'edit', label: '수정', onPress: () => handleEditPlace(place) },
-                      {
-                        destructive: true,
-                        key: 'delete',
-                        label: '삭제',
-                        onPress: () => setDeleteTarget(place),
-                      },
-                    ]}
-                  />
+                  <View style={styles.placeActions}>
+                    <Switch
+                      onValueChange={(next) => handleTogglePlace(place.notificationPlaceId, next)}
+                      value={place.active}
+                    />
+                    <KebabMenu
+                      accessibilityLabel={`${place.notificationPlaceName} 더보기`}
+                      actions={[
+                        { key: 'edit', label: '수정', onPress: () => handleEditPlace(place) },
+                        {
+                          destructive: true,
+                          key: 'delete',
+                          label: '삭제',
+                          onPress: () => setDeleteTarget(place),
+                        },
+                      ]}
+                    />
+                  </View>
                 </View>
-              </View>
-            ))}
-          </View>
+              ))}
+            </View>
+          )}
         </View>
       </ScrollView>
 
@@ -155,6 +153,12 @@ const styles = StyleSheet.create({
     marginTop: -8,
     color: Colors.light.cardDescription,
     fontSize: 12,
+  },
+  emptyText: {
+    paddingVertical: 20,
+    color: Colors.light.cardDescription,
+    fontSize: 13,
+    textAlign: 'center',
   },
   card: {
     borderRadius: 16,
