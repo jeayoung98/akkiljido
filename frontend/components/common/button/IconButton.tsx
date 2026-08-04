@@ -23,6 +23,7 @@ const iconNames = {
   locate: 'locate',
   zoomIn: 'add',
   zoomOut: 'remove',
+  roadview: 'walk', // 구글 스트리트뷰 페그맨처럼 걸어가는 사람 모양
 } as const;
 
 // iconNames 객체의 key만 허용하는 타입 생성
