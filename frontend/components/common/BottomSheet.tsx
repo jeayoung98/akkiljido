@@ -22,6 +22,9 @@ import Colors from "@/constants/Colors";
 type CommonBottomSheetProps = {
   visible: boolean;
   onClose?: () => void;
+  // 핸들 바로 아래, 스크롤되는 children 위에 오는 영역(제목 등). 핸들과 같은 드래그 영역으로 묶여서,
+  // 이 부분을 눌러 끌어도 시트가 드래그된다. children은 리스트/스크롤이 들어갈 수 있어 드래그 영역 밖에 둔다.
+  header?: ReactNode;
   children: ReactNode;
   minHeight?: number; // 화면 높이 대비 비율(0~1). 드래그로 줄일 수 있는 최소 높이. 기본 0.4
   maxHeight?: number; // 화면 높이 대비 비율(0~1). 드래그로 늘릴 수 있는 최대 높이. 기본 0.85
@@ -65,6 +68,7 @@ export default function BottomSheet(props: BottomSheetProps) {
   const {
     visible,
     onClose,
+    header,
     children,
     minHeight = DEFAULT_MIN_HEIGHT,
     maxHeight = DEFAULT_MAX_HEIGHT,
@@ -175,12 +179,17 @@ export default function BottomSheet(props: BottomSheetProps) {
           그 여유분이 handle/content의 flex 계산에 섞이지 않도록, "실제로 보이는 영역"만큼만인
           이 박스로 한 번 더 감싼다. 이 안에서는 flex:1이 항상 이 박스 기준으로만 계산된다. */}
       <View style={{ height: maxHeightPx }}>
-        {draggable && (
+        {draggable ? (
           <GestureDetector gesture={panGesture}>
-            <View style={styles.handleArea} hitSlop={{top:20,bottom:20}}>
-              <View style={styles.handle} />
+            <View>
+              <View style={styles.handleArea}>
+                <View style={styles.handle} />
+              </View>
+              {header}
             </View>
           </GestureDetector>
+        ) : (
+          header
         )}
         <View style={styles.content}>{children}</View>
       </View>

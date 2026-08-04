@@ -618,7 +618,21 @@ export default function MapScreen() {
         minHeight={0.08}
         maxHeight={0.5}
         dismissOnDragDown={false}
-        onVisibleHeightChange={setSheetVisibleHeight}>
+        onVisibleHeightChange={setSheetVisibleHeight}
+        header={
+          !selectedPlace && !generalPlaceDetail && !selectedRegionData ? (
+            <Text
+              style={{
+                textAlign: 'center',
+                paddingBottom: 8,
+                color: Colors.light.cardTitle,
+                fontSize: 15,
+                fontWeight: '700',
+              }}>
+              내 장소 {myPlaces.length}개
+            </Text>
+          ) : undefined
+        }>
         {selectedPlace ? (
           <>
             <View
@@ -854,16 +868,6 @@ export default function MapScreen() {
           </>
         ) : (
           <>
-            <Text
-              style={{
-                textAlign: 'center',
-                paddingBottom: 8,
-                color: Colors.light.cardTitle,
-                fontSize: 15,
-                fontWeight: '700',
-              }}>
-              내 장소 {myPlaces.length}개
-            </Text>
             <Scroll height={placeListHeight} style={{ paddingHorizontal: 16 }}>
               {myPlaces.map((place) => {
                 return (
