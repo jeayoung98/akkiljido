@@ -66,7 +66,8 @@ function FieldInput({
   );
 }
 
-export type AlarmRecommendation = {
+/** 추천 알림과 직접 추가 알림이 공통으로 사용하는 저장 폼 값입니다. */
+export type AlarmFormValue = {
   name: string;
   placeId?: number;
   placeName: string;
@@ -75,25 +76,25 @@ export type AlarmRecommendation = {
   reason: string;
 };
 
-export type RecommendedAlarmModalProps = {
+export type SaveAlarmModalProps = {
   visible: boolean;
-  initialValue: AlarmRecommendation;
+  initialValue: AlarmFormValue;
   onClose: () => void;
   /** 지도 선택 화면에서 돌아와 장소를 반영한 뒤 모달을 다시 열 때 호출합니다. */
   onReopenAfterLocationPicked?: () => void;
-  onSave: (value: AlarmRecommendation) => void;
+  onSave: (value: AlarmFormValue) => void;
   saveLoading?: boolean;
 };
 
 /** AI 추천값을 확인하고 수정한 뒤 저장 요청값으로 전달하는 알림 추가 모달입니다. */
-export function RecommendedAlarmModal({
+export function SaveAlarmModal({
   visible,
   initialValue,
   onClose,
   onReopenAfterLocationPicked,
   onSave,
   saveLoading = false,
-}: RecommendedAlarmModalProps) {
+}: SaveAlarmModalProps) {
   const router = useRouter();
   // map-picker 화면이 위치를 고르고 나면 이 store에 결과를 담아둔다. 모달과 map-picker는
   // 서로 다른 화면(스택)이라 props로 값을 주고받을 수 없어서, 전역 store를 다리로 사용한다.
@@ -106,9 +107,9 @@ export function RecommendedAlarmModal({
   // 장소 선택을 위해 지도 화면으로 이동했다가 돌아온 경우, 그동안 입력한 값을 초기화하지 않기 위한 플래그입니다.
   const isReturningFromMapRef = useRef(false);
 
-  const updateField = <K extends keyof AlarmRecommendation>(
+  const updateField = <K extends keyof AlarmFormValue>(
     field: K,
-    value: AlarmRecommendation[K],
+    value: AlarmFormValue[K],
   ) => {
     setForm((current) => ({ ...current, [field]: value }));
   };
