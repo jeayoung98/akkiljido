@@ -1,6 +1,5 @@
-import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { StyleSheet, Text, View } from 'react-native';
+import { Image, StyleSheet, Text, View } from 'react-native';
 
 import AppScreen from '@/components/common/AppScreen';
 import { IconButton } from '@/components/common/button/IconButton';
@@ -17,6 +16,11 @@ import {
 
 const NICKNAME = 'Dust';
 
+/**
+ * 홈 탭 화면입니다. 상단(인사말+알림)과 오늘 지출액 카드는 초록 배경 안에, 그 아래 두 카드
+ * (내 주변 7일간 지출, 카테고리별 지출)는 흰 배경 안에 둬서 두 영역을 시각적으로 구분합니다.
+ * 데이터는 전부 mocks/home.ts에서 가져오며, 그중 "오늘 지출액"·알림 뱃지 개수는 API가 아직 없어 임시 값입니다.
+ */
 export default function HomeScreen() {
   const categories = mockCategorySummaryResponse().data.categories;
   const nearbyExpenses = mockRecentExpensesResponse().data;
@@ -25,7 +29,7 @@ export default function HomeScreen() {
     <AppScreen backgroundColor={Colors.light.primary} scrollable>
       <View style={styles.header}>
         <View style={styles.profileRow}>
-          <Ionicons color="#FFFFFF" name="person-circle" size={32} />
+          <Image source={require('@/assets/images/profile-icon.png')} style={styles.profileIcon} />
           <Text style={styles.greeting}>안녕하세요, {NICKNAME}님</Text>
         </View>
 
@@ -63,7 +67,12 @@ const styles = StyleSheet.create({
   profileRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 2,
+  },
+  profileIcon: {
+    width: 44,
+    height: 44,
+    resizeMode: 'contain',
   },
   greeting: {
     color: '#FFFFFF',
