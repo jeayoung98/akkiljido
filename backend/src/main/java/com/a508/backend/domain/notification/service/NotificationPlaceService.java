@@ -108,7 +108,7 @@ public class NotificationPlaceService {
 		}
 
 		String normalizedName = request.notificationPlaceName().trim();
-		validateDuplicateNotificationPlaceNameForUpdate(userId, normalizedName, notificationPlaceId);
+		validateDuplicateNotificationPlaceName(userId, normalizedName, notificationPlaceId);
 		notificationPlace.updateNotificationPlaceName(normalizedName);
 	}
 
@@ -165,7 +165,7 @@ public class NotificationPlaceService {
 		}
 	}
 
-	private void validateDuplicateNotificationPlaceNameForUpdate(
+	private void validateDuplicateNotificationPlaceName(
 			Long userId,
 			String notificationPlaceName,
 			Long notificationPlaceId
