@@ -34,7 +34,7 @@ public record ReportEnvelope(
 	@Schema(description = "요약 수치")
 	Summary summary,
 
-	@Schema(description = "장소알림 추천 목록(0~3건). 소진형이라 빈 목록이 정상 상태다")
+	@Schema(description = "장소알림 추천 목록(0~3건). 빈 목록도 정상 응답이므로 빈 상태 UI 가 필요하다")
 	List<RecommendationItem> recommendations
 ) {
 
