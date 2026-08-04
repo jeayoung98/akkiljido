@@ -13,8 +13,8 @@ import com.a508.backend.global.client.llm.dto.ChatCompletionRequest;
 import com.a508.backend.global.client.llm.dto.ChatCompletionResponse;
 import com.a508.backend.global.client.llm.dto.LlmReportContent;
 import com.a508.backend.global.config.GmsProperties;
-import com.fasterxml.jackson.core.JacksonException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -78,7 +78,7 @@ public class LlmClient {
 		try {
 			parsed = objectMapper.readValue(content, LlmReportContent.class);
 		} catch (JacksonException e) {
-			log.warn("LLM 응답 JSON 파싱 실패: {} / 원문={}", e.getOriginalMessage(), content);
+			log.warn("LLM 응답 JSON 파싱 실패: {} / 원문={}", e.getMessage(), content);
 			return LlmResult.failure(LlmResult.ErrorCode.PARSE_FAILED);
 		}
 
