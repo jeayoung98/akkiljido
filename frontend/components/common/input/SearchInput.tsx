@@ -75,8 +75,11 @@ export function SearchInput({
 
 const styles = StyleSheet.create({
   container: {
-    width: '100%', minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: 10,
-    paddingHorizontal: 16, borderRadius: 999, backgroundColor: Colors.light.inputBackground,
+    // width: '100%'를 쓰면 절대 위치(left/right로 양쪽 여백을 주는 경우)와 충돌해서 화면 밖으로 넘친다.
+    // flex 컨테이너 안에서는 기본 stretch로 이미 꽉 차므로 명시하지 않아도 된다.
+    minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: 10,
+    paddingHorizontal: 16, borderRadius: 999, backgroundColor: Colors.light.cardBackground,
+    borderWidth: 1, borderColor: Colors.light.primary,
   },
   input: { flex: 1, paddingVertical: 0, color: Colors.light.text, fontSize: 16 },
   clearButton: { alignItems: 'center', justifyContent: 'center' },

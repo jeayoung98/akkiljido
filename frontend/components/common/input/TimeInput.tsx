@@ -12,9 +12,22 @@ type TimeInputProps = Omit<
 };
 
 // 숫자만 남기고, 3번째 자리부터는 자동으로 ':'를 넣어서 HH:mm 형태로 만든다.
+// 시/분 두 자리가 다 채워진 시점에만 범위를 검사해서 99:99 같은 값을 못 만들게 막는다
+// (한 자리만 입력된 중간 상태는 아직 뭐가 될지 몰라서 그대로 둔다. 예: "9"는 09~19 어느 쪽도 될 수 있음).
 function formatTimeText(text: string) {
   const digits = text.replace(/\D/g, '').slice(0, 4);
-  return digits.length > 2 ? `${digits.slice(0, 2)}:${digits.slice(2)}` : digits;
+
+  let hour = digits.slice(0, 2);
+  if (hour.length === 2 && Number(hour) > 23) {
+    hour = '23';
+  }
+
+  let minute = digits.slice(2, 4);
+  if (minute.length === 2 && Number(minute) > 59) {
+    minute = '59';
+  }
+
+  return minute.length > 0 ? `${hour}:${minute}` : hour;
 }
 
 /**

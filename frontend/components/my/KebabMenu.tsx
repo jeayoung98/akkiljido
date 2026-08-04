@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRef, useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Dimensions, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import Colors from '@/constants/Colors';
 
@@ -18,6 +18,9 @@ type KebabMenuProps = {
 };
 
 const MENU_WIDTH = 160;
+// item의 minHeight(44)와 같은 값. 메뉴가 실제로 뜨기 전에 높이를 미리 계산해서 아래/위 방향을 정하는 데 쓴다.
+const MENU_ITEM_HEIGHT = 44;
+const SCREEN_HEIGHT = Dimensions.get('window').height;
 
 /**
  * 알림·장소 목록 행 등에서 쓰는 "⋮" 더보기 메뉴입니다. 목록 안에서 쓰이기 때문에(스크롤, 다른 행과
@@ -31,7 +34,15 @@ export function KebabMenu({ actions, accessibilityLabel = '더보기' }: KebabMe
   const handleOpen = () => {
     triggerRef.current?.measureInWindow((x, y, width, height) => {
       // 메뉴의 오른쪽 끝을 버튼의 오른쪽 끝에 맞추고, 화면 왼쪽 밖으로 나가지 않게 최솟값을 둔다.
-      setAnchor({ left: Math.max(8, x + width - MENU_WIDTH), top: y + height + 4 });
+      const left = Math.max(8, x + width - MENU_WIDTH);
+
+      // 화면 하단 근처의 항목이면 아래로 펼칠 공간이 부족할 수 있어서, 트리거 아래에 다 안 들어가면
+      // 위쪽에 펼친다(트리거 위 공간까지 부족한 극단적인 경우엔 화면 위로 안 벗어나게 최솟값을 둔다).
+      const menuHeight = actions.length * MENU_ITEM_HEIGHT;
+      const fitsBelow = y + height + 4 + menuHeight <= SCREEN_HEIGHT;
+      const top = fitsBelow ? y + height + 4 : Math.max(8, y - menuHeight - 4);
+
+      setAnchor({ left, top });
     });
   };
 

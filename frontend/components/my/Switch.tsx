@@ -78,7 +78,7 @@ const styles = StyleSheet.create({
     width: THUMB_SIZE,
     height: THUMB_SIZE,
     borderRadius: THUMB_SIZE / 2,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.light.cardBackground,
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
