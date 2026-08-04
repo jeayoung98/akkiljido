@@ -1,6 +1,5 @@
 package com.a508.backend.domain.report.service;
 
-import java.time.DayOfWeek;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -28,7 +27,8 @@ import com.a508.backend.global.util.GeometryUtils;
  * 영구히 남는 텍스트라 환각 허용치가 0 이다(설계 문서 §4.4 분업표).
  * <p>
  * ⚠ 이 기능은 소진형이다(실험 로그 #185): 후보가 사용자당 한 자릿수라 쿨다운을 걸면 몇 주 안에
- * 마른다. 빈 목록이 정상 상태이며, UI 도 그렇게 다뤄야 한다.
+ * 마른다. 그래서 쿨다운 때문에 0건이 되는 주에는 {@link #extractFallback}이 1건을 구제하지만,
+ * 후보 자체가 없는 주는 여전히 0건이다 — 빈 목록은 정상 상태이며 UI 도 그렇게 다뤄야 한다.
  */
 @Component
 public class RecommendationExtractor {
@@ -37,6 +37,8 @@ public class RecommendationExtractor {
 	public static final int COOLDOWN_WEEKS = 8;
 
 	private static final int TOP_N = 3;
+	/** 폴백으로 낼 추천 개수. 빈 화면을 막는 최소한이라 1건만 낸다. */
+	private static final int FALLBACK_N = 1;
 	private static final int WINDOW_HOURS = 3;
 	private static final String CAT_TRANSPORT = "교통";
 	private static final double NEAR_MY_PLACE_METERS = 300;
@@ -44,11 +46,6 @@ public class RecommendationExtractor {
 	/** 근거 하한 — 커피 한 잔으로 알림을 권하지 않는다: 2회 이상 방문 또는 1회 3만 원 이상. */
 	private static final int MIN_VISITS = 2;
 	private static final long MIN_SINGLE_AMOUNT = 30_000;
-	/** 요일 지정은 보수적으로: 3회 이상 방문 + 단일 요일 70% 집중일 때만. 아니면 null(매일). */
-	private static final int DAY_MIN_VISITS = 3;
-	private static final double DAY_MIN_SHARE = 0.7;
-
-	private static final String[] DOW_KO = {"일", "월", "화", "수", "목", "금", "토"};
 
 	/**
 	 * 기간 내 거래에서 추천 최대 3건을 만든다. 점수 = 그 기간 그 장소의 지출 총액.
@@ -57,6 +54,24 @@ public class RecommendationExtractor {
 	 *                           이름 기준 제외라 동명 타지점도 함께 제외된다(보수적 — 의도된 동작)
 	 */
 	public List<RecommendationItem> extract(ReportSource source, Set<String> excludedPlaceNames) {
+		return extract(source, excludedPlaceNames, TOP_N);
+	}
+
+	/**
+	 * 쿨다운 때문에 추천이 0건이 됐을 때의 폴백 — <b>쿨다운을 무시하고 1건만</b> 낸다.
+	 * <p>
+	 * 팀 결정(2026-08-04): 빈 추천 화면을 보이지 않기 위해, 최근에 추천했던 곳이라도 다시 보여준다.
+	 * 선정 기준은 기본 경로와 같은 "기간 내 지출 총액 1위"다 — 폴백이 도는 주는 곧 늘 가던 곳만 간 주라서,
+	 * 같은 장소가 반복돼도 "많이 쓰는 곳"이라는 참인 신호다.
+	 * <p>
+	 * ⚠ 후보 자체가 없어서 0건이 된 경우에는 이 폴백도 0건이다(쿨다운이 원인이 아니므로).
+	 * 즉 이 기능이 빈 목록을 완전히 없애지는 못한다 — 빈 상태 UI 는 여전히 필요하다.
+	 */
+	public List<RecommendationItem> extractFallback(ReportSource source) {
+		return extract(source, Set.of(), FALLBACK_N);
+	}
+
+	private List<RecommendationItem> extract(ReportSource source, Set<String> excludedPlaceNames, int limit) {
 		Map<PlaceKey, List<TransactionHistory>> byPlace = new LinkedHashMap<>();
 		for (TransactionHistory t : candidates(source)) {
 			byPlace.computeIfAbsent(PlaceKey.of(t), k -> new ArrayList<>()).add(t);
@@ -66,7 +81,7 @@ public class RecommendationExtractor {
 			.filter(e -> !excludedPlaceNames.contains(e.getKey().name()))
 			.filter(e -> e.getValue().size() >= MIN_VISITS || totalAmount(e.getValue()) >= MIN_SINGLE_AMOUNT)
 			.sorted((a, b) -> Long.compare(totalAmount(b.getValue()), totalAmount(a.getValue())))
-			.limit(TOP_N)
+			.limit(limit)
 			.map(e -> buildItem(e.getValue()))
 			.toList();
 	}
@@ -98,9 +113,7 @@ public class RecommendationExtractor {
 		long inWindow = hours.stream()
 			.filter(h -> h >= windowStart && h < windowStart + WINDOW_HOURS).count();
 
-		Integer day = pickDay(visits);
-		String when = (day != null ? DOW_KO[day] + "요일 " : "")
-			+ ampm(windowStart) + " " + windowStart + "~" + (windowStart + WINDOW_HOURS) + "시";
+		String when = ampm(windowStart) + " " + windowStart + "~" + (windowStart + WINDOW_HOURS) + "시";
 		boolean allInWindow = inWindow == n;
 
 		return new RecommendationItem(
@@ -110,7 +123,6 @@ public class RecommendationExtractor {
 			GeometryUtils.longitudeOf(first.getCoordinate()),
 			String.format("%02d:00", windowStart),
 			String.format("%02d:00", windowStart + WINDOW_HOURS),
-			day,
 			reasonShort(n, amount, when, allInWindow),
 			reasonMessage(first.getTransactionName(), n, amount, when, windowStart, allInWindow));
 	}
@@ -130,24 +142,11 @@ public class RecommendationExtractor {
 		return bestStart;
 	}
 
-	/** 요일 지정(0=일 … 6=토, notification_place.day 체계). 대부분 null — 지오펜스가 요일 필터 역할을 한다(§5.3). */
-	private static Integer pickDay(List<TransactionHistory> visits) {
-		if (visits.size() < DAY_MIN_VISITS) {
-			return null;
-		}
-		int[] byDow = new int[7];
-		for (TransactionHistory t : visits) {
-			DayOfWeek dow = DateTimeUtils.toServiceLocal(t.getDatetime()).getDayOfWeek();
-			byDow[dow == DayOfWeek.SUNDAY ? 0 : dow.getValue()]++;
-		}
-		int top = 0;
-		for (int d = 1; d < 7; d++) {
-			if (byDow[d] > byDow[top]) {
-				top = d;
-			}
-		}
-		return (double)byDow[top] / visits.size() >= DAY_MIN_SHARE ? top : null;
-	}
+	// [삭제] 요일 지정(pickDay) — 알림은 요일 없이 "장소 + 시간대"로만 건다.
+	//   근거: ① notification_place 엔티티에 day 컬럼이 없어 저장할 곳이 없다
+	//        ② 지오펜스가 요일 필터 역할을 한다 — 그날 그 근처에 없으면 울리지 않는다
+	//        ③ 특정 요일로 못 박으면 오히려 놓친다: 이 데이터의 단일 요일 집중도는 44~63%인데
+	//           주말(토+일) 집중도는 71~100%다(실험 로그 #181). 실측 추천 131건 중 지정 0건.
 
 	// ── 이유 템플릿 — 수량 부사("두 번 다")는 반드시 전량 검사(allInWindow)와 짝을 이룬다 ──
 
