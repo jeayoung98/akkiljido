@@ -51,11 +51,13 @@ const PLACES: Place[] = [
   { id: 'p12', name: 'CGV 강남', address: '서울 강남구 역삼동 819-1', lat: 37.4988, lng: 127.0257, dong: '역삼동', categoryId: 5, amountRange: [14000, 20000], weight: 2 },
 ];
 
-// ── 내 장소 (마이페이지/지도의 "내 장소"에 등록해둔 장소, GET /api/v1/my/place 대응) ──
+// ── 내 장소 (마이페이지/지도의 "내 장소"에 등록해둔 장소) ─────────────────────
+// 필드명·타입은 GET /api/v1/transaction/map/my-place 응답 명세와 동일하게 맞춘다
+// (placeId는 숫자, myPlaceName/latitude/longitude 표기). totalAmount는 응답 생성 함수에서 계산해 붙인다.
 export const MY_PLACES = [
-  { placeId: 'home', name: '집', address: '서울 강남구 역삼동 754-11', lat: 37.5003, lng: 127.0365 },
-  { placeId: 'workcafe', name: '작업 거점(강남역)', address: '서울 강남구 역삼동 823', lat: 37.4985, lng: 127.0281 },
-  { placeId: 'client', name: '클라이언트사(삼성동)', address: '서울 강남구 삼성동 143', lat: 37.5088, lng: 127.0631 },
+  { placeId: 1, myPlaceName: '집', address: '서울 강남구 역삼동 754-11', latitude: 37.5003, longitude: 127.0365 },
+  { placeId: 2, myPlaceName: '직장(강남역)', address: '서울 강남구 역삼동 823', latitude: 37.4985, longitude: 127.0281 },
+  { placeId: 3, myPlaceName: '클라이언트사(삼성동)', address: '서울 강남구 삼성동 143', latitude: 37.5088, longitude: 127.0631 },
 ];
 
 // ── 시드 고정 난수 생성기 (핫리로드/재실행해도 항상 같은 더미 데이터가 나오게) ───
@@ -91,6 +93,57 @@ function formatDate(date: Date) {
   return date.toISOString().slice(0, 10); // YYYY-MM-DD
 }
 
+// ── 지도 API 공통 필터 (기간 + 카테고리) ─────────────────────────────────────
+// 실제 API의 쿼리 파라미터(startDate/endDate/categoryId)를 흉내 낸다.
+// 생략했을 때의 기본값도 서버 명세와 똑같이 동작한다: 이번 주 월요일 ~ 오늘.
+export type MapFilter = {
+  startDate?: string; // 'YYYY-MM-DD'. 생략하면 이번 주 월요일
+  endDate?: string; // 'YYYY-MM-DD'. 생략하면 오늘
+  // 생략하거나 빈 배열이면 전체 카테고리.
+  // 실제 API 명세는 단수 categoryId 하나뿐이라 복수 선택이 안 된다 — 복수 지원(categoryId=1,2,3)을
+  // 백엔드에 요청해둔 상태고, 목은 미리 복수 버전으로 만든다.
+  categoryIds?: number[];
+};
+
+// toISOString은 UTC 기준이라 한국 시간대에서 날짜가 하루 밀릴 수 있어, 기기 로컬 기준으로 만든다.
+function formatDateLocal(date: Date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+// 이번 주 월요일 날짜 (startDate 생략 시의 서버 기본값과 동일)
+function thisWeekMondayString() {
+  const now = new Date();
+  const day = now.getDay(); // 0=일요일
+  const daysSinceMonday = day === 0 ? 6 : day - 1;
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - daysSinceMonday);
+  return formatDateLocal(monday);
+}
+
+// 기간·카테고리 조건에 맞는 거래만 남긴다. 지도 응답 생성 함수들이 공통으로 거쳐 간다.
+function filterTransactions(transactions: Transaction[], filter?: MapFilter) {
+  const startDate = filter?.startDate ?? thisWeekMondayString();
+  const endDate = filter?.endDate ?? formatDateLocal(new Date());
+  const categoryIds = filter?.categoryIds;
+
+  return transactions.filter((tx) => {
+    // 'YYYY-MM-DD' 문자열은 사전순 비교가 곧 날짜 비교라서 그대로 부등호로 거른다.
+    const date = tx.datetime.slice(0, 10);
+    if (date < startDate || date > endDate) {
+      return false;
+    }
+    if (categoryIds && categoryIds.length > 0) {
+      if (tx.categoryId == null || !categoryIds.includes(tx.categoryId)) {
+        return false;
+      }
+    }
+    return true;
+  });
+}
+
 // ── 거래 생성 ────────────────────────────────────────────────────────────
 export type Transaction = {
   transactionId: string;
@@ -108,7 +161,7 @@ export type Transaction = {
 };
 
 const START_DATE = new Date('2026-05-05T00:00:00+09:00');
-const END_DATE = new Date('2026-08-02T00:00:00+09:00');
+const END_DATE = new Date('2026-08-10T00:00:00+09:00');
 const PAYMENT_METHODS = ['카카오페이', '신한카드', '현금'];
 
 function generateTransactions(): Transaction[] {
@@ -202,9 +255,12 @@ export function toTransactionListResponse(transactions: Transaction[] = MOCK_TRA
 }
 
 // ── GET /api/v1/transaction/map 응답 형태 (가게별로 묶기) ──────────────────
-export function toMapPlaceListResponse(transactions: Transaction[] = MOCK_TRANSACTIONS) {
+// 실제 API는 지도 화면 범위(south/west/north/east)도 필수로 받지만, 목은 데이터가 전부
+// 강남구 일대라 범위 필터는 생략한다(실제 연동 때 KakaoMap에서 bounds를 받아 넘기면 됨).
+export function toMapPlaceListResponse(filter?: MapFilter, transactions: Transaction[] = MOCK_TRANSACTIONS) {
+  const filtered = filterTransactions(transactions, filter);
   const byPlace = new Map<string, Transaction[]>();
-  for (const tx of transactions) {
+  for (const tx of filtered) {
     if (tx.type !== 'expense' || tx.latitude == null) {
       continue;
     }
@@ -242,8 +298,10 @@ export function toMapPlaceListResponse(transactions: Transaction[] = MOCK_TRANSA
 
 // ── GET /api/v1/transaction/map/{depth} 응답 형태 ──────────────────────────
 // depth 1: 시/도(서울특별시 하나로 고정), 2: 시/군/구(강남구 하나로 고정), 3: 읍/면/동(역삼동/삼성동/논현동)
-export function toMapDepthResponse(depth: 1 | 2 | 3, transactions: Transaction[] = MOCK_TRANSACTIONS) {
-  const expenseTx = transactions.filter((tx) => tx.type === 'expense' && tx.latitude != null);
+export function toMapDepthResponse(depth: 1 | 2 | 3, filter?: MapFilter, transactions: Transaction[] = MOCK_TRANSACTIONS) {
+  const expenseTx = filterTransactions(transactions, filter).filter(
+    (tx) => tx.type === 'expense' && tx.latitude != null
+  );
 
   const depthNameOf = (tx: Transaction) => {
     if (depth === 1) return '서울특별시';
@@ -290,22 +348,83 @@ export function toMapDepthResponse(depth: 1 | 2 | 3, transactions: Transaction[]
   return { success: true, data: { transactionList } };
 }
 
+// ── 개별 거래 목록을 가게 이름별로 묶기 ──────────────────────────────────────
+// toMapDepthResponse의 placeList(지역 안 개별 거래들, 가게별로 안 묶여 있음)를
+// toMyPlaceDetailResponse의 transactionList와 같은 "가게별로 묶은" 모양으로 바꿀 때 쓴다.
+type FlatTransactionItem = {
+  transactionId: string;
+  name: string;
+  amount: number;
+  categoryId: CategoryId | null;
+  categoryName: string;
+  datetime: string;
+};
+
+export function groupTransactionsByName(items: FlatTransactionItem[]) {
+  const byName = new Map<string, FlatTransactionItem[]>();
+  for (const item of items) {
+    if (!byName.has(item.name)) {
+      byName.set(item.name, []);
+    }
+    byName.get(item.name)!.push(item);
+  }
+
+  return Array.from(byName.entries()).map(([name, list]) => {
+    const first = list[0];
+    return {
+      name,
+      categoryId: first.categoryId,
+      categoryName: first.categoryName,
+      amount: list.reduce((sum, tx) => sum + tx.amount, 0),
+      dateList: list.map((tx) => ({ transactionId: tx.transactionId, datetime: tx.datetime, amount: tx.amount })),
+    };
+  });
+}
+
+// ── 내 장소 공통: 반경 2km 근사 필터 ────────────────────────────────────────
+const NEARBY_RADIUS_DEG = 0.018; // 대략 2km 이내를 "이 내 장소 근처"로 취급 (더미 데이터용 단순 근사치)
+
+function nearbyExpenses(transactions: Transaction[], place: (typeof MY_PLACES)[number]) {
+  return transactions.filter(
+    (tx) =>
+      tx.type === 'expense' &&
+      tx.latitude != null &&
+      Math.abs(tx.latitude - place.latitude) < NEARBY_RADIUS_DEG &&
+      Math.abs(tx.longitude! - place.longitude) < NEARBY_RADIUS_DEG
+  );
+}
+
+// ── GET /api/v1/transaction/map/my-place 응답 형태 ─────────────────────────
+// 장소별 totalAmount(반경 2km 안에서 기간 내에 쓴 금액 합)를 서버가 계산해서 주는 것과 동일하게 만든다.
+// 명세상 이 API는 기간(startDate/endDate)만 받고 카테고리 필터는 없다.
+export function toMyPlaceListResponse(
+  filter?: Pick<MapFilter, 'startDate' | 'endDate'>,
+  transactions: Transaction[] = MOCK_TRANSACTIONS
+) {
+  const inPeriod = filterTransactions(transactions, filter);
+  return {
+    success: true as const,
+    data: MY_PLACES.map((place) => ({
+      ...place,
+      totalAmount: nearbyExpenses(inPeriod, place).reduce((sum, tx) => sum + tx.amount, 0),
+    })),
+  };
+}
+
 // ── GET /api/v1/transaction/map/my-place/{placeId} 응답 형태 ──────────────
-// "내 장소" 반경(24m) 안에서 실제로 쓴 거래를, 이름(가게)별로 묶고 그 안에서 다시 날짜별로 묶는다.
-export function toMyPlaceDetailResponse(placeId: string, transactions: Transaction[] = MOCK_TRANSACTIONS) {
+// "내 장소" 반경 2km 안에서 기간 내에 쓴 거래를, 이름(가게)별로 묶고 그 안에서 다시 날짜별로 묶는다.
+// 목록 API와 마찬가지로 기간만 받고 카테고리 필터는 없다.
+export function toMyPlaceDetailResponse(
+  placeId: number,
+  filter?: Pick<MapFilter, 'startDate' | 'endDate'>,
+  transactions: Transaction[] = MOCK_TRANSACTIONS
+) {
   const myPlace = MY_PLACES.find((p) => p.placeId === placeId);
   if (!myPlace) {
     return { success: false as const, code: 'V001', message: '존재하지 않는 장소입니다.' };
   }
 
-  const NEARBY_RADIUS_DEG = 0.01; // 대략 1km 이내를 "이 내 장소 근처"로 취급 (더미 데이터용 단순 근사치)
-  const nearby = transactions.filter(
-    (tx) =>
-      tx.type === 'expense' &&
-      tx.latitude != null &&
-      Math.abs(tx.latitude - myPlace.lat) < NEARBY_RADIUS_DEG &&
-      Math.abs(tx.longitude! - myPlace.lng) < NEARBY_RADIUS_DEG
-  );
+  const nearby = nearbyExpenses(filterTransactions(transactions, filter), myPlace);
 
   const byName = new Map<string, Transaction[]>();
   for (const tx of nearby) {

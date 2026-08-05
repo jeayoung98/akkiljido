@@ -15,18 +15,25 @@ type AccordionCardProps = {
   header: ReactNode; // 항상 보이는 부분. 헤더 줄 전체를 눌러도 토글된다.
   children: ReactNode; // 펼쳤을 때만 보이는 상세 내용
   defaultOpen?: boolean; // 처음부터 펼쳐진 상태로 시작할지 여부
+  // 헤더를 눌렀을 때 토글에 더해서 실행할 동작 (예: 지도 탭에서 카드를 누르면 지도 중심을 그 가게로 이동).
+  // 토글 뒤의 새 열림 상태를 인자로 받는다.
+  onPress?: (open: boolean) => void;
   style?: StyleProp<ViewStyle>;
 };
 
 // 펼침/접힘 기능을 가진 공통 카드 컴포넌트
-export default function AccordionCard({ header, children, defaultOpen = false, style }: AccordionCardProps) {
+export default function AccordionCard({ header, children, defaultOpen = false, onPress, style }: AccordionCardProps) {
   const [open, setOpen] = useState(defaultOpen);
 
   // 펼침/접힘 상태 변경
   const toggle = () => {
     // 높이 변화에 애니메이션 적용
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setOpen((prev) => !prev);
+    setOpen((prev) => {
+      const next = !prev;
+      onPress?.(next);
+      return next;
+    });
   };
 
   return (
