@@ -8,14 +8,23 @@ import InfoListItem from '@/components/common/card/InfoListItem';
 import { AppHeader } from '@/components/common/header/AppHeader';
 import { ConfirmModal } from '@/components/common/modal/ConfirmModal';
 import { BrandLogo } from '@/components/onboarding/BrandLogo';
+import { NicknameEditModal } from '@/components/my/NicknameEditModal';
 import Colors from '@/constants/Colors';
 
 // TODO: 실제 로그인한 사용자 닉네임으로 교체 (지금은 온보딩 예시값 그대로 사용)
-const NICKNAME = 'Dust';
+const INITIAL_NICKNAME = 'Dust';
 
 /** 마이페이지. 프로필 요약과 내 장소 관리·알림 설정·설정·로그아웃으로 가는 메뉴를 보여준다. */
 export default function MyScreen() {
+  const [nickname, setNickname] = useState(INITIAL_NICKNAME);
+  const [nicknameModalVisible, setNicknameModalVisible] = useState(false);
   const [logoutModalVisible, setLogoutModalVisible] = useState(false);
+
+  const handleSaveNickname = (nextNickname: string) => {
+    // TODO: 실제 닉네임 저장 API 연결
+    setNickname(nextNickname);
+    setNicknameModalVisible(false);
+  };
 
   const handleLogout = () => {
     setLogoutModalVisible(false);
@@ -32,15 +41,17 @@ export default function MyScreen() {
           <BrandLogo size={36} />
         </View>
         <View style={styles.profileText}>
-          <Text style={styles.nickname}>{NICKNAME}</Text>
+          <Text style={styles.nickname}>{nickname}</Text>
           <Pressable
             accessibilityLabel="닉네임 수정"
             accessibilityRole="button"
             hitSlop={8}
-            onPress={() => router.push('/nickname-setup')}
+            onPress={() => setNicknameModalVisible(true)}
             style={styles.editRow}>
             <Text style={styles.editText}>닉네임 수정</Text>
-            <IconButton name="edit" color={Colors.light.textSecondary} size={14} />
+            <View pointerEvents="none">
+              <IconButton name="edit" color={Colors.light.textSecondary} size={14} />
+            </View>
           </Pressable>
         </View>
       </View>
@@ -48,20 +59,35 @@ export default function MyScreen() {
       <View style={styles.menuCard}>
         <InfoListItem
           title="내 장소 관리"
-          trailing={<IconButton name="chevronRight" color={Colors.light.textSecondary} size={18} />}
+          trailing={
+            <View pointerEvents="none">
+              <IconButton name="chevronRight" color={Colors.light.textSecondary} size={18} />
+            </View>
+          }
           onPress={() => router.push('/my-places')}
+          style={styles.menuItem}
         />
         <View style={styles.divider} />
         <InfoListItem
           title="알림 설정"
-          trailing={<IconButton name="chevronRight" color={Colors.light.textSecondary} size={18} />}
+          trailing={
+            <View pointerEvents="none">
+              <IconButton name="chevronRight" color={Colors.light.textSecondary} size={18} />
+            </View>
+          }
           onPress={() => router.push('/alarms')}
+          style={styles.menuItem}
         />
         <View style={styles.divider} />
         <InfoListItem
           title="설정"
-          trailing={<IconButton name="chevronRight" color={Colors.light.textSecondary} size={18} />}
+          trailing={
+            <View pointerEvents="none">
+              <IconButton name="chevronRight" color={Colors.light.textSecondary} size={18} />
+            </View>
+          }
           onPress={() => router.push('/settings')}
+          style={styles.menuItem}
         />
         <View style={styles.divider} />
         <InfoListItem
@@ -69,10 +95,18 @@ export default function MyScreen() {
           title="로그아웃"
           titleStyle={styles.logoutText}
           onPress={() => setLogoutModalVisible(true)}
+          style={styles.menuItem}
         />
       </View>
 
       <Text style={styles.version}>v1.0.0 · 아낄지도</Text>
+
+      <NicknameEditModal
+        nickname={nickname}
+        onCancel={() => setNicknameModalVisible(false)}
+        onSave={handleSaveNickname}
+        visible={nicknameModalVisible}
+      />
 
       <ConfirmModal
         confirmLabel="로그아웃"
@@ -127,6 +161,10 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.light.cardBackground,
     borderWidth: 1,
     borderColor: Colors.light.border,
+  },
+  menuItem: {
+    minHeight: 52,
+    paddingVertical: 8,
   },
   divider: {
     height: StyleSheet.hairlineWidth,

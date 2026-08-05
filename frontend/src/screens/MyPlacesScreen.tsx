@@ -1,15 +1,20 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { router } from 'expo-router';
+import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import AppScreen from '@/components/common/AppScreen';
+import BottomSheet from '@/components/common/BottomSheet';
 import { Button } from '@/components/common/button/Button';
 import { IconButton } from '@/components/common/button/IconButton';
 import InfoListItem from '@/components/common/card/InfoListItem';
 import { AppHeader } from '@/components/common/header/AppHeader';
+import { MapInput } from '@/components/common/input/MapInput';
+import { TextInput } from '@/components/common/input/TextInput';
 import { ConfirmModal } from '@/components/common/modal/ConfirmModal';
 import Colors from '@/constants/Colors';
 import { toMyPlaceListResponse } from '@/mocks/transactions';
+import { useMapPickerStore } from '@/store/mapPickerStore';
 
 type MyPlace = ReturnType<typeof toMyPlaceListResponse>['data'][number];
 
@@ -27,6 +32,64 @@ function PlaceIcon({ name }: { name: string }) {
 export default function MyPlacesScreen() {
   const [places, setPlaces] = useState<MyPlace[]>(() => toMyPlaceListResponse().data);
   const [deleteTarget, setDeleteTarget] = useState<MyPlace | null>(null);
+
+  const [isAddVisible, setIsAddVisible] = useState(false);
+  const [newPlaceName, setNewPlaceName] = useState('');
+  const [newPlaceAddress, setNewPlaceAddress] = useState('');
+  const [newPlaceCoords, setNewPlaceCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+  const pickedLocation = useMapPickerStore((state) => state.pickedLocation);
+  const clearPickedLocation = useMapPickerStore((state) => state.clearPickedLocation);
+  const isReturningFromMapRef = useRef(false);
+
+  // 지도에서 위치를 고르고 돌아오면 선택값을 폼 상태로 옮기고, 장소 추가 시트를 다시 띄운다.
+  useEffect(() => {
+    if (!pickedLocation) return;
+
+    setNewPlaceAddress(pickedLocation.address);
+    setNewPlaceCoords({ latitude: pickedLocation.lat, longitude: pickedLocation.lng });
+    clearPickedLocation();
+    if (isReturningFromMapRef.current) {
+      setIsAddVisible(true);
+      isReturningFromMapRef.current = false;
+    }
+  }, [clearPickedLocation, pickedLocation]);
+
+  const isAddFormValid = Boolean(newPlaceName.trim() && newPlaceAddress && newPlaceCoords);
+
+  const handleOpenMapPicker = () => {
+    isReturningFromMapRef.current = true;
+    setIsAddVisible(false);
+    router.push('/map-picker');
+  };
+
+  const handleCloseAddSheet = () => {
+    setIsAddVisible(false);
+    setNewPlaceName('');
+    setNewPlaceAddress('');
+    setNewPlaceCoords(null);
+  };
+
+  const handleAddPlace = () => {
+    if (!isAddFormValid || !newPlaceCoords) {
+      return;
+    }
+    // TODO: 실제 장소 추가 API 연결. 지금은 화면 상태에만 반영한다.
+    setPlaces((prev) => [
+      ...prev,
+      {
+        placeId: Date.now(),
+        myPlaceName: newPlaceName.trim(),
+        address: newPlaceAddress,
+        latitude: newPlaceCoords.latitude,
+        longitude: newPlaceCoords.longitude,
+        totalAmount: 0,
+      },
+    ]);
+    setNewPlaceName('');
+    setNewPlaceAddress('');
+    setNewPlaceCoords(null);
+    setIsAddVisible(false);
+  };
 
   const handleDelete = () => {
     if (!deleteTarget) {
@@ -58,8 +121,7 @@ export default function MyPlacesScreen() {
         ))}
       </View>
 
-      {/* 새 장소 설정 폼(바텀시트)은 아직 안 만듦 — 버튼만 우선 자리 잡아둠 */}
-      <Button style={styles.addButton} variant="dashed" onPress={() => {}}>
+      <Button style={styles.addButton} variant="dashed" onPress={() => setIsAddVisible(true)}>
         + 장소 추가
       </Button>
 
@@ -72,6 +134,33 @@ export default function MyPlacesScreen() {
         title={`'${deleteTarget?.myPlaceName}' 삭제할까요?`}
         visible={deleteTarget !== null}
       />
+
+      <BottomSheet
+        draggable={false}
+        initialHeight={0.48}
+        maxHeight={0.48}
+        minHeight={0.48}
+        onClose={handleCloseAddSheet}
+        visible={isAddVisible}>
+        <View style={styles.addContent}>
+          <View style={styles.dragHandle} />
+          <Text style={styles.addTitle}>새 장소 설정</Text>
+          <Text style={styles.addDescription}>소비를 보아볼 장소를 직접 설정해주세요</Text>
+
+          <TextInput
+            label="장소 이름"
+            labelInside
+            onChangeText={setNewPlaceName}
+            placeholder="예) 집, 회사"
+            value={newPlaceName}
+          />
+          <MapInput label="주소" onPress={handleOpenMapPicker} value={newPlaceAddress || undefined} />
+
+          <Button disabled={!isAddFormValid} onPress={handleAddPlace} style={styles.addSubmitButton}>
+            장소 추가
+          </Button>
+        </View>
+      </BottomSheet>
     </AppScreen>
   );
 }
@@ -108,5 +197,32 @@ const styles = StyleSheet.create({
     marginTop: 16,
     marginHorizontal: 16,
     marginBottom: 16,
+  },
+  addContent: {
+    flex: 1,
+    gap: 16,
+    paddingHorizontal: 20,
+    paddingTop: 14,
+    paddingBottom: 20,
+  },
+  dragHandle: {
+    alignSelf: 'center',
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: Colors.light.border,
+  },
+  addTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: Colors.light.cardTitle,
+  },
+  addDescription: {
+    marginTop: -8,
+    fontSize: 13,
+    color: Colors.light.textSecondary,
+  },
+  addSubmitButton: {
+    marginTop: 'auto',
   },
 });
