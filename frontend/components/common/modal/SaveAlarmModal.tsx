@@ -19,6 +19,7 @@ import {
 import { Button } from '@/components/common/button/Button';
 import { IconButton } from '@/components/common/button/IconButton';
 import { MapInput } from '@/components/common/input/MapInput';
+import { TimeInput } from '@/components/common/input/TimeInput';
 import Colors from '@/constants/Colors';
 import { useMapPickerStore } from '@/store/mapPickerStore';
 
@@ -65,30 +66,35 @@ function FieldInput({
   );
 }
 
-export type AlarmRecommendation = {
+/** 추천 알림과 직접 추가 알림이 공통으로 사용하는 저장 폼 값입니다. */
+export type AlarmFormValue = {
   name: string;
   placeId?: number;
   placeName: string;
-  time: string;
+  startTime: string;
+  endTime: string;
   reason: string;
 };
 
-export type RecommendedAlarmModalProps = {
+export type SaveAlarmModalProps = {
   visible: boolean;
-  initialValue: AlarmRecommendation;
+  initialValue: AlarmFormValue;
   onClose: () => void;
-  onSave: (value: AlarmRecommendation) => void;
+  /** 지도 선택 화면에서 돌아와 장소를 반영한 뒤 모달을 다시 열 때 호출합니다. */
+  onReopenAfterLocationPicked?: () => void;
+  onSave: (value: AlarmFormValue) => void;
   saveLoading?: boolean;
 };
 
 /** AI 추천값을 확인하고 수정한 뒤 저장 요청값으로 전달하는 알림 추가 모달입니다. */
-export function RecommendedAlarmModal({
+export function SaveAlarmModal({
   visible,
   initialValue,
   onClose,
+  onReopenAfterLocationPicked,
   onSave,
   saveLoading = false,
-}: RecommendedAlarmModalProps) {
+}: SaveAlarmModalProps) {
   const router = useRouter();
   // map-picker 화면이 위치를 고르고 나면 이 store에 결과를 담아둔다. 모달과 map-picker는
   // 서로 다른 화면(스택)이라 props로 값을 주고받을 수 없어서, 전역 store를 다리로 사용한다.
@@ -101,9 +107,9 @@ export function RecommendedAlarmModal({
   // 장소 선택을 위해 지도 화면으로 이동했다가 돌아온 경우, 그동안 입력한 값을 초기화하지 않기 위한 플래그입니다.
   const isReturningFromMapRef = useRef(false);
 
-  const updateField = <K extends keyof AlarmRecommendation>(
+  const updateField = <K extends keyof AlarmFormValue>(
     field: K,
-    value: AlarmRecommendation[K],
+    value: AlarmFormValue[K],
   ) => {
     setForm((current) => ({ ...current, [field]: value }));
   };
@@ -122,18 +128,22 @@ export function RecommendedAlarmModal({
 
   // 지도 화면에서 장소를 선택하고 돌아오면 store에 담긴 값을 읽어 알림 장소에 반영합니다.
   useEffect(() => {
-    if (visible && pickedLocation) {
+    // 지도 화면으로 이동하기 위해 모달을 닫았던 경우에만 장소를 반영하고 다시 엽니다.
+    // 일반적인 MapInput 사용 결과를 이 모달이 가로채지 않도록 반환 플래그를 함께 확인합니다.
+    if (isReturningFromMapRef.current && pickedLocation) {
       updateField('placeName', pickedLocation.address);
       clearPickedLocation();
+      onReopenAfterLocationPicked?.();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible, pickedLocation]);
+  }, [pickedLocation]);
 
   const isNameEmpty = !form.name.trim();
   const isPlaceEmpty = !form.placeName.trim();
-  const isTimeEmpty = !form.time.trim();
+  const isStartTimeEmpty = !form.startTime.trim();
+  const isEndTimeEmpty = !form.endTime.trim();
   // 알림 추가 이유는 AI 설명용 선택 항목이며 이름·장소·시간만 필수로 검사합니다.
-  const hasError = isNameEmpty || isPlaceEmpty || isTimeEmpty;
+  const hasError = isNameEmpty || isPlaceEmpty || isStartTimeEmpty || isEndTimeEmpty;
 
   const handleSave = () => {
     if (hasError) {
@@ -146,7 +156,8 @@ export function RecommendedAlarmModal({
       ...form,
       name: form.name.trim(),
       placeName: form.placeName.trim(),
-      time: form.time.trim(),
+      startTime: form.startTime.trim(),
+      endTime: form.endTime.trim(),
       reason: form.reason.trim(),
     });
   };
@@ -164,15 +175,6 @@ export function RecommendedAlarmModal({
     isReturningFromMapRef.current = true;
     onClose();
     router.push('/map-picker');
-  };
-
-  const handleTimeChange = (value: string) => {
-    // 숫자만 유지하고 세 번째 숫자부터 HH:mm 형태로 구분자를 자동 적용합니다.
-    const digits = value.replace(/\D/g, '').slice(0, 4);
-    const formattedTime =
-      digits.length > 2 ? `${digits.slice(0, 2)}:${digits.slice(2)}` : digits;
-
-    updateField('time', formattedTime);
   };
 
   return (
@@ -239,28 +241,39 @@ export function RecommendedAlarmModal({
                 ) : null}
               </View>
 
-              {/* 알림 시간·이유는 항상 같은 세로 높이를 유지해야 해서 나란히 한 줄에 배치한다. */}
+              {/* 알림 시작·끝 시간은 항상 같은 세로 높이를 유지해야 해서 나란히 한 줄에 배치한다. */}
               <View style={styles.row}>
-                <FieldInput
-                  containerStyle={styles.timeField}
-                  errorMessage={showErrors && isTimeEmpty ? '시간을 입력해 주세요.' : undefined}
-                  inputMode="numeric"
-                  label="알림 시간"
-                  maxLength={5}
-                  onChangeText={handleTimeChange}
-                  placeholder="18:30"
-                  value={form.time}
-                  valueStyle={styles.timeValue}
-                />
+                <View style={[styles.fieldBox, styles.timeField, showErrors && isStartTimeEmpty && styles.fieldBoxError]}>
+                  <Text style={styles.fieldLabel}>알림 시작 시간</Text>
+                  <TimeInput
+                    containerStyle={styles.timeInputContainer}
+                    inputStyle={styles.timeInputValue}
+                    onChangeText={(value) => updateField('startTime', value)}
+                    placeholder="18:30"
+                    value={form.startTime}
+                  />
+                  {showErrors && isStartTimeEmpty ? <Text style={styles.errorText}>시작 시간을 입력해 주세요.</Text> : null}
+                </View>
 
-                <FieldInput
-                  containerStyle={styles.reasonField}
-                  label="알림 추가 이유"
-                  onChangeText={(value) => updateField('reason', value)}
-                  placeholder="AI 추천 이유"
-                  value={form.reason}
-                />
+                <View style={[styles.fieldBox, styles.timeField, showErrors && isEndTimeEmpty && styles.fieldBoxError]}>
+                  <Text style={styles.fieldLabel}>알림 끝 시간</Text>
+                  <TimeInput
+                    containerStyle={styles.timeInputContainer}
+                    inputStyle={styles.timeInputValue}
+                    onChangeText={(value) => updateField('endTime', value)}
+                    placeholder="19:30"
+                    value={form.endTime}
+                  />
+                  {showErrors && isEndTimeEmpty ? <Text style={styles.errorText}>끝 시간을 입력해 주세요.</Text> : null}
+                </View>
               </View>
+
+              <FieldInput
+                label="알림 추가 이유"
+                onChangeText={(value) => updateField('reason', value)}
+                placeholder="AI 추천 이유"
+                value={form.reason}
+              />
             </ScrollView>
 
             <Button loading={saveLoading} onPress={handleSave} style={styles.saveButton}>
@@ -344,7 +357,8 @@ const styles = StyleSheet.create({
     borderColor: Colors.light.danger,
   },
   fieldLabel: {
-    fontSize: 15,
+    // MapInput의 라벨과 동일한 크기로 맞춰 모달 안 모든 항목의 위계가 같게 보이도록 합니다.
+    fontSize: 13,
     fontWeight: '700',
     color: Colors.light.text,
   },
@@ -354,7 +368,20 @@ const styles = StyleSheet.create({
     color: Colors.light.text,
     fontSize: 14,
   },
-  timeValue: {
+  // TimeInput은 기본적으로 자기 배경(연한 초록 필드)을 갖고 있는데, 여기선 fieldBox 안에 이미
+  // 같은 톤의 배경이 있어서 이중 박스로 보이지 않게 투명하게 덮어쓴다.
+  timeInputContainer: {
+    // 기본 TextInput의 width: '100%'를 덮어써서, 시간 입력 영역 자체를 필드 중앙에 둡니다.
+    width: 100,
+    alignSelf: 'center',
+  },
+  timeInputValue: {
+    padding: 0,
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+    minHeight: 0,
+    color: Colors.light.text,
+    fontSize: 14,
     textAlign: 'center',
   },
   row: {
@@ -364,13 +391,13 @@ const styles = StyleSheet.create({
   },
   timeField: {
     flex: 1,
-  },
-  reasonField: {
-    flex: 1.6,
+    // 시간 필드는 라벨과 HH:mm 값을 모두 가운데에 배치해 좁은 두 칸의 균형을 맞춥니다.
+    alignItems: 'center',
   },
   saveButton: {
     height: 56,
-    marginTop: 18,
+    // 폼(ScrollView) 마지막 항목과의 간격을 다른 필드 사이 간격(form.gap)만큼 확실히 띄운다.
+    marginTop: 20,
     borderRadius: 16,
   },
 });
