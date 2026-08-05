@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Button } from '@/components/common/button/Button';
@@ -75,6 +76,9 @@ export function ReportRecommendationsModal({
               </Text>
               에 알림을 설정해 보세요!
             </Text>
+            <View style={styles.recAction}>
+              <Ionicons name="add-circle-outline" size={26} color={Colors.light.reportHeaderBackground} />
+            </View>
           </Pressable>
         ))}
 
@@ -158,6 +162,17 @@ const styles = StyleSheet.create({
   },
   recHighlight: {
     fontWeight: '800',
+    color: Colors.light.reportHeaderBackground,
+  },
+  recAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'center',
+    gap: 2,
+  },
+  recActionText: {
+    fontSize: 12,
+    fontWeight: '700',
     color: Colors.light.reportHeaderBackground,
   },
   buttonRow: {
