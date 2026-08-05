@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import {
+  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -15,52 +16,125 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BrandLogo } from '@/components/onboarding/BrandLogo';
 import Colors from '@/constants/Colors';
+import { registerNickname } from '@/src/api/usersApi';
+import { saveAuthSession } from '@/src/auth/tokenStorage';
 
 const MAX_LENGTH = 20;
 
-// 사용자가 서비스에서 사용할 닉네임을 설정하는 화면
 export default function NicknameSetupScreen() {
   const router = useRouter();
-  const [nickname, setNickname] = useState('Dust');
+
+  const [nickname, setNickname] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+
   const { height, width } = useWindowDimensions();
+
   const compact = height < 700;
-  const logoSize = Math.min(160, Math.max(136, width * 0.4));
-  const isValid = nickname.trim().length > 0;
 
-  const handleComplete = () => {
-    const trimmedNickname = nickname.trim();
+  const logoSize = Math.min(
+    160,
+    Math.max(136, width * 0.4),
+  );
 
-    if (!trimmedNickname) {
+  const trimmedNickname = nickname.trim();
+
+  const isValid =
+    trimmedNickname.length > 0 &&
+    trimmedNickname.length <= MAX_LENGTH &&
+    !loading;
+
+  const handleComplete = async () => {
+    if (!isValid) {
       return;
     }
 
-    setNickname(trimmedNickname);
-    router.replace('/(tabs)');
+    try {
+      setLoading(true);
+      setErrorMessage('');
+
+      const result =
+        await registerNickname(trimmedNickname);
+
+      /*
+       * 닉네임 등록이 완료되면 백엔드는
+       * role=USER인 새로운 access/refresh token을 반환한다.
+       * 기존 GUEST 세션을 새로운 USER 세션으로 교체한다.
+       */
+      await saveAuthSession(result);
+
+      console.info(
+        '[auth] nickname registration success',
+        {
+          nickname: result.nickname,
+          role: result.role,
+          tokensSaved: true,
+        },
+      );
+
+      router.replace('/(tabs)');
+    } catch (error) {
+      console.error(
+        '[auth] nickname registration failed',
+        error,
+      );
+
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : '닉네임 등록에 실패했습니다.',
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <SafeAreaView edges={['top', 'bottom']} style={styles.safeArea}>
+    <SafeAreaView
+      edges={['top', 'bottom']}
+      style={styles.safeArea}
+    >
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}
+        behavior={
+          Platform.OS === 'ios'
+            ? 'padding'
+            : undefined
+        }
+        keyboardVerticalOffset={
+          Platform.OS === 'ios'
+            ? 8
+            : 0
+        }
         style={styles.container}
       >
         <ScrollView
           bounces={false}
           contentContainerStyle={[
             styles.scrollContent,
-            compact && styles.compactScrollContent,
+            compact &&
+              styles.compactScrollContent,
           ]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <Text style={styles.title}>닉네임을 설정해주세요</Text>
+          <Text style={styles.title}>
+            닉네임을 설정해주세요
+          </Text>
 
-          <View style={[styles.logoArea, compact && styles.compactLogoArea]}>
+          <View
+            style={[
+              styles.logoArea,
+              compact &&
+                styles.compactLogoArea,
+            ]}
+          >
             <BrandLogo size={logoSize} />
           </View>
 
-          <Text style={styles.prompt}>챗봇이 부를 이름을 지정해주세요</Text>
+          <Text style={styles.prompt}>
+            챗봇이 부를 이름을 정해주세요
+          </Text>
+
           <Text style={styles.description}>
             AI가 대화할 때 이 이름으로 불러드려요
           </Text>
@@ -70,31 +144,61 @@ export default function NicknameSetupScreen() {
               accessibilityLabel="닉네임"
               autoCapitalize="none"
               autoCorrect={false}
+              editable={!loading}
               maxLength={MAX_LENGTH}
-              onChangeText={setNickname}
-              onSubmitEditing={handleComplete}
+              onChangeText={(value) => {
+                setNickname(value);
+                setErrorMessage('');
+              }}
+              onSubmitEditing={() => {
+                void handleComplete();
+              }}
               placeholder="닉네임을 입력해주세요"
-              placeholderTextColor={Colors.onboarding.muted}
+              placeholderTextColor={
+                Colors.onboarding.muted
+              }
               returnKeyType="done"
               style={styles.input}
               value={nickname}
             />
+
             <Text style={styles.counter}>
               {nickname.length}/{MAX_LENGTH}
             </Text>
           </View>
 
+          {!!errorMessage && (
+            <Text style={styles.errorText}>
+              {errorMessage}
+            </Text>
+          )}
+
           <Pressable
             accessibilityRole="button"
             disabled={!isValid}
-            onPress={handleComplete}
+            onPress={() => {
+              void handleComplete();
+            }}
             style={({ pressed }) => [
               styles.button,
-              !isValid && styles.buttonDisabled,
-              pressed && isValid && styles.buttonPressed,
+              !isValid &&
+                styles.buttonDisabled,
+              pressed &&
+                isValid &&
+                styles.buttonPressed,
             ]}
           >
-            <Text style={styles.buttonText}>설정 완료</Text>
+            {loading ? (
+              <ActivityIndicator
+                color={
+                  Colors.onboarding.inverseText
+                }
+              />
+            ) : (
+              <Text style={styles.buttonText}>
+                설정 완료
+              </Text>
+            )}
           </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -105,34 +209,42 @@ export default function NicknameSetupScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: Colors.onboarding.surface,
+    backgroundColor:
+      Colors.onboarding.surface,
   },
+
   container: {
     flex: 1,
   },
+
   scrollContent: {
     flexGrow: 1,
     paddingBottom: 0,
     paddingHorizontal: 24,
     paddingTop: 68,
   },
+
   compactScrollContent: {
     paddingBottom: 0,
     paddingTop: 28,
   },
+
   title: {
     color: Colors.onboarding.text,
     fontSize: 25,
     fontWeight: '800',
     lineHeight: 34,
   },
+
   logoArea: {
     alignItems: 'center',
     marginTop: 7,
   },
+
   compactLogoArea: {
     marginTop: 8,
   },
+
   prompt: {
     color: Colors.onboarding.text,
     fontSize: 18,
@@ -141,6 +253,7 @@ const styles = StyleSheet.create({
     marginTop: 25,
     textAlign: 'center',
   },
+
   description: {
     color: Colors.onboarding.muted,
     fontSize: 15,
@@ -149,13 +262,16 @@ const styles = StyleSheet.create({
     marginTop: 1,
     textAlign: 'center',
   },
+
   inputArea: {
     marginTop: 23,
     minHeight: 62,
     position: 'relative',
   },
+
   input: {
-    borderBottomColor: Colors.onboarding.green,
+    borderBottomColor:
+      Colors.onboarding.green,
     borderBottomWidth: 2,
     color: Colors.onboarding.text,
     fontSize: 24,
@@ -166,6 +282,7 @@ const styles = StyleSheet.create({
     paddingTop: 0,
     textAlign: 'center',
   },
+
   counter: {
     color: Colors.onboarding.muted,
     fontSize: 14,
@@ -174,27 +291,44 @@ const styles = StyleSheet.create({
     right: 0,
     top: 40,
   },
+
+  errorText: {
+    color: '#C62828',
+    fontSize: 14,
+    marginTop: 12,
+    textAlign: 'center',
+  },
+
   button: {
     alignItems: 'center',
-    backgroundColor: Colors.onboarding.green,
+    backgroundColor:
+      Colors.onboarding.green,
     borderRadius: 17,
     height: 56,
     justifyContent: 'center',
     marginTop: 'auto',
+
     shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
     shadowOpacity: 0.17,
     shadowRadius: 5,
     elevation: 4,
   },
+
   buttonDisabled: {
     backgroundColor: '#A7BCAA',
   },
+
   buttonPressed: {
     opacity: 0.85,
   },
+
   buttonText: {
-    color: Colors.onboarding.inverseText,
+    color:
+      Colors.onboarding.inverseText,
     fontSize: 17,
     fontWeight: '800',
     lineHeight: 23,

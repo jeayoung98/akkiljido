@@ -4,12 +4,15 @@
   "version": "1.0.0",
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",
+    "@react-native-google-signin/google-signin": "^16.1.4",
     "expo": "~57.0.9",
     "expo-constants": "~57.0.7",
+    "expo-dev-client": "~57.0.10",
     "expo-font": "~57.0.1",
     "expo-linking": "~57.0.4",
     "expo-location": "~57.0.7",
     "expo-router": "~57.0.9",
+    "expo-secure-store": "~57.0.1",
     "expo-splash-screen": "~57.0.5",
     "expo-status-bar": "~57.0.1",
     "expo-symbols": "~57.0.1",
@@ -34,8 +37,9 @@
   },
   "scripts": {
     "start": "expo start",
-    "android": "expo run:android",
-    "ios": "expo run:ios",
+    "android": "expo start --dev-client",
+    "android:build": "expo run:android",
+    "ios": "expo start --ios",
     "web": "expo start --web"
   },
   "private": true
