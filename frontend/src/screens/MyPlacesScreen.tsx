@@ -41,17 +41,16 @@ export default function MyPlacesScreen() {
   const clearPickedLocation = useMapPickerStore((state) => state.clearPickedLocation);
   const isReturningFromMapRef = useRef(false);
 
-  // 지도에서 위치를 고르고 돌아오면 선택값을 폼 상태로 옮기고, 장소 추가 시트를 다시 띄운다.
+  // 지도에서 위치를 고르고 돌아온 경우에만 선택값을 폼 상태로 옮기고, 장소 추가 시트를 다시 띄운다.
+  // (pickedLocation은 다른 화면의 지도 선택 흐름과 공유하는 전역 store라, 이 화면에서 연 게 아니면 건드리지 않는다.)
   useEffect(() => {
-    if (!pickedLocation) return;
+    if (!pickedLocation || !isReturningFromMapRef.current) return;
 
     setNewPlaceAddress(pickedLocation.address);
     setNewPlaceCoords({ latitude: pickedLocation.lat, longitude: pickedLocation.lng });
     clearPickedLocation();
-    if (isReturningFromMapRef.current) {
-      setIsAddVisible(true);
-      isReturningFromMapRef.current = false;
-    }
+    isReturningFromMapRef.current = false;
+    setIsAddVisible(true);
   }, [clearPickedLocation, pickedLocation]);
 
   const isAddFormValid = Boolean(newPlaceName.trim() && newPlaceAddress && newPlaceCoords);
