@@ -2,7 +2,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Button } from '@/components/common/button/Button';
 import { CenterModal } from '@/components/common/modal/CentralModal';
-import type { AlarmRecommendation } from '@/components/common/modal/RecommendedAlarmModal';
+import type { AlarmFormValue } from '@/components/common/modal/SaveAlarmModal';
 import { BrandLogo } from '@/components/onboarding/BrandLogo';
 import Colors from '@/constants/Colors';
 
@@ -11,8 +11,8 @@ export type ReportRecommendation = {
   description: string;
   placeName: string; // 초록으로 강조되는 장소명
   timeRange: string; // 초록으로 강조되는 시간대. "12:00~13:00"
-  // 이 추천 박스를 눌렀을 때 알림 추가 모달(RecommendedAlarmModal)에 채워 넣을 추천값
-  alarm: AlarmRecommendation;
+  // 이 추천 박스를 눌렀을 때 알림 저장 모달(SaveAlarmModal)에 채워 넣을 추천값
+  alarm: AlarmFormValue;
 };
 
 export type WeeklyReportRecommendationsModalProps = {
