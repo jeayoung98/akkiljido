@@ -1,10 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import AppScreen from '@/components/common/AppScreen';
 import AccordionCard from '@/components/common/card/AccordionCard';
+import { SaveAlarmModal, type AlarmFormValue } from '@/components/common/modal/SaveAlarmModal';
 import SegmentedControl from '@/components/common/segmented-control/SegmentedControl';
+import type { ReportRecommendation } from '@/components/report/WeeklyReportRecommendationsModal';
 import Colors from '@/constants/Colors';
 import { MOCK_MONTHLY_REPORTS, MOCK_WEEKLY_REPORTS, type ReportHistoryEntry } from '@/mocks/report';
 
@@ -40,6 +42,23 @@ function formatComparison(percent: number, comparedLabel: string) {
 
 export default function ReportScreen() {
   const [tab, setTab] = useState<ReportTab>('weekly');
+  // 아코디언 안 "알림 추천" 항목을 누르면 그 내용을 초기값으로 채운 SaveAlarmModal을 연다.
+  const [saveAlarmVisible, setSaveAlarmVisible] = useState(false);
+  const [selectedAlarm, setSelectedAlarm] = useState<AlarmFormValue | null>(null);
+
+  const handleSelectRecommendation = (rec: ReportRecommendation) => {
+    // rec.alarm에는 추천 시각 하나(time)만 있어서, 시작·끝 시간은 화면에 이미 보여주는
+    // timeRange("14:00~17:00")를 그대로 나눠서 채운다.
+    const [startTime, endTime] = rec.timeRange.split('~');
+    setSelectedAlarm({
+      name: rec.alarm.name,
+      placeName: rec.alarm.placeName,
+      startTime,
+      endTime,
+      reason: rec.alarm.reason,
+    });
+    setSaveAlarmVisible(true);
+  };
 
   const isWeekly = tab === 'weekly';
   const entries = isWeekly ? MOCK_WEEKLY_REPORTS : MOCK_MONTHLY_REPORTS;
@@ -122,9 +141,18 @@ export default function ReportScreen() {
                   <Text style={styles.sectionCardTitle}>알림 추천</Text>
                   <View style={styles.recList}>
                     {recommendations.map((rec, index) => (
-                      <Text key={rec.id} style={styles.recText}>
-                        {index + 1}. {rec.description} {rec.placeName} {rec.timeRange}에 알림을 설정해 보세요!
-                      </Text>
+                      <Pressable
+                        key={rec.id}
+                        onPress={() => handleSelectRecommendation(rec)}
+                        style={({ pressed }) => [styles.recItem, pressed && styles.recItemPressed]}>
+                        <Text style={styles.recText}>
+                          {index + 1}. {rec.description} {rec.placeName} {rec.timeRange}에 알림을 설정해 보세요!
+                        </Text>
+                        <View style={styles.recAction}>
+                          <Ionicons name="add-circle-outline" size={16} color={Colors.light.primary} />
+                          <Text style={styles.recActionText}>알림 추가</Text>
+                        </View>
+                      </Pressable>
                     ))}
                   </View>
                 </View>
@@ -133,6 +161,19 @@ export default function ReportScreen() {
           })}
         </View>
       </View>
+
+      {selectedAlarm ? (
+        <SaveAlarmModal
+          initialValue={selectedAlarm}
+          onClose={() => setSaveAlarmVisible(false)}
+          onReopenAfterLocationPicked={() => setSaveAlarmVisible(true)}
+          onSave={() => {
+            // TODO: 실제 알림 저장 API 연결. 지금은 SaveAlarmModal만 닫는다.
+            setSaveAlarmVisible(false);
+          }}
+          visible={saveAlarmVisible}
+        />
+      ) : null}
     </AppScreen>
   );
 }
@@ -263,9 +304,34 @@ const styles = StyleSheet.create({
     marginTop: 6,
     gap: 8,
   },
+  recItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
+    backgroundColor: Colors.light.inputBackground,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+  },
   recText: {
+    flex: 1,
     fontSize: 13,
     lineHeight: 19,
     color: Colors.light.cardBodyText,
+  },
+  recAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  recActionText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.light.primary,
+  },
+  recItemPressed: {
+    opacity: 0.6,
   },
 });
