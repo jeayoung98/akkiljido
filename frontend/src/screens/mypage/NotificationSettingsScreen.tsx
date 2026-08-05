@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import AppScreen from '@/components/common/AppScreen';
@@ -23,9 +23,21 @@ const EMPTY_ALARM_FORM: AlarmFormValue = {
   reason: '',
 };
 
+function toAlarmFormValue(place: NotificationPlace): AlarmFormValue {
+  return {
+    name: place.notificationPlaceName,
+    placeName: place.address,
+    latitude: place.latitude,
+    longitude: place.longitude,
+    startTime: place.startTime,
+    endTime: place.endTime,
+    reason: place.reason,
+  };
+}
+
 /**
  * 마이페이지 > 알림 설정 화면입니다. 소비 리포트(주간/월간) 알림과, 등록한 위치 알림 목록을 보여줍니다.
- * 위치 알림 수정 화면은 아직 없어서 수정 버튼은 자리만 잡아뒀습니다.
+ * 위치 알림은 추가·수정 모두 SaveAlarmModal을 사용하며, 저장한 값은 목업 목록에 즉시 반영합니다.
  */
 export default function NotificationSettingsScreen() {
   const [weeklyReport, setWeeklyReport] = useState(true);
@@ -33,16 +45,45 @@ export default function NotificationSettingsScreen() {
   const [places, setPlaces] = useState<NotificationPlace[]>(MOCK_NOTIFICATION_PLACES);
   const [deleteTarget, setDeleteTarget] = useState<NotificationPlace | null>(null);
   const [addModalVisible, setAddModalVisible] = useState(false);
+  const [editTarget, setEditTarget] = useState<NotificationPlace | null>(null);
+  // 지도 선택을 위해 모달을 잠시 닫을 때 수정 대상을 기억해 두었다가, 돌아오면 같은 수정 모드로 다시 엽니다.
+  const pendingEditTargetRef = useRef<NotificationPlace | null>(null);
 
   const handleTogglePlace = (id: number, next: boolean) => {
     setPlaces((prev) => prev.map((place) => (place.notificationPlaceId === id ? { ...place, active: next } : place)));
   };
 
   const handleAddPlace = () => {
+    pendingEditTargetRef.current = null;
+    setEditTarget(null);
     setAddModalVisible(true);
   };
 
-  const handleSaveNewPlace = (value: AlarmFormValue) => {
+  const handleSavePlace = (value: AlarmFormValue) => {
+    if (editTarget) {
+      // 수정 시에는 id와 토글 상태는 유지하고, 모달에서 편집한 정보만 같은 항목에 덮어씁니다.
+      setPlaces((prev) =>
+        prev.map((place) =>
+          place.notificationPlaceId === editTarget.notificationPlaceId
+            ? {
+                ...place,
+                notificationPlaceName: value.name,
+                address: value.placeName,
+                latitude: value.latitude ?? place.latitude,
+                longitude: value.longitude ?? place.longitude,
+                startTime: value.startTime,
+                endTime: value.endTime,
+                reason: value.reason,
+              }
+            : place,
+        ),
+      );
+      setEditTarget(null);
+      pendingEditTargetRef.current = null;
+      return;
+    }
+
+    // 추가 시에는 화면에서만 사용할 다음 id를 만들어 목록 마지막에 넣습니다. API 연결 시 POST 요청으로 교체합니다.
     const nextId = places.reduce((max, place) => Math.max(max, place.notificationPlaceId), 0) + 1;
     setPlaces((prev) => [
       ...prev,
@@ -63,7 +104,26 @@ export default function NotificationSettingsScreen() {
   };
 
   const handleEditPlace = (place: NotificationPlace) => {
-    // TODO: 위치 알림 수정 화면 나오면 그쪽으로 이동
+    // kebab 메뉴의 수정은 별도 화면으로 이동하지 않고, 기존 값이 채워진 저장 모달을 바로 엽니다.
+    pendingEditTargetRef.current = null;
+    setAddModalVisible(false);
+    setEditTarget(place);
+  };
+
+  const handleCloseSaveModal = () => {
+    // 지도 선택 과정에서는 SaveAlarmModal이 onClose 후 onReopenAfterLocationPicked를 호출하므로,
+    // 여기서는 수정 대상을 ref에만 남기고 화면 state는 닫아 둡니다.
+    pendingEditTargetRef.current = editTarget;
+    setAddModalVisible(false);
+    setEditTarget(null);
+  };
+
+  const handleReopenAfterLocationPicked = () => {
+    if (pendingEditTargetRef.current) {
+      setEditTarget(pendingEditTargetRef.current);
+      return;
+    }
+    setAddModalVisible(true);
   };
 
   const handleConfirmDelete = () => {
@@ -161,13 +221,13 @@ export default function NotificationSettingsScreen() {
       />
 
       <SaveAlarmModal
-        description="장소와 시간대를 정해서 새 위치 알림을 추가해요."
-        initialValue={EMPTY_ALARM_FORM}
-        onClose={() => setAddModalVisible(false)}
-        onReopenAfterLocationPicked={() => setAddModalVisible(true)}
-        onSave={handleSaveNewPlace}
-        title="위치 알림 추가"
-        visible={addModalVisible}
+        description={editTarget ? '기존 위치 알림 정보를 수정한 뒤 저장할 수 있어요.' : '장소와 시간대를 정해서 새 위치 알림을 추가해요.'}
+        initialValue={editTarget ? toAlarmFormValue(editTarget) : EMPTY_ALARM_FORM}
+        onClose={handleCloseSaveModal}
+        onReopenAfterLocationPicked={handleReopenAfterLocationPicked}
+        onSave={handleSavePlace}
+        title={editTarget ? '위치 알림 수정' : '위치 알림 추가'}
+        visible={addModalVisible || editTarget != null}
       />
     </AppScreen>
   );
