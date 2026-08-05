@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import BottomSheet from '@/components/common/BottomSheet';
@@ -16,14 +16,19 @@ import { KakaoMap, type KakaoMapHandle, type LatLng, type MapMarker } from '@/co
 import { Scroll } from '@/components/common/Scroll';
 import { MapZoom } from '@/components/map/MapZoom';
 import Colors from '@/constants/Colors';
+import { getCategories, type Category } from '@/src/api/categoryApi';
 import {
-  groupTransactionsByName,
-  MY_PLACES,
-  toMapDepthResponse,
-  toMapPlaceListResponse,
-  toMyPlaceDetailResponse,
-  toMyPlaceListResponse,
-} from '@/mocks/transactions';
+  getTransactionMyPlaceDetail,
+  getTransactionMyPlaces,
+  getTransactionPlaceMap,
+  getTransactionRegionMap,
+  groupMapTransactionsByName,
+  type MapPlace,
+  type MapRegion,
+  type MyPlaceMap,
+  type MyPlaceTransactionList,
+  type TransactionMapBounds,
+} from '@/src/api/transactionMapApi';
 import { searchPlaces, type PlaceResult } from '@/utils/kakaoSearch';
 import { getZoomStage, STAGE_TARGET_LEVEL } from '@/utils/kakaoZoomStage';
 
@@ -50,21 +55,6 @@ const PERIOD_OPTIONS: { value: Period; label: string }[] = [
   { value: 'month', label: '이번 달' },
   { value: '3months', label: '최근 3개월' },
   { value: 'custom', label: '직접 선택' },
-];
-
-// 백엔드 categoryId(1~11) 기준. Colors.category 색상표와 같은 순서를 쓴다.
-const CATEGORY_OPTIONS = [
-  { id: 1, label: '음식점' },
-  { id: 2, label: '카페·간식' },
-  { id: 3, label: '편의점·마트' },
-  { id: 4, label: '쇼핑' },
-  { id: 5, label: '여가' },
-  { id: 6, label: '교통' },
-  { id: 7, label: '건강·의료' },
-  { id: 8, label: '생활' },
-  { id: 9, label: '미용' },
-  { id: 10, label: '교육' },
-  { id: 11, label: '기타' },
 ];
 
 // 내 장소별 아이콘. API 응답에 아이콘 정보가 없어서 placeId(숫자) 기준으로 화면에서 따로 매핑한다.
@@ -160,14 +150,13 @@ export default function MapScreen() {
   const [period, setPeriod] = useState<Period>('week');
   const [customStartDate, setCustomStartDate] = useState<Date>();
   const [customEndDate, setCustomEndDate] = useState<Date>();
-  const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>(
-    CATEGORY_OPTIONS.map((category) => category.id)
-  );
+  const [categoryOptions, setCategoryOptions] = useState<Category[]>([]);
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>([]);
 
   // 실제로 적용된 필터 값. 화면(지도 마커 등)은 이 값을 기준으로 동작해야 한다.
   const [appliedFilter, setAppliedFilter] = useState({
     period: 'week' as Period,
-    categoryIds: CATEGORY_OPTIONS.map((category) => category.id),
+    categoryIds: [] as number[],
     customStartDate: undefined as Date | undefined,
     customEndDate: undefined as Date | undefined,
   });
@@ -189,7 +178,7 @@ export default function MapScreen() {
 
   const handleResetFilter = () => {
     setPeriod('week');
-    setSelectedCategoryIds(CATEGORY_OPTIONS.map((category) => category.id));
+    setSelectedCategoryIds(categoryOptions.map((category) => category.id));
     setCustomStartDate(undefined);
     setCustomEndDate(undefined);
   };
@@ -198,7 +187,9 @@ export default function MapScreen() {
   // 카테고리를 하나도 안 골랐으면 "아무것도 안 보기"가 아니라 전체 선택으로 간주한다.
   const handleApplyFilter = () => {
     const categoryIds =
-      selectedCategoryIds.length > 0 ? selectedCategoryIds : CATEGORY_OPTIONS.map((category) => category.id);
+      selectedCategoryIds.length > 0
+        ? selectedCategoryIds
+        : categoryOptions.map((category) => category.id);
     setAppliedFilter({ period, categoryIds, customStartDate, customEndDate });
     setFilterVisible(false);
   };
@@ -227,6 +218,15 @@ export default function MapScreen() {
   // 1~3단계에서 지역(클러스터) 마커를 눌렀을 때 그 지역 안 가게들의 상세를 보여준다.
   const [selectedRegionName, setSelectedRegionName] = useState<string | null>(null);
 
+  const [mapBounds, setMapBounds] = useState<TransactionMapBounds | null>(null);
+  const [placeListData, setPlaceListData] = useState<MapPlace[]>([]);
+  const [depthData, setDepthData] = useState<MapRegion[]>([]);
+  const [myPlaces, setMyPlaces] = useState<MyPlaceMap[]>([]);
+  const [placeDetail, setPlaceDetail] = useState<MyPlaceTransactionList | null>(null);
+  const [mapDataLoading, setMapDataLoading] = useState(false);
+  const [mapDataError, setMapDataError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
+
   // 세 상세 모드(내 장소/일반 가게/지역)는 동시에 하나만 열려야 한다. 하나를 열 때 나머지 둘은 닫는다.
   const closeAllDetails = () => {
     setSelectedPlaceId(null);
@@ -247,7 +247,7 @@ export default function MapScreen() {
   // 반경 2km 원 전체가 화면에 들어오는 레벨(6)로 축소한다.
   // 이 레벨은 원래 3단계(읍면동) 구간이지만, 내 장소 상세 모드에서는 아래 markers 계산에서
   // 클러스터 대신 이 장소 주변 가맹점 개별 마커를 보여주므로 단계 규칙과 충돌하지 않는다.
-  const handleSelectPlace = (place: (typeof MY_PLACES)[number]) => {
+  const handleSelectPlace = (place: MyPlaceMap) => {
     closeAllDetails();
     setSelectedPlaceId(place.placeId);
     mapRef.current?.setCenter({ lat: place.latitude, lng: place.longitude });
@@ -324,21 +324,28 @@ export default function MapScreen() {
   const mapFilter = useMemo(
     () => ({
       ...periodToDateRange(appliedFilter.period, appliedFilter.customStartDate, appliedFilter.customEndDate),
-      categoryIds: appliedFilter.categoryIds,
+      // 전체 선택이면 categoryId를 생략한다. 서버의 기본 동작이 전체 조회이며,
+      // 사용자별 카테고리 ID를 불필요하게 모두 검증하는 요청도 피할 수 있다.
+      categoryIds:
+        categoryOptions.length > 0 &&
+        appliedFilter.categoryIds.length < categoryOptions.length
+          ? appliedFilter.categoryIds
+          : undefined,
     }),
-    [appliedFilter]
+    [appliedFilter, categoryOptions.length]
   );
 
-  const selectedPlace = MY_PLACES.find((place) => place.placeId === selectedPlaceId) ?? null;
-  // 내 장소 API 두 개는 명세상 기간만 받는다(카테고리 필터 없음) — mapFilter를 통째로 넘겨도
-  // 함수 쪽에서 startDate/endDate만 쓴다.
-  const placeDetail = useMemo(
-    () => (selectedPlaceId != null ? toMyPlaceDetailResponse(selectedPlaceId, mapFilter) : null),
-    [selectedPlaceId, mapFilter]
-  );
-  // 내 장소 목록. totalAmount(반경 2km 안에서 기간 내에 쓴 금액 합)까지 응답에 포함되어 온다.
-  const myPlaces = useMemo(() => toMyPlaceListResponse(mapFilter).data, [mapFilter]);
-  const placeMerchants = placeDetail?.success ? placeDetail.data.transactionList : [];
+  const categoryColorsById = useMemo(() => {
+    return new Map(
+      categoryOptions.map((category, index) => [
+        category.id,
+        Colors.category[(index % 11) + 1],
+      ]),
+    );
+  }, [categoryOptions]);
+
+  const selectedPlace = myPlaces.find((place) => place.placeId === selectedPlaceId) ?? null;
+  const placeMerchants = placeDetail?.transactionList ?? [];
   const placeTotal = placeMerchants.reduce((sum, merchant) => sum + merchant.amount, 0);
 
   // MapPickerScreen과 같은 방식: 권한 허용 시 마지막 알려진 위치를 먼저 빠르게 보여주고, 정확한 위치로 뒤이어 갱신한다.
@@ -417,13 +424,195 @@ export default function MapScreen() {
     mapRef.current?.setLevel(STAGE_TARGET_LEVEL[nextStage]);
   };
 
-  // 4단계 전용 개별 가게 목록, 1~3단계 전용 지역별 묶음. markers 계산과 handleMarkerPress(마커→상세 매칭)
-  // 양쪽에서 같이 쓰기 때문에 따로 떼어 메모이제이션한다.
-  const placeListData = useMemo(() => toMapPlaceListResponse(mapFilter).data.placeList, [mapFilter]);
-  const depthData = useMemo(
-    () => (currentStage === 4 ? [] : toMapDepthResponse(currentStage as 1 | 2 | 3, mapFilter).data.transactionList),
-    [currentStage, mapFilter]
-  );
+  // 지도 이동·확대·축소가 끝난 뒤 현재 화면 경계를 기준으로 서버 데이터를 다시 조회한다.
+  // 연속된 WebView 이벤트가 API 요청을 과도하게 만들지 않도록 짧게 debounce한다.
+  useEffect(() => {
+    if (!mapBounds) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const timer = setTimeout(() => {
+      const loadMapData = async () => {
+        try {
+          setMapDataLoading(true);
+          setMapDataError(null);
+
+          if (currentStage === 4) {
+            const response = await getTransactionPlaceMap(mapBounds, mapFilter);
+
+            if (!cancelled) {
+              setPlaceListData(response.placeList);
+              setDepthData([]);
+
+              console.info('[transaction-map] place map loaded', {
+                count: response.placeList.length,
+              });
+            }
+            return;
+          }
+
+          const response = await getTransactionRegionMap(
+            currentStage as 1 | 2 | 3,
+            mapBounds,
+            mapFilter,
+          );
+
+          if (!cancelled) {
+            setDepthData(response.transactionList);
+            setPlaceListData([]);
+
+            console.info('[transaction-map] region map loaded', {
+              depth: currentStage,
+              count: response.transactionList.length,
+            });
+          }
+        } catch (error) {
+          console.error('[transaction-map] map data load failed', error);
+
+          if (!cancelled) {
+            setMapDataError(
+              error instanceof Error
+                ? error.message
+                : '지도 거래내역을 불러오지 못했습니다.',
+            );
+          }
+        } finally {
+          if (!cancelled) {
+            setMapDataLoading(false);
+          }
+        }
+      };
+
+      void loadMapData();
+    }, 250);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [currentStage, mapBounds, mapFilter, reloadKey]);
+
+  // 카테고리 ID는 사용자마다 다르므로 서버에서 현재 사용자의 목록을 조회한다.
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadCategories = async () => {
+      try {
+        const categories = await getCategories();
+
+        if (cancelled) {
+          return;
+        }
+
+        const categoryIds = categories.map((category) => category.id);
+
+        setCategoryOptions(categories);
+        setSelectedCategoryIds(categoryIds);
+        setAppliedFilter((current) => ({
+          ...current,
+          categoryIds,
+        }));
+
+        console.info('[transaction-map] categories loaded', {
+          count: categories.length,
+        });
+      } catch (error) {
+        console.error('[transaction-map] categories load failed', error);
+
+        if (!cancelled) {
+          setMapDataError(
+            error instanceof Error
+              ? error.message
+              : '카테고리를 불러오지 못했습니다.',
+          );
+        }
+      }
+    };
+
+    void loadCategories();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [reloadKey]);
+
+  // 내 장소 목록은 지도 경계와 무관하고 기간 필터만 적용한다.
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadMyPlaces = async () => {
+      try {
+        const response = await getTransactionMyPlaces(mapFilter);
+
+        if (!cancelled) {
+          setMyPlaces(response);
+
+          console.info('[transaction-map] my places loaded', {
+            count: response.length,
+          });
+        }
+      } catch (error) {
+        console.error('[transaction-map] my places load failed', error);
+
+        if (!cancelled) {
+          setMapDataError(
+            error instanceof Error
+              ? error.message
+              : '내 장소를 불러오지 못했습니다.',
+          );
+        }
+      }
+    };
+
+    void loadMyPlaces();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [mapFilter, reloadKey]);
+
+  // 내 장소를 선택한 경우에만 반경 2km 내 거래 상세를 조회한다.
+  useEffect(() => {
+    if (selectedPlaceId == null) {
+      setPlaceDetail(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadPlaceDetail = async () => {
+      try {
+        const response = await getTransactionMyPlaceDetail(selectedPlaceId, mapFilter);
+
+        if (!cancelled) {
+          setPlaceDetail(response);
+
+          console.info('[transaction-map] my place detail loaded', {
+            placeId: selectedPlaceId,
+            count: response.transactionList.length,
+          });
+        }
+      } catch (error) {
+        console.error('[transaction-map] my place detail load failed', error);
+
+        if (!cancelled) {
+          setMapDataError(
+            error instanceof Error
+              ? error.message
+              : '내 장소 거래내역을 불러오지 못했습니다.',
+          );
+        }
+      }
+    };
+
+    void loadPlaceDetail();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedPlaceId, mapFilter, reloadKey]);
 
   // 4단계에서 선택한 일반 가게(내 장소 아님)의 상세. 필터가 바뀌어도 항상 최신 데이터를 반영하도록
   // 좌표만 state에 두고 매번 placeListData에서 다시 찾는다.
@@ -435,14 +624,16 @@ export default function MapScreen() {
   // 1~3단계에서 선택한 지역의 상세. 그 지역 안 개별 거래(placeList)를 가게 이름별로 묶어서
   // 내 장소 상세와 같은 아코디언 리스트 모양으로 만든다.
   const selectedRegionData = selectedRegionName ? depthData.find((r) => r.depthName === selectedRegionName) : null;
-  const regionMerchants = selectedRegionData ? groupTransactionsByName(selectedRegionData.placeList) : [];
+  const regionMerchants = selectedRegionData
+    ? groupMapTransactionsByName(selectedRegionData.placeList)
+    : [];
 
   // 4단계(개별)면 가게별 말풍선(테두리=카테고리 지정색), 1~3단계면 구역별 말풍선(테두리=브랜드 그린 고정)을 그린다.
   // 단, 내 장소 상세 모드에서는 줌 단계와 무관하게 그 장소 주변 가맹점을 개별 마커로 보여준다
   // (bottom sheet의 가맹점별 목록과 지도가 같은 것을 가리키게 하기 위함).
   const markers: MapMarker[] = useMemo(() => {
-    if (selectedPlaceId && placeDetail?.success) {
-      return placeDetail.data.transactionList.map((merchant) => ({
+    if (selectedPlaceId && placeDetail) {
+      return placeDetail.transactionList.map((merchant) => ({
         // 가맹점 이름을 마커 id로 쓴다. 상세 응답이 이름별로 묶여 있어 유일하고,
         // 마커를 눌렀을 때 이 id로 bottom sheet의 해당 카드를 찾아간다.
         id: merchant.name,
@@ -450,7 +641,7 @@ export default function MapScreen() {
         lng: merchant.longitude!,
         label: merchant.name,
         amount: merchant.amount,
-        color: Colors.category[merchant.categoryId ?? 11],
+        color: categoryColorsById.get(merchant.categoryId) ?? Colors.light.primary,
         selected: merchant.name === highlightedMerchant,
       }));
     }
@@ -464,7 +655,9 @@ export default function MapScreen() {
           lng: place.longitude!,
           label: place.name,
           amount: place.amount,
-          color: Colors.category[place.transactionList[0]?.categoryId ?? 11],
+          color:
+            categoryColorsById.get(place.transactionList[0]?.categoryId) ??
+            Colors.light.primary,
           selected: selectedGeneralPlace != null && id === `${selectedGeneralPlace.lat},${selectedGeneralPlace.lng}`,
         };
       });
@@ -488,6 +681,7 @@ export default function MapScreen() {
     highlightedMerchant,
     selectedGeneralPlace,
     selectedRegionName,
+    categoryColorsById,
   ]);
 
   return (
@@ -500,6 +694,7 @@ export default function MapScreen() {
         myPlaceCircle={selectedPlace ? { lat: selectedPlace.latitude, lng: selectedPlace.longitude } : undefined}
         markers={markers}
         selectedPin={searchedPlace ? { lat: searchedPlace.lat, lng: searchedPlace.lng } : undefined}
+        onBoundsChange={setMapBounds}
         onLevelChange={setCurrentLevel}
         onMarkerPress={handleMarkerPress}
         onRoadviewChange={setRoadviewOpen}
@@ -508,6 +703,48 @@ export default function MapScreen() {
         }
         style={{ flex: 1 }}
       />
+
+      {mapDataLoading ? (
+        <View
+          pointerEvents="none"
+          style={{
+            position: 'absolute',
+            top: insets.top + 82,
+            alignSelf: 'center',
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 8,
+            borderRadius: 999,
+            paddingHorizontal: 14,
+            paddingVertical: 9,
+            backgroundColor: 'rgba(255,255,255,0.94)',
+          }}>
+          <ActivityIndicator color={Colors.light.primary} size="small" />
+          <Text style={{ color: Colors.light.cardTitle, fontSize: 13, fontWeight: '600' }}>
+            지도 내역 불러오는 중
+          </Text>
+        </View>
+      ) : null}
+
+      {mapDataError ? (
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => setReloadKey((current) => current + 1)}
+          style={{
+            position: 'absolute',
+            top: insets.top + 82,
+            alignSelf: 'center',
+            maxWidth: '82%',
+            borderRadius: 12,
+            paddingHorizontal: 14,
+            paddingVertical: 10,
+            backgroundColor: 'rgba(32,45,37,0.92)',
+          }}>
+          <Text style={{ color: '#FFFFFF', fontSize: 13, textAlign: 'center' }}>
+            {mapDataError} · 눌러서 다시 시도
+          </Text>
+        </Pressable>
+      ) : null}
 
       {/* 로드뷰(거리 사진)가 떠 있는 동안엔 검색·필터·내 위치 대신 닫기 버튼만 보여준다.
           다만 지도는 아래쪽 1/3에 그대로 보이니, 그 지도를 조작할 줌 컨트롤은 그 위에 계속 띄워둔다. */}
@@ -970,17 +1207,19 @@ export default function MapScreen() {
                 style={{ color: Colors.light.cardDescription }}
                 onPress={() =>
                   setSelectedCategoryIds(
-                    selectedCategoryIds.length === 0 ? CATEGORY_OPTIONS.map((category) => category.id) : []
+                    selectedCategoryIds.length === 0
+                      ? categoryOptions.map((category) => category.id)
+                      : []
                   )
                 }>
                 {selectedCategoryIds.length === 0 ? '전체 선택' : '전체 해제'}
               </Text>
             </View>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-              {CATEGORY_OPTIONS.map((category) => (
+              {categoryOptions.map((category) => (
                 <Chip
                   key={category.id}
-                  label={category.label}
+                  label={category.name}
                   indicator="check"
                   selected={selectedCategoryIds.includes(category.id)}
                   onPress={() => toggleCategory(category.id)}
