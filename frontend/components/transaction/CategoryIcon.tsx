@@ -129,7 +129,7 @@ type CategoryIconProps = {
  */
 export function CategoryIcon({ categoryName, categoryId, size = 20, color }: CategoryIconProps) {
   const iconName = getCategoryIconKey(categoryName, categoryId);
-  const iconColor = color ?? (categoryId === undefined ? getCategoryColorByName(categoryName) : getCategoryColorById(categoryId));
+  const iconColor = color ?? (categoryId === undefined ? getCategoryColorByName(categoryName) : getCategoryColorById(categoryId, categoryName));
 
   return (
     <Svg

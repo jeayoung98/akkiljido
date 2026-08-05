@@ -1,4 +1,6 @@
+import * as Location from 'expo-location';
 import { router } from 'expo-router';
+import { useEffect, useState } from 'react';
 import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import AppScreen from '@/components/common/AppScreen';
@@ -7,7 +9,8 @@ import { CategorySummaryCard } from '@/components/home/CategorySummaryCard';
 import { NearbyWeekSpendingCard } from '@/components/home/NearbyWeekSpendingCard';
 import { TodaySpendingCard } from '@/components/home/TodaySpendingCard';
 import Colors from '@/constants/Colors';
-import { mockCategorySummaryResponse, mockRecentExpensesResponse, MOCK_TODAY_EXPENSE } from '@/mocks/home';
+import { getCategorySummary, getRecentExpenses } from '@/src/api/homeApi';
+import { MOCK_TODAY_EXPENSE, type CategorySummaryItem, type NearbyExpensePlace } from '@/mocks/home';
 import { useNotificationStore } from '@/store/notificationStore';
 
 const NICKNAME = 'Dust';
@@ -15,15 +18,51 @@ const NICKNAME = 'Dust';
 /**
  * 홈 탭 화면입니다. 상단(인사말+알림)과 오늘 지출액 카드는 초록 배경 안에, 그 아래 두 카드
  * (내 주변 7일간 지출, 카테고리별 지출)는 흰 배경 안에 둬서 두 영역을 시각적으로 구분합니다.
- * 데이터는 전부 mocks/home.ts에서 가져오며, 그중 "오늘 지출액"은 API가 아직 없어 임시 값입니다.
+ * 카테고리·내 주변 지출은 src/api/homeApi.ts로 실제 API 연결했고, "오늘 지출액"은 API가 아직
+ * 없어서 mocks/home.ts의 임시 값을 그대로 씁니다.
  * 알림 뱃지 개수는 store/notificationStore.ts의 안 읽은 알림 수를 그대로 씁니다.
  */
 export default function HomeScreen() {
-  const categories = mockCategorySummaryResponse().data.categories;
-  const nearbyExpenses = mockRecentExpensesResponse().data;
+  const [categories, setCategories] = useState<CategorySummaryItem[]>([]);
+  const [nearbyExpenses, setNearbyExpenses] = useState<{ totalAmount: number; placeList: NearbyExpensePlace[] }>({
+    totalAmount: 0,
+    placeList: [],
+  });
   const unreadNotificationCount = useNotificationStore(
     (state) => state.notifications.filter((item) => !item.read).length
   );
+
+  // 실패하면(네트워크 오류, 인증 만료 등) 그냥 빈 상태로 두고 콘솔에만 남긴다 — 이번 달 지출이
+  // 없을 때 보여주는 빈 상태 문구를 그대로 재사용하는 셈이라 화면이 깨지진 않는다.
+  useEffect(() => {
+    (async () => {
+      try {
+        const summary = await getCategorySummary();
+        console.info('[home] category-summary success', summary);
+        setCategories(summary.categories);
+      } catch (error) {
+        console.error('[home] category-summary failed', error);
+      }
+    })();
+  }, []);
+
+  // 위치 권한이 없으면 API 자체를 호출하지 않는다(latitude/longitude가 필수 파라미터라서 값이 없으면
+  // 호출할 수 없다). 이 경우도 카드가 기본 위치로 대체 표시되는 기존 로직 그대로 둔다.
+  useEffect(() => {
+    (async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') return;
+
+        const position = await Location.getCurrentPositionAsync({});
+        const recentExpenses = await getRecentExpenses(position.coords.latitude, position.coords.longitude);
+        console.info('[home] recent-expenses success', recentExpenses);
+        setNearbyExpenses(recentExpenses);
+      } catch (error) {
+        console.error('[home] recent-expenses failed', error);
+      }
+    })();
+  }, []);
 
   return (
     <AppScreen backgroundColor={Colors.light.primary}>
