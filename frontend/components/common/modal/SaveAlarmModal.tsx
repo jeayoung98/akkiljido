@@ -160,16 +160,9 @@ export function SaveAlarmModal({
   // 대신 isFocused를 일반 상태값으로 구독해서, pickedLocation과 isFocused가 "둘 다" 갖춰진
   // 시점에만 정확히 한 번 반영되게 한다 — 둘 중 어느 쪽이 먼저 바뀌어도 안전하다.
   useEffect(() => {
-    // TRACE: 임시 디버그 로그. 원인 확인 후 제거합니다.
-    console.log('[TRACE] SaveAlarmModal effect', {
-      isFocused,
-      isReturning: isReturningFromMapRef.current,
-      pickedLocation,
-    });
     if (isFocused && isReturningFromMapRef.current && pickedLocation) {
       // 지도 화면으로 이동하기 위해 모달을 닫았던 경우에만 장소를 반영하고 다시 엽니다.
       // 일반적인 MapInput 사용 결과를 이 모달이 가로채지 않도록 반환 플래그를 함께 확인합니다.
-      console.log('[TRACE] SaveAlarmModal reopening now');
       updateField('address', pickedLocation.address);
       updateField('lat', pickedLocation.lat);
       updateField('lng', pickedLocation.lng);

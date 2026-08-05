@@ -38,10 +38,16 @@ export default function HomeScreen() {
   const [selectedAlarm, setSelectedAlarm] = useState<AlarmFormValue | null>(null);
   const isDevMode = useDevModeStore((state) => state.isDevMode);
 
-  // TRACE: 임시 디버그 로그. 원인 확인 후 제거합니다.
-  useEffect(() => {
-    console.log('[TRACE] HomeScreen saveAlarmVisible changed:', saveAlarmVisible);
-  }, [saveAlarmVisible]);
+  // ReportModal·RecommendModal·SaveAlarmModal은 각각 별도의 네이티브 Modal(안드로이드에서는 별도의
+  // Dialog 창)이라, 여러 개가 동시에 진짜로 visible=true면 안드로이드가 어떤 걸 맨 위에 그릴지
+  // 보장해주지 않는다 — 특히 한 번 닫혔다가 다시 열린 모달이 이미 열려있던 다른 모달보다 뒤로
+  // 밀리는 경우가 있다(지도에서 돌아와 SaveAlarmModal이 다시 열릴 때 실제로 이 문제가 있었다).
+  // "논리적으로 열려있는 상태"(reportVisible 등)는 그대로 두고, 실제 네이티브 Modal에 넘기는
+  // visible 값만 "이 모달보다 위에 아무것도 없을 때"로 계산해서, 항상 최대 하나의 네이티브
+  // Modal만 진짜로 보이게 한다. 뒤로 가면(더 위의 모달이 닫히면) 자동으로 그 아래 모달이 다시
+  // "진짜로" 보이기 시작하므로, 각 모달을 닫고 여는 기존 로직은 전혀 건드리지 않아도 된다.
+  const reportModalVisible = reportVisible && !recommendVisible && !saveAlarmVisible;
+  const recommendModalVisible = recommendVisible && !saveAlarmVisible;
 
   useEffect(() => {
     if (shouldShowWeeklyReport) {
@@ -102,7 +108,7 @@ export default function HomeScreen() {
       </ScrollView>
 
       <ReportModal
-        visible={reportVisible}
+        visible={reportModalVisible}
         onClose={() => setReportVisible(false)}
         data={MOCK_WEEKLY_REPORT}
         onViewRecommendations={() => {
@@ -131,17 +137,14 @@ export default function HomeScreen() {
           setSaveAlarmVisible(true);
         }}
         recommendations={MOCK_WEEKLY_REPORT_RECOMMENDATIONS}
-        visible={recommendVisible}
+        visible={recommendModalVisible}
       />
 
       {selectedAlarm ? (
         <SaveAlarmModal
           initialValue={selectedAlarm}
           onClose={() => setSaveAlarmVisible(false)}
-          onReopenAfterLocationPicked={() => {
-            console.log('[TRACE] HomeScreen onReopenAfterLocationPicked called');
-            setSaveAlarmVisible(true);
-          }}
+          onReopenAfterLocationPicked={() => setSaveAlarmVisible(true)}
           onSave={() => {
             // TODO: 실제 알림 저장 API 연결. 지금은 SaveAlarmModal만 닫는다.
             setSaveAlarmVisible(false);

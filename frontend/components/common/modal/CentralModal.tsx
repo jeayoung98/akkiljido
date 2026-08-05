@@ -32,7 +32,7 @@ export function CentralModal({
 
   return (
     <Modal
-      animationType="none"
+      animationType="fade"
       // Android 하드웨어 뒤로가기는 닫기 동작과 동일하게 처리합니다.
       onRequestClose={onClose}
       // 상태바 영역까지 딤 배경이 이어지도록 Android Modal을 투명하게 확장합니다.
