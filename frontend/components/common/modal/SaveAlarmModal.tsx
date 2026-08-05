@@ -172,6 +172,13 @@ export function SaveAlarmModal({
       : undefined;
   // 알림 추가 이유는 AI 설명용 선택 항목이며 이름·장소·시간만 필수로 검사합니다.
   const hasError = isNameEmpty || isPlaceEmpty || Boolean(startTimeError) || Boolean(endTimeError) || hasSameTimeRange;
+  // 시간 안내는 두 입력칸 아래 한 곳에만 표시해, 시작·끝 시간 박스의 높이를 항상 같게 유지합니다.
+  const timeMessage = showErrors
+    ? startTimeError ?? endTimeError ?? (hasSameTimeRange ? '시작 시간과 끝 시간은 다르게 설정해 주세요.' : undefined)
+    : isOvernightAlarm
+      ? '다음 날까지 이어지는 알림이에요.'
+      : undefined;
+  const isTimeMessageError = showErrors && Boolean(startTimeError || endTimeError || hasSameTimeRange);
 
   const handleSave = () => {
     if (hasError) {
@@ -280,7 +287,6 @@ export function SaveAlarmModal({
                     placeholder="18:30"
                     value={form.startTime}
                   />
-                  {showErrors && startTimeError ? <Text style={styles.errorText}>{startTimeError}</Text> : null}
                 </View>
 
                 <View style={[styles.fieldBox, styles.timeField, showErrors && Boolean(endTimeError) && styles.fieldBoxError]}>
@@ -292,14 +298,14 @@ export function SaveAlarmModal({
                     placeholder="19:30"
                     value={form.endTime}
                   />
-                  {showErrors && endTimeError ? <Text style={styles.errorText}>{endTimeError}</Text> : null}
                 </View>
               </View>
 
-              {showErrors && hasSameTimeRange ? (
-                <Text style={styles.errorText}>시작 시간과 끝 시간은 다르게 설정해 주세요.</Text>
+              {timeMessage ? (
+                <Text style={[styles.timeMessage, isTimeMessageError && styles.timeMessageError]}>
+                  {timeMessage}
+                </Text>
               ) : null}
-              {isOvernightAlarm ? <Text style={styles.timeHint}>다음 날까지 이어지는 알림이에요.</Text> : null}
 
               <FieldInput
                 label="알림 추가 이유"
@@ -379,11 +385,14 @@ const styles = StyleSheet.create({
     color: Colors.light.danger,
     fontSize: 12,
   },
-  timeHint: {
+  timeMessage: {
     marginTop: -6,
     color: Colors.light.cardAccent,
     fontSize: 12,
     lineHeight: 18,
+  },
+  timeMessageError: {
+    color: Colors.light.danger,
   },
   fieldBox: {
     backgroundColor: `${Colors.light.primary}1A`,
