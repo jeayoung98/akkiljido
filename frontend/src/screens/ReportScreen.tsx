@@ -149,8 +149,7 @@ export default function ReportScreen() {
                           {index + 1}. {rec.description} {rec.placeName} {rec.timeRange}에 알림을 설정해 보세요!
                         </Text>
                         <View style={styles.recAction}>
-                          <Ionicons name="add-circle-outline" size={16} color={Colors.light.primary} />
-                          <Text style={styles.recActionText}>알림 추가</Text>
+                          <Ionicons name="add-circle-outline" size={26} color={Colors.light.primary} />
                         </View>
                       </Pressable>
                     ))}
@@ -322,14 +321,7 @@ const styles = StyleSheet.create({
     color: Colors.light.cardBodyText,
   },
   recAction: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-  },
-  recActionText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: Colors.light.primary,
+    alignSelf: 'center',
   },
   recItemPressed: {
     opacity: 0.6,
