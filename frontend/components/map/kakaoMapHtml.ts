@@ -329,9 +329,29 @@ export function buildMapHtml({ initialCenter, initialLevel = 3, draggable = true
       window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'level', level: map.getLevel() }));
     });
 
+    function notifyBounds() {
+      const bounds = map.getBounds();
+      const southWest = bounds.getSouthWest();
+      const northEast = bounds.getNorthEast();
+
+      window.ReactNativeWebView.postMessage(
+        JSON.stringify({
+          type: 'bounds',
+          south: southWest.getLat(),
+          west: southWest.getLng(),
+          north: northEast.getLat(),
+          east: northEast.getLng(),
+        })
+      );
+    }
+
+    // 드래그·확대·축소가 끝난 뒤 최신 화면 영역을 RN에 전달한다.
+    kakao.maps.event.addListener(map, 'idle', notifyBounds);
+
     // 지도(+ 위 함수들)가 준비됐다고 RN에 알린다. RN은 이 신호를 받은 뒤부터 injectJavaScript로
     // setMapMarkers/setMapPins/setSelectedPin/setMyLocation을 호출한다.
     window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
+    notifyBounds();
   </script>
 </body>
 </html>
