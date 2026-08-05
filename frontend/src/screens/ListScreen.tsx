@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
@@ -58,7 +58,11 @@ const toLocalDateKey = (date: Date) =>
  * 탭별 본문은 transaction 폴더의 전용 컴포넌트로 분리하고, 여기서는 공통 상태·검색·필터·추가 시트만 관리합니다.
  */
 export default function ListScreen() {
-  const [tab, setTab] = useState<TransactionTab>('list');
+  // 홈 화면의 "카테고리별 지출 더보기"처럼, 다른 화면에서 특정 탭으로 바로 들어올 수 있게 쿼리로 초기 탭을 받는다.
+  const { tab: initialTab } = useLocalSearchParams<{ tab?: TransactionTab }>();
+  const [tab, setTab] = useState<TransactionTab>(
+    initialTab === 'calendar' || initialTab === 'analysis' ? initialTab : 'list'
+  );
   const [isSearching, setIsSearching] = useState(false);
   const [isFilterVisible, setIsFilterVisible] = useState(false);
   const [isAddVisible, setIsAddVisible] = useState(false);
