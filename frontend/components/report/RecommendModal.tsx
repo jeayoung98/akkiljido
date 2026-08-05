@@ -165,15 +165,7 @@ const styles = StyleSheet.create({
     color: Colors.light.reportHeaderBackground,
   },
   recAction: {
-    flexDirection: 'row',
-    alignItems: 'center',
     alignSelf: 'center',
-    gap: 2,
-  },
-  recActionText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: Colors.light.reportHeaderBackground,
   },
   buttonRow: {
     flexDirection: 'row',
