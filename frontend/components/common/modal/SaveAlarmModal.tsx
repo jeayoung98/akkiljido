@@ -71,6 +71,9 @@ export type AlarmFormValue = {
   name: string;
   placeId?: number;
   placeName: string;
+  /** 지도에서 고른 좌표. 알림 장소를 저장할 때(위치 알림 트리거링 판단에) 필요해서 추가했습니다. */
+  latitude?: number;
+  longitude?: number;
   startTime: string;
   endTime: string;
   reason: string;
@@ -84,6 +87,9 @@ export type SaveAlarmModalProps = {
   onReopenAfterLocationPicked?: () => void;
   onSave: (value: AlarmFormValue) => void;
   saveLoading?: boolean;
+  /** AI 추천이 아니라 직접 추가하는 흐름 등에서 문구를 바꿔야 할 때 씁니다. */
+  title?: string;
+  description?: string;
 };
 
 /** AI 추천값을 확인하고 수정한 뒤 저장 요청값으로 전달하는 알림 추가 모달입니다. */
@@ -94,6 +100,8 @@ export function SaveAlarmModal({
   onReopenAfterLocationPicked,
   onSave,
   saveLoading = false,
+  title = '추천 위치 알림 추가',
+  description = 'AI 추천 내용을 수정한 뒤 저장할 수 있어요.',
 }: SaveAlarmModalProps) {
   const router = useRouter();
   // map-picker 화면이 위치를 고르고 나면 이 store에 결과를 담아둔다. 모달과 map-picker는
@@ -131,7 +139,12 @@ export function SaveAlarmModal({
     // 지도 화면으로 이동하기 위해 모달을 닫았던 경우에만 장소를 반영하고 다시 엽니다.
     // 일반적인 MapInput 사용 결과를 이 모달이 가로채지 않도록 반환 플래그를 함께 확인합니다.
     if (isReturningFromMapRef.current && pickedLocation) {
-      updateField('placeName', pickedLocation.address);
+      setForm((current) => ({
+        ...current,
+        placeName: pickedLocation.address,
+        latitude: pickedLocation.lat,
+        longitude: pickedLocation.lng,
+      }));
       clearPickedLocation();
       onReopenAfterLocationPicked?.();
     }
@@ -202,9 +215,9 @@ export function SaveAlarmModal({
             <View style={styles.header}>
               <View style={styles.headerTextArea}>
                 <Text accessibilityRole="header" style={styles.title}>
-                  추천 위치 알림 추가
+                  {title}
                 </Text>
-                <Text style={styles.description}>AI 추천 내용을 수정한 뒤 저장할 수 있어요.</Text>
+                <Text style={styles.description}>{description}</Text>
               </View>
               <IconButton
                 color={Colors.light.placeholder}

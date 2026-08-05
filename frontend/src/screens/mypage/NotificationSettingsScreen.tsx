@@ -6,28 +6,60 @@ import AppScreen from '@/components/common/AppScreen';
 import InfoListItem from '@/components/common/card/InfoListItem';
 import { AppHeader } from '@/components/common/header/AppHeader';
 import { ConfirmModal } from '@/components/common/modal/ConfirmModal';
+import { SaveAlarmModal, type AlarmFormValue } from '@/components/common/modal/SaveAlarmModal';
 import { AddCircleButton } from '@/components/my/AddCircleButton';
 import { KebabMenu } from '@/components/my/KebabMenu';
 import { Switch } from '@/components/my/Switch';
 import Colors from '@/constants/Colors';
 import { MOCK_NOTIFICATION_PLACES, type NotificationPlace } from '@/mocks/notifications';
 
+// "+" 버튼을 누르면 이 빈 값으로 SaveAlarmModal을 연다. 지도에서 장소를 고르기 전까지는
+// placeName·좌표가 비어 있어서, 모달의 필수값 검사가 저장을 막아준다.
+const EMPTY_ALARM_FORM: AlarmFormValue = {
+  name: '',
+  placeName: '',
+  startTime: '',
+  endTime: '',
+  reason: '',
+};
+
 /**
  * 마이페이지 > 알림 설정 화면입니다. 소비 리포트(주간/월간) 알림과, 등록한 위치 알림 목록을 보여줍니다.
- * 위치 알림 추가/수정 화면은 아직 없어서 각 버튼은 자리만 잡아뒀습니다.
+ * 위치 알림 수정 화면은 아직 없어서 수정 버튼은 자리만 잡아뒀습니다.
  */
 export default function NotificationSettingsScreen() {
   const [weeklyReport, setWeeklyReport] = useState(true);
   const [monthlyReport, setMonthlyReport] = useState(true);
   const [places, setPlaces] = useState<NotificationPlace[]>(MOCK_NOTIFICATION_PLACES);
   const [deleteTarget, setDeleteTarget] = useState<NotificationPlace | null>(null);
+  const [addModalVisible, setAddModalVisible] = useState(false);
 
   const handleTogglePlace = (id: number, next: boolean) => {
     setPlaces((prev) => prev.map((place) => (place.notificationPlaceId === id ? { ...place, active: next } : place)));
   };
 
   const handleAddPlace = () => {
-    // TODO: 새 위치 알림 등록 화면 나오면 그쪽으로 이동
+    setAddModalVisible(true);
+  };
+
+  const handleSaveNewPlace = (value: AlarmFormValue) => {
+    const nextId = places.reduce((max, place) => Math.max(max, place.notificationPlaceId), 0) + 1;
+    setPlaces((prev) => [
+      ...prev,
+      {
+        notificationPlaceId: nextId,
+        notificationPlaceName: value.name,
+        address: value.placeName,
+        // 지도에서 장소를 골라야만 저장할 수 있어서(placeName 필수 검사) 이 시점엔 항상 값이 있다.
+        latitude: value.latitude ?? 0,
+        longitude: value.longitude ?? 0,
+        startTime: value.startTime,
+        endTime: value.endTime,
+        reason: value.reason,
+        active: true,
+      },
+    ]);
+    setAddModalVisible(false);
   };
 
   const handleEditPlace = (place: NotificationPlace) => {
@@ -67,7 +99,7 @@ export default function NotificationSettingsScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeaderRow}>
             <Text style={styles.sectionTitle}>위치 알림</Text>
-            <AddCircleButton accessibilityLabel="새 위치 알림 추가" onPress={handleAddPlace} />
+            <AddCircleButton accessibilityLabel="새 위치 알림 추가" onPress={handleAddPlace} style={styles.addPlaceButton} />
           </View>
           <Text style={styles.sectionDescription}>등록한 장소에 도착하면 설정한 시간에 알려드려요</Text>
 
@@ -127,6 +159,16 @@ export default function NotificationSettingsScreen() {
         title="알림 장소를 삭제할까요?"
         visible={deleteTarget != null}
       />
+
+      <SaveAlarmModal
+        description="장소와 시간대를 정해서 새 위치 알림을 추가해요."
+        initialValue={EMPTY_ALARM_FORM}
+        onClose={() => setAddModalVisible(false)}
+        onReopenAfterLocationPicked={() => setAddModalVisible(true)}
+        onSave={handleSaveNewPlace}
+        title="위치 알림 추가"
+        visible={addModalVisible}
+      />
     </AppScreen>
   );
 }
@@ -143,6 +185,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  // 화면 오른쪽 끝에 딱 붙어 있으면 너무 멀어 보여서, 살짝 안쪽·아래로 옮긴다.
+  addPlaceButton: {
+    marginRight: 6,
+    marginTop: 8,
   },
   sectionTitle: {
     color: Colors.light.cardTitle,
