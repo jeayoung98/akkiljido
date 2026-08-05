@@ -30,12 +30,13 @@ public class ReportStatRepository {
 	/**
 	 * 기간 내 사용자의 전체 거래(수입 포함)를 시각 오름차순으로 조회한다.
 	 * 카테고리명을 함께 사용하므로 category 를 fetch join 한다(N+1 방지).
+	 * 소득 거래는 카테고리를 갖지 않으므로 left join 이어야 한다(inner join 이면 소득이 조회 결과에서 사라진다).
 	 */
 	public List<TransactionHistory> findTransactionsForReport(
 		Long userId, OffsetDateTime startDateTime, OffsetDateTime endDateTime) {
 		return queryFactory
 			.selectFrom(transactionHistory)
-			.join(transactionHistory.category, category).fetchJoin()
+			.leftJoin(transactionHistory.category, category).fetchJoin()
 			.where(
 				transactionHistory.user.id.eq(userId),
 				transactionHistory.datetime.goe(startDateTime),

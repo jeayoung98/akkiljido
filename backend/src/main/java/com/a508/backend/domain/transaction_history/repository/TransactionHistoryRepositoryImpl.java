@@ -35,9 +35,10 @@ public class TransactionHistoryRepositoryImpl implements TransactionHistoryRepos
 	@Override
 	public List<TransactionHistory> searchTransactions(Long userId, OffsetDateTime startDateTime,
 		OffsetDateTime endDateTime, TransactionType type, List<Long> categoryIds, String query, TransactionSort sort) {
+		// 소득 거래는 카테고리를 갖지 않으므로 left join 이어야 한다. inner join 이면 소득이 목록/검색에서 누락된다.
 		return queryFactory
 			.selectFrom(transactionHistory)
-			.join(transactionHistory.category, category).fetchJoin()
+			.leftJoin(transactionHistory.category, category).fetchJoin()
 			.where(
 				transactionHistory.user.id.eq(userId),
 				transactionHistory.datetime.goe(startDateTime),
@@ -61,7 +62,10 @@ public class TransactionHistoryRepositoryImpl implements TransactionHistoryRepos
 		return findExpenses(userId, startDateTime, endDateTime, categoryIds, withinRadius(center, radiusMeters));
 	}
 
-	/** 공간 조건만 다른 두 조회의 공통 부분. 카테고리명을 함께 쓰므로 category 를 fetch join 한다(N+1 방지). */
+	/**
+	 * 공간 조건만 다른 두 조회의 공통 부분. 카테고리명을 함께 쓰므로 category 를 fetch join 한다(N+1 방지).
+	 * 지출만 조회하므로 카테고리가 항상 존재한다 - 여기서는 inner join 을 유지한다(소득은 카테고리가 null).
+	 */
 	private List<TransactionHistory> findExpenses(Long userId, OffsetDateTime startDateTime,
 		OffsetDateTime endDateTime, List<Long> categoryIds, Predicate spatialCondition) {
 		return queryFactory

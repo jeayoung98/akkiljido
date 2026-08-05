@@ -3,6 +3,7 @@ package com.a508.backend.domain.transaction_history.dto.response;
 import java.time.LocalDate;
 import java.util.Locale;
 
+import com.a508.backend.domain.category.entity.Category;
 import com.a508.backend.domain.transaction_history.entity.TransactionHistory;
 import com.a508.backend.global.util.DateTimeUtils;
 import com.fasterxml.jackson.annotation.JsonFormat;
@@ -31,21 +32,22 @@ public record TransactionSearchItem(
         @JsonFormat(pattern = "yyyy-MM-dd")
         LocalDate transactionDate,
 
-        @Schema(description = "카테고리 ID", example = "1")
+        @Schema(description = "카테고리 ID. 소득(income) 거래는 null.", example = "1")
         Long categoryId,
 
-        @Schema(description = "카테고리명", example = "음식점")
+        @Schema(description = "카테고리명. 소득(income) 거래는 null.", example = "음식점")
         String categoryName
 ) {
     public static TransactionSearchItem of(TransactionHistory entity) {
+        Category category = entity.getCategory();
         return new TransactionSearchItem(
                 entity.getId(),
                 entity.getTransactionName(),
                 entity.getAmount(),
                 entity.getType().name().toLowerCase(Locale.ROOT),
                 DateTimeUtils.toServiceLocal(entity.getDatetime()).toLocalDate(),
-                entity.getCategory().getId(),
-                entity.getCategory().getName()
+                category == null ? null : category.getId(),
+                category == null ? null : category.getName()
         );
     }
 }

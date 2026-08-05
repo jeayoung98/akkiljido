@@ -76,17 +76,29 @@ class TransactionHistoryServiceTest {
 	}
 
 	private TransactionHistoryCreateRequest createRequest(Double latitude, Double longitude) {
+		return createRequest(TransactionType.EXPENSE, "카드", 3L, latitude, longitude);
+	}
+
+	private TransactionHistoryCreateRequest createRequest(TransactionType type, String paymentMethod, Long categoryId,
+		Double latitude, Double longitude) {
 		return new TransactionHistoryCreateRequest(
 			"스타벅스",
 			15000L,
-			TransactionType.EXPENSE,
-			"카드",
-			3L,
+			type,
+			paymentMethod,
+			categoryId,
 			DATETIME,
 			"서울 강남구 테헤란로",
 			latitude,
 			longitude,
 			"아메리카노");
+	}
+
+	/** 카테고리/결제 수단만 지정하는 PATCH 요청. 나머지 필드는 미전송(null)이다. */
+	private TransactionHistoryUpdateRequest updateRequest(TransactionType type, String paymentMethod,
+		Long categoryId) {
+		return new TransactionHistoryUpdateRequest(
+			null, null, type, paymentMethod, categoryId, null, null, null, null, null);
 	}
 
 	private TransactionHistory storedEntity(Long id) {
@@ -105,6 +117,19 @@ class TransactionHistoryServiceTest {
 			.region2DepthName("강남구")
 			.region3DepthName("역삼동")
 			.coordinate(GeometryUtils.toPoint(37.5006, 127.0366))
+			.build();
+		ReflectionTestUtils.setField(entity, "id", id);
+		return entity;
+	}
+
+	/** 카테고리·결제 수단이 없는 소득 거래 엔티티. */
+	private TransactionHistory storedIncomeEntity(Long id) {
+		TransactionHistory entity = TransactionHistory.builder()
+			.user(user())
+			.datetime(DateTimeUtils.toServiceOffset(DATETIME))
+			.amount(3000000L)
+			.type(TransactionType.INCOME)
+			.transactionName("월급")
 			.build();
 		ReflectionTestUtils.setField(entity, "id", id);
 		return entity;
@@ -188,6 +213,167 @@ class TransactionHistoryServiceTest {
 			.isEqualTo(ExceptionType.CATEGORY_NOT_FOUND);
 
 		verify(transactionHistoryRepository, never()).save(any());
+	}
+
+	@Test
+	@DisplayName("createTransactionHistory 는 소득이면 카테고리·결제 수단 없이 저장하고 카테고리를 조회하지 않는다")
+	void createIncome() {
+		when(userService.getUser(USER_ID)).thenReturn(user());
+		when(transactionHistoryRepository.save(any(TransactionHistory.class)))
+			.thenAnswer(invocation -> {
+				TransactionHistory arg = invocation.getArgument(0);
+				ReflectionTestUtils.setField(arg, "id", 102L);
+				return arg;
+			});
+
+		TransactionHistoryResponse response = transactionHistoryService.createTransactionHistory(
+			USER_ID, createRequest(TransactionType.INCOME, null, null, null, null));
+
+		assertThat(response.transactionId()).isEqualTo(102L);
+		assertThat(response.paymentMethod()).isNull();
+		assertThat(response.categoryId()).isNull();
+		assertThat(response.categoryName()).isNull();
+
+		verifyNoInteractions(categoryService);
+
+		ArgumentCaptor<TransactionHistory> captor = ArgumentCaptor.forClass(TransactionHistory.class);
+		verify(transactionHistoryRepository).save(captor.capture());
+		TransactionHistory saved = captor.getValue();
+
+		assertThat(saved.getType()).isEqualTo(TransactionType.INCOME);
+		assertThat(saved.getCategory()).isNull();
+		assertThat(saved.getPaymentMethod()).isNull();
+	}
+
+	@Test
+	@DisplayName("createTransactionHistory 는 소득에 카테고리를 함께 보내면 INCOME_FIELD_NOT_ALLOWED 예외를 던진다")
+	void createIncomeWithCategory() {
+		assertThatThrownBy(() -> transactionHistoryService.createTransactionHistory(
+			USER_ID, createRequest(TransactionType.INCOME, null, 3L, null, null)))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getExceptionType())
+			.isEqualTo(ExceptionType.INCOME_FIELD_NOT_ALLOWED);
+
+		verifyNoInteractions(transactionHistoryRepository, categoryService, userService, kakaoLocalApiClient);
+	}
+
+	@Test
+	@DisplayName("createTransactionHistory 는 소득에 결제 수단을 함께 보내면 INCOME_FIELD_NOT_ALLOWED 예외를 던진다")
+	void createIncomeWithPaymentMethod() {
+		assertThatThrownBy(() -> transactionHistoryService.createTransactionHistory(
+			USER_ID, createRequest(TransactionType.INCOME, "카드", null, null, null)))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getExceptionType())
+			.isEqualTo(ExceptionType.INCOME_FIELD_NOT_ALLOWED);
+
+		verifyNoInteractions(transactionHistoryRepository, categoryService, userService, kakaoLocalApiClient);
+	}
+
+	@Test
+	@DisplayName("createTransactionHistory 는 지출에 카테고리나 결제 수단이 없으면 EXPENSE_FIELD_REQUIRED 예외를 던진다")
+	void createExpenseWithoutRequiredFields() {
+		assertThatThrownBy(() -> transactionHistoryService.createTransactionHistory(
+			USER_ID, createRequest(TransactionType.EXPENSE, "카드", null, null, null)))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getExceptionType())
+			.isEqualTo(ExceptionType.EXPENSE_FIELD_REQUIRED);
+
+		assertThatThrownBy(() -> transactionHistoryService.createTransactionHistory(
+			USER_ID, createRequest(TransactionType.EXPENSE, null, 3L, null, null)))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getExceptionType())
+			.isEqualTo(ExceptionType.EXPENSE_FIELD_REQUIRED);
+
+		verifyNoInteractions(transactionHistoryRepository, categoryService, userService, kakaoLocalApiClient);
+	}
+
+	@Test
+	@DisplayName("updateTransactionHistory 는 지출을 소득으로 바꾸면 카테고리와 결제 수단을 비운다")
+	void updateExpenseToIncome() {
+		TransactionHistory entity = storedEntity(10L);
+		when(transactionHistoryRepository.findByIdAndUser_Id(10L, USER_ID)).thenReturn(Optional.of(entity));
+
+		TransactionHistoryResponse response = transactionHistoryService.updateTransactionHistory(
+			USER_ID, 10L, updateRequest(TransactionType.INCOME, null, null));
+
+		assertThat(entity.getType()).isEqualTo(TransactionType.INCOME);
+		assertThat(entity.getCategory()).isNull();
+		assertThat(entity.getPaymentMethod()).isNull();
+		assertThat(response.categoryId()).isNull();
+		assertThat(response.categoryName()).isNull();
+		assertThat(response.paymentMethod()).isNull();
+
+		verifyNoInteractions(categoryService);
+	}
+
+	@Test
+	@DisplayName("updateTransactionHistory 는 소득으로 바꾸면서 카테고리를 함께 보내면 INCOME_FIELD_NOT_ALLOWED 예외를 던진다")
+	void updateToIncomeWithCategory() {
+		TransactionHistory entity = storedEntity(10L);
+		when(transactionHistoryRepository.findByIdAndUser_Id(10L, USER_ID)).thenReturn(Optional.of(entity));
+
+		assertThatThrownBy(() -> transactionHistoryService.updateTransactionHistory(
+			USER_ID, 10L, updateRequest(TransactionType.INCOME, null, 5L)))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getExceptionType())
+			.isEqualTo(ExceptionType.INCOME_FIELD_NOT_ALLOWED);
+
+		// 검증이 update() 보다 먼저 일어나 기존 값이 그대로 남는지 확인한다.
+		assertThat(entity.getType()).isEqualTo(TransactionType.EXPENSE);
+		assertThat(entity.getCategory().getId()).isEqualTo(3L);
+		assertThat(entity.getPaymentMethod()).isEqualTo("카드");
+		verifyNoInteractions(categoryService);
+	}
+
+	@Test
+	@DisplayName("updateTransactionHistory 는 소득 거래를 지출로 바꿀 때 카테고리·결제 수단을 함께 받아야 한다")
+	void updateIncomeToExpenseWithoutRequiredFields() {
+		TransactionHistory entity = storedIncomeEntity(11L);
+		when(transactionHistoryRepository.findByIdAndUser_Id(11L, USER_ID)).thenReturn(Optional.of(entity));
+
+		assertThatThrownBy(() -> transactionHistoryService.updateTransactionHistory(
+			USER_ID, 11L, updateRequest(TransactionType.EXPENSE, null, null)))
+			.isInstanceOf(BusinessException.class)
+			.extracting(e -> ((BusinessException)e).getExceptionType())
+			.isEqualTo(ExceptionType.EXPENSE_FIELD_REQUIRED);
+
+		assertThat(entity.getType()).isEqualTo(TransactionType.INCOME);
+		verifyNoInteractions(categoryService);
+	}
+
+	@Test
+	@DisplayName("updateTransactionHistory 는 소득 거래를 카테고리·결제 수단과 함께 지출로 바꿀 수 있다")
+	void updateIncomeToExpense() {
+		TransactionHistory entity = storedIncomeEntity(11L);
+		when(transactionHistoryRepository.findByIdAndUser_Id(11L, USER_ID)).thenReturn(Optional.of(entity));
+		when(categoryService.getOwnedCategory(USER_ID, 5L)).thenReturn(category(5L));
+
+		TransactionHistoryResponse response = transactionHistoryService.updateTransactionHistory(
+			USER_ID, 11L, updateRequest(TransactionType.EXPENSE, "카드", 5L));
+
+		assertThat(entity.getType()).isEqualTo(TransactionType.EXPENSE);
+		assertThat(entity.getCategory().getId()).isEqualTo(5L);
+		assertThat(entity.getPaymentMethod()).isEqualTo("카드");
+		assertThat(response.categoryId()).isEqualTo(5L);
+		assertThat(response.paymentMethod()).isEqualTo("카드");
+	}
+
+	@Test
+	@DisplayName("updateTransactionHistory 는 유형 미전송 시 기존 유형(소득)을 유지하며 금액만 수정한다")
+	void updateIncomeAmountOnly() {
+		TransactionHistory entity = storedIncomeEntity(11L);
+		when(transactionHistoryRepository.findByIdAndUser_Id(11L, USER_ID)).thenReturn(Optional.of(entity));
+
+		TransactionHistoryUpdateRequest request = new TransactionHistoryUpdateRequest(
+			null, 3500000L, null, null, null, null, null, null, null, null);
+
+		transactionHistoryService.updateTransactionHistory(USER_ID, 11L, request);
+
+		assertThat(entity.getAmount()).isEqualTo(3500000L);
+		assertThat(entity.getType()).isEqualTo(TransactionType.INCOME);
+		assertThat(entity.getCategory()).isNull();
+		assertThat(entity.getPaymentMethod()).isNull();
+		verifyNoInteractions(categoryService);
 	}
 
 	@Test

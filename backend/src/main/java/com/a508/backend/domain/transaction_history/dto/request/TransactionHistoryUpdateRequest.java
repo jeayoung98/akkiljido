@@ -16,6 +16,10 @@ import jakarta.validation.constraints.Size;
  * 거래내역 부분 수정(PATCH) 요청.
  * PATCH 의미에 맞게 모든 필드는 선택값이다. null(미전송) 필드는 기존 값을 그대로 유지한다.
  * 문자열 필드는 @Pattern 으로 "값을 보냈다면 공백만으로 채우지 못하도록" 검증한다(null 은 통과).
+ * <p>
+ * 카테고리(categoryId)와 결제 수단(payment_method)은 수정 후의 거래 유형에 따라 허용 여부가 달라진다.
+ * 수정 결과가 소득(INCOME)이면 둘 다 보낼 수 없고(기존 값도 비워진다), 지출(EXPENSE)이면 둘 다 채워져 있어야 한다.
+ * 기존 값과 요청을 합친 상태로 판단해야 하는 규칙이라 서비스 계층에서 검증한다.
  */
 @Schema(description = "거래내역 부분 수정(PATCH) 요청. 보내지 않은 필드는 기존 값을 유지한다.")
 public record TransactionHistoryUpdateRequest(
@@ -31,13 +35,13 @@ public record TransactionHistoryUpdateRequest(
 	@Schema(description = "거래 유형(수입/지출)", example = "EXPENSE")
 	TransactionType type,
 
-	@Schema(description = "결제 수단", example = "현금")
+	@Schema(description = "결제 수단. 수정 결과가 소득(INCOME)이면 보낼 수 없다.", example = "현금")
 	@JsonProperty("payment_method")
 	@Pattern(regexp = ".*\\S.*", flags = Pattern.Flag.DOTALL, message = "결제 수단은 공백일 수 없습니다.")
 	@Size(max = 10, message = "결제 수단은 10자 이하여야 합니다.")
 	String paymentMethod,
 
-	@Schema(description = "카테고리 ID", example = "5")
+	@Schema(description = "카테고리 ID. 수정 결과가 소득(INCOME)이면 보낼 수 없다.", example = "5")
 	Long categoryId,
 
 	@Schema(description = "거래 일시", example = "2026-07-24 09:00:00")
