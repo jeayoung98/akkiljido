@@ -38,6 +38,11 @@ export default function HomeScreen() {
   const [selectedAlarm, setSelectedAlarm] = useState<AlarmFormValue | null>(null);
   const isDevMode = useDevModeStore((state) => state.isDevMode);
 
+  // TRACE: 임시 디버그 로그. 원인 확인 후 제거합니다.
+  useEffect(() => {
+    console.log('[TRACE] HomeScreen saveAlarmVisible changed:', saveAlarmVisible);
+  }, [saveAlarmVisible]);
+
   useEffect(() => {
     if (shouldShowWeeklyReport) {
       setReportVisible(true);
@@ -133,7 +138,10 @@ export default function HomeScreen() {
         <SaveAlarmModal
           initialValue={selectedAlarm}
           onClose={() => setSaveAlarmVisible(false)}
-          onReopenAfterLocationPicked={() => setSaveAlarmVisible(true)}
+          onReopenAfterLocationPicked={() => {
+            console.log('[TRACE] HomeScreen onReopenAfterLocationPicked called');
+            setSaveAlarmVisible(true);
+          }}
           onSave={() => {
             // TODO: 실제 알림 저장 API 연결. 지금은 SaveAlarmModal만 닫는다.
             setSaveAlarmVisible(false);
