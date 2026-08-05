@@ -75,7 +75,7 @@ export default function MyScreen() {
               <IconButton name="chevronRight" color={Colors.light.textSecondary} size={18} />
             </View>
           }
-          onPress={() => router.push('/alarms')}
+          onPress={() => router.push('/notification-settings')}
           style={styles.menuItem}
         />
         <View style={styles.divider} />
