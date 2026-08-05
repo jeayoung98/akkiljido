@@ -17,19 +17,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { BrandLockup } from '@/components/onboarding/BrandLockup';
 import { GoogleIcon } from '@/components/onboarding/GoogleIcon';
 import Colors from '@/constants/Colors';
+import { loginWithGoogle } from '@/src/api/authApi';
 
 const googleWebClientId =
   process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
-
-const apiBaseUrl =
-  process.env.EXPO_PUBLIC_API_BASE_URL;
-
-type GoogleLoginResponse = {
-  data?: {
-    role?: 'GUEST' | 'USER';
-  };
-  success?: boolean;
-};
 
 // 사용자가 Google 계정으로 로그인할 수 있는 화면
 export default function LoginScreen() {
@@ -58,7 +49,7 @@ export default function LoginScreen() {
       setLoading(true);
       setErrorMessage('');
 
-      if (!googleWebClientId || !apiBaseUrl) {
+      if (!googleWebClientId) {
         throw new Error(
           'Google 로그인 환경설정을 확인해주세요.',
         );
@@ -80,27 +71,7 @@ export default function LoginScreen() {
         );
       }
 
-      const backendResponse = await fetch(
-        `${apiBaseUrl}/api/v1/auth/oauth/google`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            idToken,
-          }),
-        },
-      );
-
-      const responseBody =
-        (await backendResponse.json()) as GoogleLoginResponse;
-
-      if (!backendResponse.ok || !responseBody.success) {
-        throw new Error('백엔드 로그인에 실패했습니다.');
-      }
-
-      const role = responseBody.data?.role;
+      const { role } = await loginWithGoogle(idToken);
 
       if (role === 'GUEST') {
         router.replace('/nickname-setup');
