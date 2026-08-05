@@ -32,7 +32,7 @@ function formatTimeText(text: string) {
 
 /**
  * "18:30" 같은 HH:mm 시간을 입력받는 필드입니다. 이 프로젝트엔 아직 시간 피커 라이브러리가
- * 없어서(날짜는 DateInput+react-native-calendars가 있음), RecommendedAlarmModal.tsx 안에서
+ * 없어서(날짜는 DateInput+react-native-calendars가 있음), SaveAlarmModal.tsx 안에서
  * 쓰던 "숫자만 입력받고 3번째 자리부터 콜론 자동 삽입" 방식을 공용 컴포넌트로 뽑았습니다.
  * 스타일은 새로 만들지 않고 기존 TextInput을 그대로 감싸서 씁니다.
  *
