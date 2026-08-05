@@ -1,14 +1,24 @@
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
 import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import AppScreen from '@/components/common/AppScreen';
+import { SaveAlarmModal, type AlarmFormValue } from '@/components/common/modal/SaveAlarmModal';
 import { IconButton } from '@/components/common/button/IconButton';
 import { CategorySummaryCard } from '@/components/home/CategorySummaryCard';
 import { NearbyWeekSpendingCard } from '@/components/home/NearbyWeekSpendingCard';
 import { TodaySpendingCard } from '@/components/home/TodaySpendingCard';
+import { ReportModal } from '@/components/report/ReportModal';
+import { ReportRecommendationsModal } from '@/components/report/RecommendModal';
 import Colors from '@/constants/Colors';
+import { useShowOncePerPeriod } from '@/hooks/useShowOncePerPeriod';
 import { mockCategorySummaryResponse, mockRecentExpensesResponse, MOCK_TODAY_EXPENSE } from '@/mocks/home';
+import { MOCK_WEEKLY_REPORT, MOCK_WEEKLY_REPORT_RECOMMENDATIONS } from '@/mocks/report';
+import { useDevModeStore } from '@/store/devModeStore';
 import { useNotificationStore } from '@/store/notificationStore';
+import { getWeekIdentifier } from '@/utils/reportSchedule';
+
+const LAST_SHOWN_WEEK_STORAGE_KEY = 'report:lastShownWeek';
 
 const NICKNAME = 'Dust';
 
@@ -19,6 +29,42 @@ const NICKNAME = 'Dust';
  * 알림 뱃지 개수는 store/notificationStore.ts의 안 읽은 알림 수를 그대로 씁니다.
  */
 export default function HomeScreen() {
+  // 이번 주에 처음 홈 화면에 들어온 경우에만 true가 되고, 저장까지 자동으로 끝난다.
+  const weekIdentifier = getWeekIdentifier();
+  const shouldShowWeeklyReport = useShowOncePerPeriod(LAST_SHOWN_WEEK_STORAGE_KEY, weekIdentifier);
+  const [reportVisible, setReportVisible] = useState(false);
+  const [recommendVisible, setRecommendVisible] = useState(false);
+  const [saveAlarmVisible, setSaveAlarmVisible] = useState(false);
+  const [selectedAlarm, setSelectedAlarm] = useState<AlarmFormValue | null>(null);
+  const isDevMode = useDevModeStore((state) => state.isDevMode);
+
+  // ReportModal·RecommendModal·SaveAlarmModal은 각각 별도의 네이티브 Modal(안드로이드에서는 별도의
+  // Dialog 창)이라, 여러 개가 동시에 진짜로 visible=true면 안드로이드가 어떤 걸 맨 위에 그릴지
+  // 보장해주지 않는다 — 특히 한 번 닫혔다가 다시 열린 모달이 이미 열려있던 다른 모달보다 뒤로
+  // 밀리는 경우가 있다(지도에서 돌아와 SaveAlarmModal이 다시 열릴 때 실제로 이 문제가 있었다).
+  // "논리적으로 열려있는 상태"(reportVisible 등)는 그대로 두고, 실제 네이티브 Modal에 넘기는
+  // visible 값만 "이 모달보다 위에 아무것도 없을 때"로 계산해서, 항상 최대 하나의 네이티브
+  // Modal만 진짜로 보이게 한다. 뒤로 가면(더 위의 모달이 닫히면) 자동으로 그 아래 모달이 다시
+  // "진짜로" 보이기 시작하므로, 각 모달을 닫고 여는 기존 로직은 전혀 건드리지 않아도 된다.
+  const reportModalVisible = reportVisible && !recommendVisible && !saveAlarmVisible;
+  const recommendModalVisible = recommendVisible && !saveAlarmVisible;
+
+  useEffect(() => {
+    if (shouldShowWeeklyReport) {
+      setReportVisible(true);
+    }
+  }, [shouldShowWeeklyReport]);
+
+  // 개발자 모드일 때는 AsyncStorage 기반 1회 표시 제한을 무시하고, 홈 화면에 포커스가 올 때마다
+  // 리포트를 다시 띄운다. 탭은 전환해도 언마운트되지 않아서 focus 이벤트로 "재진입"을 감지한다.
+  useFocusEffect(
+    useCallback(() => {
+      if (isDevMode) {
+        setReportVisible(true);
+      }
+    }, [isDevMode]),
+  );
+
   const categories = mockCategorySummaryResponse().data.categories;
   const nearbyExpenses = mockRecentExpensesResponse().data;
   const unreadNotificationCount = useNotificationStore(
@@ -60,6 +106,52 @@ export default function HomeScreen() {
           <CategorySummaryCard categories={categories} onPressMore={() => router.push('/list?tab=analysis')} />
         </View>
       </ScrollView>
+
+      <ReportModal
+        visible={reportModalVisible}
+        onClose={() => setReportVisible(false)}
+        data={MOCK_WEEKLY_REPORT}
+        onViewRecommendations={() => {
+          // ReportModal은 계속 visible로 두고, 그 위에 RecommendModal만 새로 연다(스택 유지, 번쩍임 방지).
+          setRecommendVisible(true);
+        }}
+      />
+
+      <ReportRecommendationsModal
+        onClose={() => {
+          // 배경 탭/닫기: 흐름을 완전히 끝내는 동작이라 이때만 둘 다 닫는다.
+          setRecommendVisible(false);
+          setReportVisible(false);
+        }}
+        onConfirm={() => {
+          setRecommendVisible(false);
+          setReportVisible(false);
+        }}
+        onPrev={() => {
+          // ReportModal은 이미 visible 상태 그대로였으므로 RecommendModal만 닫으면 된다.
+          setRecommendVisible(false);
+        }}
+        onSelectRecommendation={(rec) => {
+          // RecommendModal은 계속 visible로 두고, 그 위에 SaveAlarmModal만 새로 연다.
+          setSelectedAlarm(rec.alarm);
+          setSaveAlarmVisible(true);
+        }}
+        recommendations={MOCK_WEEKLY_REPORT_RECOMMENDATIONS}
+        visible={recommendModalVisible}
+      />
+
+      {selectedAlarm ? (
+        <SaveAlarmModal
+          initialValue={selectedAlarm}
+          onClose={() => setSaveAlarmVisible(false)}
+          onReopenAfterLocationPicked={() => setSaveAlarmVisible(true)}
+          onSave={() => {
+            // TODO: 실제 알림 저장 API 연결. 지금은 SaveAlarmModal만 닫는다.
+            setSaveAlarmVisible(false);
+          }}
+          visible={saveAlarmVisible}
+        />
+      ) : null}
     </AppScreen>
   );
 }
