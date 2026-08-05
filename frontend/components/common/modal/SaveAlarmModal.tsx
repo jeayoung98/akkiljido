@@ -33,6 +33,19 @@ type FieldInputProps = Pick<TextInputProps, 'inputMode' | 'maxLength'> & {
   valueStyle?: StyleProp<TextStyle>;
 };
 
+// TimeInput은 입력 중 "12:0"처럼 완성 전 상태도 허용합니다.
+// 저장 시점에는 정확히 HH:mm 형식인지 별도로 검사해 잘못된 시간대가 API까지 전달되지 않게 합니다.
+const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+function isValidTime(value: string) {
+  return TIME_PATTERN.test(value);
+}
+
+function toMinutes(value: string) {
+  const [hour, minute] = value.split(':').map(Number);
+  return hour * 60 + minute;
+}
+
 // 알림 시간과 항상 같은 높이를 유지해야 해서(여러 줄로 늘어나면 둘의 높이가 어긋난다),
 // 한 줄로만 입력받고 내용이 길어지면 옆으로 계속 입력되도록 합니다(스크롤은 TextInput 기본 동작).
 /** 알림 장소(MapInput)와 같은 카드 형태로, 제목이 값과 같은 칸 안에 들어가는 한 줄 입력 필드입니다. */
@@ -155,8 +168,30 @@ export function SaveAlarmModal({
   const isPlaceEmpty = !form.placeName.trim();
   const isStartTimeEmpty = !form.startTime.trim();
   const isEndTimeEmpty = !form.endTime.trim();
+  const hasValidStartTime = isValidTime(form.startTime);
+  const hasValidEndTime = isValidTime(form.endTime);
+  const hasSameTimeRange = hasValidStartTime && hasValidEndTime && form.startTime === form.endTime;
+  // 시작 시간이 더 늦으면 오류가 아니라 자정을 넘기는 알림으로 해석합니다.
+  const isOvernightAlarm = hasValidStartTime && hasValidEndTime && toMinutes(form.startTime) > toMinutes(form.endTime);
+  const startTimeError = isStartTimeEmpty
+    ? '시작 시간을 입력해 주세요.'
+    : !hasValidStartTime
+      ? 'HH:mm 형식으로 입력해 주세요.'
+      : undefined;
+  const endTimeError = isEndTimeEmpty
+    ? '끝 시간을 입력해 주세요.'
+    : !hasValidEndTime
+      ? 'HH:mm 형식으로 입력해 주세요.'
+      : undefined;
   // 알림 추가 이유는 AI 설명용 선택 항목이며 이름·장소·시간만 필수로 검사합니다.
-  const hasError = isNameEmpty || isPlaceEmpty || isStartTimeEmpty || isEndTimeEmpty;
+  const hasError = isNameEmpty || isPlaceEmpty || Boolean(startTimeError) || Boolean(endTimeError) || hasSameTimeRange;
+  // 시간 안내는 두 입력칸 아래 한 곳에만 표시해, 시작·끝 시간 박스의 높이를 항상 같게 유지합니다.
+  const timeMessage = showErrors
+    ? startTimeError ?? endTimeError ?? (hasSameTimeRange ? '시작 시간과 끝 시간은 다르게 설정해 주세요.' : undefined)
+    : isOvernightAlarm
+      ? '다음 날까지 이어지는 알림이에요.'
+      : undefined;
+  const isTimeMessageError = showErrors && Boolean(startTimeError || endTimeError || hasSameTimeRange);
 
   const handleSave = () => {
     if (hasError) {
@@ -256,7 +291,7 @@ export function SaveAlarmModal({
 
               {/* 알림 시작·끝 시간은 항상 같은 세로 높이를 유지해야 해서 나란히 한 줄에 배치한다. */}
               <View style={styles.row}>
-                <View style={[styles.fieldBox, styles.timeField, showErrors && isStartTimeEmpty && styles.fieldBoxError]}>
+                <View style={[styles.fieldBox, styles.timeField, showErrors && Boolean(startTimeError) && styles.fieldBoxError]}>
                   <Text style={styles.fieldLabel}>알림 시작 시간</Text>
                   <TimeInput
                     containerStyle={styles.timeInputContainer}
@@ -265,10 +300,9 @@ export function SaveAlarmModal({
                     placeholder="18:30"
                     value={form.startTime}
                   />
-                  {showErrors && isStartTimeEmpty ? <Text style={styles.errorText}>시작 시간을 입력해 주세요.</Text> : null}
                 </View>
 
-                <View style={[styles.fieldBox, styles.timeField, showErrors && isEndTimeEmpty && styles.fieldBoxError]}>
+                <View style={[styles.fieldBox, styles.timeField, showErrors && Boolean(endTimeError) && styles.fieldBoxError]}>
                   <Text style={styles.fieldLabel}>알림 끝 시간</Text>
                   <TimeInput
                     containerStyle={styles.timeInputContainer}
@@ -277,9 +311,14 @@ export function SaveAlarmModal({
                     placeholder="19:30"
                     value={form.endTime}
                   />
-                  {showErrors && isEndTimeEmpty ? <Text style={styles.errorText}>끝 시간을 입력해 주세요.</Text> : null}
                 </View>
               </View>
+
+              {timeMessage ? (
+                <Text style={[styles.timeMessage, isTimeMessageError && styles.timeMessageError]}>
+                  {timeMessage}
+                </Text>
+              ) : null}
 
               <FieldInput
                 label="알림 추가 이유"
@@ -358,6 +397,15 @@ const styles = StyleSheet.create({
     marginTop: 4,
     color: Colors.light.danger,
     fontSize: 12,
+  },
+  timeMessage: {
+    marginTop: -6,
+    color: Colors.light.cardAccent,
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  timeMessageError: {
+    color: Colors.light.danger,
   },
   fieldBox: {
     backgroundColor: `${Colors.light.primary}1A`,
