@@ -27,6 +27,8 @@ export default function RootLayout() {
             <Stack.Screen name="nickname-setup" />
             {/* 탭 화면은 상태바를 숨겨 화면 배경이 카메라 영역까지 자연스럽게 이어지도록 한다. */}
             <Stack.Screen name="(tabs)" options={{ statusBarHidden: true, statusBarTranslucent: true }} />
+            {/* 알림함도 탭 화면처럼 초록 헤더가 카메라 영역까지 이어지는 화면이라 동일하게 처리한다. */}
+            <Stack.Screen name="notifications" options={{ statusBarHidden: true, statusBarTranslucent: true }} />
           </Stack>
         </ThemeProvider>
       </SafeAreaProvider>

@@ -35,7 +35,7 @@ export const MOCK_NOTIFICATIONS: NotificationFeedItem[] = [
     title: '주간 리포트가 도착했어요',
     body: '최다 소비 카테고리와 AI 분석을 확인해 보세요',
     createdAt: '2026-07-20T07:00:00+09:00',
-    read: true,
+    read: false,
   },
   {
     notificationId: 4,
@@ -43,7 +43,7 @@ export const MOCK_NOTIFICATIONS: NotificationFeedItem[] = [
     title: '주간 리포트가 도착했어요',
     body: '최다 소비 카테고리와 AI 분석을 확인해 보세요',
     createdAt: '2026-07-13T07:00:00+09:00',
-    read: true,
+    read: false,
   },
   {
     notificationId: 5,

@@ -1,12 +1,68 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { type ReactNode } from 'react';
+import { Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 
 import AppScreen from '@/components/common/AppScreen';
 import { IconButton } from '@/components/common/button/IconButton';
 import Colors from '@/constants/Colors';
-import { MOCK_NOTIFICATIONS, type NotificationFeedItem, type NotificationType } from '@/mocks/notificationFeed';
+import type { NotificationType } from '@/mocks/notificationFeed';
+import { useNotificationStore } from '@/store/notificationStore';
+
+const SCREEN_WIDTH = Dimensions.get('window').width;
+const SWIPE_DISMISS_DISTANCE = 90; // 이만큼(px) 넘게 끌면 놓았을 때 삭제된다
+const SWIPE_FLING_VELOCITY = 800; // 거리가 부족해도 이 속도(px/s)보다 빠르게 튕기면 삭제된다
+const SPRING_CONFIG = { damping: 20, stiffness: 200, overshootClamping: true };
+
+// BottomSheet.tsx와 같은 Gesture.Pan + reanimated 조합으로 만든 스와이프 삭제 행입니다.
+// react-native-gesture-handler의 Swipeable(ReanimatedSwipeable)은 이 프로젝트가 쓰는 Expo Go
+// 런타임에 아직 없는 네이티브 뷰(RNGestureHandlerDetector)를 요구해서 크래시가 나 직접 구현으로 대체했습니다.
+function SwipeToDismissRow({ onDismiss, children }: { onDismiss: () => void; children: ReactNode }) {
+  const translateX = useSharedValue(0);
+  const startX = useSharedValue(0);
+
+  const panGesture = Gesture.Pan()
+    .activeOffsetX([-10, 10])
+    .failOffsetY([-10, 10])
+    .onStart(() => {
+      startX.value = translateX.value;
+    })
+    .onUpdate((event) => {
+      translateX.value = startX.value + event.translationX;
+    })
+    .onEnd((event) => {
+      const pastThreshold = Math.abs(translateX.value) > SWIPE_DISMISS_DISTANCE;
+      const flicked = Math.abs(event.velocityX) > SWIPE_FLING_VELOCITY;
+
+      if (pastThreshold || flicked) {
+        const direction = translateX.value >= 0 ? 1 : -1;
+        translateX.value = withTiming(direction * SCREEN_WIDTH, { duration: 200 }, (finished) => {
+          if (finished) runOnJS(onDismiss)();
+        });
+        return;
+      }
+
+      translateX.value = withSpring(0, SPRING_CONFIG);
+    });
+
+  const rowStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: translateX.value }],
+  }));
+
+  return (
+    <View style={styles.rowWrapper}>
+      <View pointerEvents="none" style={styles.dismissBackground}>
+        <Ionicons color="#FFFFFF" name="trash-outline" size={18} />
+        <Ionicons color="#FFFFFF" name="trash-outline" size={18} />
+      </View>
+      <GestureDetector gesture={panGesture}>
+        <Animated.View style={rowStyle}>{children}</Animated.View>
+      </GestureDetector>
+    </View>
+  );
+}
 
 const TYPE_CONFIG: Record<
   NotificationType,
@@ -50,21 +106,26 @@ function formatNotificationTime(iso: string) {
   return `${y}. ${m}. ${d} ${period} ${hour12}:${minute}`;
 }
 
+// 카드 크기를 통일하기 위해 설명 문구를 한 줄당 25자, 최대 2줄로 제한한다.
+const DESCRIPTION_LINE_LENGTH = 25;
+const DESCRIPTION_MAX_LENGTH = DESCRIPTION_LINE_LENGTH * 2;
+
+function truncateDescription(text: string) {
+  if (text.length <= DESCRIPTION_MAX_LENGTH) return text;
+  return `${text.slice(0, DESCRIPTION_MAX_LENGTH - 1)}…`;
+}
+
 /**
  * 홈 화면 알림 뱃지를 누르면 나오는 알림함입니다. 위치 알림과 주간·월간 리포트 알림을 한 목록에서 보여줍니다.
- * 아직 홈 화면이 머지되지 않아 연결은 안 되어 있고, 화면만 먼저 만들어둔 상태입니다.
+ * 쌓인 알림을 계속 목록에 남겨두기보다, 옆으로 스와이프하면 바로 지워지는 방식으로 정리합니다.
+ * 읽음/삭제 상태는 화면을 나갔다 들어와도 유지되도록 전역 store(store/notificationStore.ts)에서 관리합니다.
  */
 export default function NotificationScreen() {
-  const [notifications, setNotifications] = useState<NotificationFeedItem[]>(MOCK_NOTIFICATIONS);
+  const notifications = useNotificationStore((state) => state.notifications);
+  const markAllRead = useNotificationStore((state) => state.markAllRead);
+  const markRead = useNotificationStore((state) => state.markRead);
+  const dismiss = useNotificationStore((state) => state.dismiss);
   const hasUnread = notifications.some((item) => !item.read);
-
-  const handleMarkAllRead = () => {
-    setNotifications((prev) => prev.map((item) => ({ ...item, read: true })));
-  };
-
-  const handlePressItem = (id: number) => {
-    setNotifications((prev) => prev.map((item) => (item.notificationId === id ? { ...item, read: true } : item)));
-  };
 
   return (
     <AppScreen backgroundColor={Colors.light.primary}>
@@ -72,7 +133,7 @@ export default function NotificationScreen() {
         <IconButton color="#FFFFFF" name="back" onPress={() => router.back()} size={20} />
         <Text style={styles.headerTitle}>알림</Text>
         {hasUnread ? (
-          <Pressable hitSlop={8} onPress={handleMarkAllRead}>
+          <Pressable hitSlop={8} onPress={markAllRead}>
             <Text style={styles.markAllText}>모두 읽음</Text>
           </Pressable>
         ) : null}
@@ -86,28 +147,29 @@ export default function NotificationScreen() {
             notifications.map((item) => {
               const config = TYPE_CONFIG[item.type];
               return (
-                <Pressable
-                  key={item.notificationId}
-                  onPress={() => handlePressItem(item.notificationId)}
-                  style={[styles.card, { backgroundColor: item.read ? Colors.light.cardBackground : config.unreadBackground }]}>
-                  <View style={[styles.iconBox, { backgroundColor: config.iconBackground }]}>
-                    <Ionicons color={config.iconColor} name={config.icon} size={18} />
-                  </View>
-
-                  <View style={styles.cardContent}>
-                    <View style={styles.cardTopRow}>
-                      <View style={styles.typeRow}>
-                        <Text style={styles.typeLabel}>{config.label}</Text>
-                        {item.read ? null : <View style={styles.unreadDot} />}
-                      </View>
-                      <Text style={styles.timeText}>{formatNotificationTime(item.createdAt)}</Text>
+                <SwipeToDismissRow key={item.notificationId} onDismiss={() => dismiss(item.notificationId)}>
+                  <Pressable
+                    onPress={() => markRead(item.notificationId)}
+                    style={[styles.card, { backgroundColor: item.read ? Colors.light.cardBackground : config.unreadBackground }]}>
+                    <View style={[styles.iconBox, { backgroundColor: config.iconBackground }]}>
+                      <Ionicons color={config.iconColor} name={config.icon} size={18} />
                     </View>
-                    <Text style={styles.title}>{item.title}</Text>
-                    <Text style={styles.bodyText} numberOfLines={2}>
-                      {item.body}
-                    </Text>
-                  </View>
-                </Pressable>
+
+                    <View style={styles.cardContent}>
+                      <View style={styles.cardTopRow}>
+                        <View style={styles.typeRow}>
+                          <Text style={styles.typeLabel}>{config.label}</Text>
+                          {item.read ? null : <View style={styles.unreadDot} />}
+                        </View>
+                        <Text style={styles.timeText}>{formatNotificationTime(item.createdAt)}</Text>
+                      </View>
+                      <Text style={styles.title}>{item.title}</Text>
+                      <Text style={styles.bodyText} numberOfLines={2}>
+                        {truncateDescription(item.body)}
+                      </Text>
+                    </View>
+                  </Pressable>
+                </SwipeToDismissRow>
               );
             })
           )}
@@ -160,6 +222,28 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.light.border,
   },
+  rowWrapper: {
+    // 카드가 옆으로 밀려날 때 뒤에서 드러나는 삭제 배경을 담는 겹침 컨테이너.
+  },
+  dismissBackground: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 24,
+    borderRadius: 16,
+    backgroundColor: Colors.light.danger,
+  },
+  bodyText: {
+    minHeight: 36, // 1줄짜리 설명도 2줄 높이만큼 차지해서 카드 크기가 항상 같아 보이게 한다.
+    color: Colors.light.cardDescription,
+    fontSize: 13,
+    lineHeight: 18,
+  },
   iconBox: {
     width: 36,
     height: 36,
@@ -201,10 +285,5 @@ const styles = StyleSheet.create({
     color: Colors.light.cardTitle,
     fontSize: 15,
     fontWeight: '700',
-  },
-  bodyText: {
-    color: Colors.light.cardDescription,
-    fontSize: 13,
-    lineHeight: 18,
   },
 });
