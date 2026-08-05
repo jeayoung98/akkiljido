@@ -1,17 +1,5 @@
-<<<<<<< HEAD
-import React, { useEffect, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-
-import AppScreen from '@/components/common/AppScreen';
-import { ReportModal } from '@/components/report/ReportModal';
-import Colors from '@/constants/Colors';
-import { useShowOncePerPeriod } from '@/hooks/useShowOncePerPeriod';
-import { MOCK_WEEKLY_REPORT } from '@/mocks/report';
-import { getWeekIdentifier } from '@/utils/reportSchedule';
-
-const LAST_SHOWN_WEEK_STORAGE_KEY = 'report:lastShownWeek';
-=======
 import { router } from 'expo-router';
+import React, { useEffect, useState } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 
 import AppScreen from '@/components/common/AppScreen';
@@ -19,14 +7,19 @@ import { IconButton } from '@/components/common/button/IconButton';
 import { CategorySummaryCard } from '@/components/home/CategorySummaryCard';
 import { NearbyWeekSpendingCard } from '@/components/home/NearbyWeekSpendingCard';
 import { TodaySpendingCard } from '@/components/home/TodaySpendingCard';
+import { ReportModal } from '@/components/report/ReportModal';
 import Colors from '@/constants/Colors';
+import { useShowOncePerPeriod } from '@/hooks/useShowOncePerPeriod';
 import {
   mockCategorySummaryResponse,
   mockRecentExpensesResponse,
   MOCK_TODAY_EXPENSE,
   MOCK_UNREAD_NOTIFICATION_COUNT,
 } from '@/mocks/home';
->>>>>>> a943e8187f09ef8ebfdaae26554499e68f570f85
+import { MOCK_WEEKLY_REPORT } from '@/mocks/report';
+import { getWeekIdentifier } from '@/utils/reportSchedule';
+
+const LAST_SHOWN_WEEK_STORAGE_KEY = 'report:lastShownWeek';
 
 const NICKNAME = 'Dust';
 
@@ -36,7 +29,6 @@ const NICKNAME = 'Dust';
  * 데이터는 전부 mocks/home.ts에서 가져오며, 그중 "오늘 지출액"·알림 뱃지 개수는 API가 아직 없어 임시 값입니다.
  */
 export default function HomeScreen() {
-<<<<<<< HEAD
   // 이번 주에 처음 홈 화면에 들어온 경우에만 true가 되고, 저장까지 자동으로 끝난다.
   const weekIdentifier = getWeekIdentifier();
   const shouldShowWeeklyReport = useShowOncePerPeriod(LAST_SHOWN_WEEK_STORAGE_KEY, weekIdentifier);
@@ -47,10 +39,9 @@ export default function HomeScreen() {
       setReportVisible(true);
     }
   }, [shouldShowWeeklyReport]);
-=======
+
   const categories = mockCategorySummaryResponse().data.categories;
   const nearbyExpenses = mockRecentExpensesResponse().data;
->>>>>>> a943e8187f09ef8ebfdaae26554499e68f570f85
 
   return (
     <AppScreen backgroundColor={Colors.light.primary} scrollable>

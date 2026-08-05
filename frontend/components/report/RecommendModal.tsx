@@ -1,13 +1,8 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Button } from '@/components/common/button/Button';
-<<<<<<< HEAD:frontend/components/report/RecommendModal.tsx
 import { CentralModal } from '@/components/common/modal/CentralModal';
-import type { AlarmRecommendation } from '@/components/common/modal/RecommendedAlarmModal';
-=======
-import { CenterModal } from '@/components/common/modal/CentralModal';
 import type { AlarmFormValue } from '@/components/common/modal/SaveAlarmModal';
->>>>>>> a943e8187f09ef8ebfdaae26554499e68f570f85:frontend/components/report/WeeklyReportRecommendationsModal.tsx
 import { BrandLogo } from '@/components/onboarding/BrandLogo';
 import Colors from '@/constants/Colors';
 
