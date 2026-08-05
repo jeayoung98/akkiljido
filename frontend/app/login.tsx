@@ -18,17 +18,23 @@ import { BrandLockup } from '@/components/onboarding/BrandLockup';
 import { GoogleIcon } from '@/components/onboarding/GoogleIcon';
 import Colors from '@/constants/Colors';
 import { loginWithGoogle } from '@/src/api/authApi';
+import { saveAuthSession } from '@/src/auth/tokenStorage';
 
 const googleWebClientId =
   process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
 
-// 사용자가 Google 계정으로 로그인할 수 있는 화면
 export default function LoginScreen() {
   const router = useRouter();
   const [errorMessage, setErrorMessage] = useState('');
   const [loading, setLoading] = useState(false);
+
   const { height, width } = useWindowDimensions();
-  const logoSize = Math.min(196, Math.max(180, width * 0.5));
+
+  const logoSize = Math.min(
+    196,
+    Math.max(180, width * 0.5),
+  );
+
   const compact = height < 700;
 
   useEffect(() => {
@@ -45,6 +51,10 @@ export default function LoginScreen() {
   }, []);
 
   const handleGoogleLogin = async () => {
+    if (loading) {
+      return;
+    }
+
     try {
       setLoading(true);
       setErrorMessage('');
@@ -55,15 +65,19 @@ export default function LoginScreen() {
         );
       }
 
-      await GoogleSignin.hasPlayServices();
+      await GoogleSignin.hasPlayServices({
+        showPlayServicesUpdateDialog: true,
+      });
 
-      const response = await GoogleSignin.signIn();
+      const googleResponse =
+        await GoogleSignin.signIn();
 
-      if (!isSuccessResponse(response)) {
+      if (!isSuccessResponse(googleResponse)) {
         return;
       }
 
-      const idToken = response.data.idToken;
+      const idToken =
+        googleResponse.data.idToken;
 
       if (!idToken) {
         throw new Error(
@@ -71,20 +85,38 @@ export default function LoginScreen() {
         );
       }
 
-      const { role } = await loginWithGoogle(idToken);
+      const loginResult =
+        await loginWithGoogle(idToken);
 
-      if (role === 'GUEST') {
+      await saveAuthSession(loginResult);
+
+      console.info(
+        '[auth] backend login success',
+        {
+          role: loginResult.role,
+          tokensSaved: true,
+        },
+      );
+
+      if (loginResult.role === 'GUEST') {
         router.replace('/nickname-setup');
         return;
       }
 
-      if (role === 'USER') {
+      if (loginResult.role === 'USER') {
         router.replace('/(tabs)');
         return;
       }
 
-      throw new Error('알 수 없는 사용자 역할입니다.');
+      throw new Error(
+        '알 수 없는 사용자 역할입니다.',
+      );
     } catch (error) {
+      console.error(
+        '[auth] Google login failed',
+        error,
+      );
+
       setErrorMessage(
         error instanceof Error
           ? error.message
@@ -96,28 +128,50 @@ export default function LoginScreen() {
   };
 
   return (
-    <SafeAreaView edges={['top', 'bottom']} style={styles.safeArea}>
-      <View style={[styles.content, compact && styles.compactContent]}>
-        <View style={[styles.brandArea, compact && styles.compactBrandArea]}>
+    <SafeAreaView
+      edges={['top', 'bottom']}
+      style={styles.safeArea}
+    >
+      <View
+        style={[
+          styles.content,
+          compact && styles.compactContent,
+        ]}
+      >
+        <View
+          style={[
+            styles.brandArea,
+            compact && styles.compactBrandArea,
+          ]}
+        >
           <BrandLockup logoSize={logoSize} />
         </View>
 
         <Pressable
           accessibilityLabel="Google로 로그인"
           accessibilityRole="button"
-          disabled={loading || !googleWebClientId}
+          disabled={
+            loading ||
+            !googleWebClientId
+          }
           onPress={handleGoogleLogin}
           style={({ pressed }) => [
             styles.googleButton,
-            loading && styles.disabled,
-            pressed && !loading && styles.pressed,
+            (loading || !googleWebClientId) &&
+              styles.disabled,
+            pressed &&
+              !loading &&
+              styles.pressed,
           ]}
         >
           {loading ? (
-            <ActivityIndicator color={Colors.onboarding.text} />
+            <ActivityIndicator
+              color={Colors.onboarding.text}
+            />
           ) : (
             <>
               <GoogleIcon size={21} />
+
               <Text style={styles.googleText}>
                 Google로 로그인
               </Text>
@@ -138,52 +192,68 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: Colors.onboarding.surface,
+    backgroundColor:
+      Colors.onboarding.surface,
   },
+
   content: {
     flex: 1,
     paddingHorizontal: 24,
     paddingBottom: 32,
   },
+
   compactContent: {
     paddingBottom: 20,
   },
+
   brandArea: {
     alignItems: 'center',
     marginTop: '14%',
   },
+
   compactBrandArea: {
     marginTop: 24,
   },
+
   googleButton: {
     alignItems: 'center',
-    backgroundColor: Colors.onboarding.surface,
+    backgroundColor:
+      Colors.onboarding.surface,
     borderColor: '#E2E7E3',
     borderRadius: 18,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderWidth:
+      StyleSheet.hairlineWidth,
     flexDirection: 'row',
     gap: 13,
     height: 58,
     justifyContent: 'center',
     marginTop: 'auto',
+
     shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
     shadowOpacity: 0.13,
     shadowRadius: 3,
     elevation: 3,
   },
+
   googleText: {
     color: Colors.onboarding.text,
     fontSize: 17,
     fontWeight: '700',
     lineHeight: 23,
   },
+
   pressed: {
     opacity: 0.78,
   },
+
   disabled: {
     opacity: 0.6,
   },
+
   errorText: {
     color: '#C62828',
     fontSize: 14,
