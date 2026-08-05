@@ -54,6 +54,3 @@ export function mockRecentExpensesResponse() {
 
 // TODO: "오늘 지출액" API 확정되면 교체
 export const MOCK_TODAY_EXPENSE = 28500;
-
-// TODO: 알림 API 명세 확정되면 실제 안 읽은 개수로 교체
-export const MOCK_UNREAD_NOTIFICATION_COUNT = 3;
