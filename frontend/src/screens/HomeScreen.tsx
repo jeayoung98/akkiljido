@@ -1,17 +1,20 @@
-import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
 import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import AppScreen from '@/components/common/AppScreen';
+import { SaveAlarmModal, type AlarmFormValue } from '@/components/common/modal/SaveAlarmModal';
 import { IconButton } from '@/components/common/button/IconButton';
 import { CategorySummaryCard } from '@/components/home/CategorySummaryCard';
 import { NearbyWeekSpendingCard } from '@/components/home/NearbyWeekSpendingCard';
 import { TodaySpendingCard } from '@/components/home/TodaySpendingCard';
 import { ReportModal } from '@/components/report/ReportModal';
+import { ReportRecommendationsModal } from '@/components/report/RecommendModal';
 import Colors from '@/constants/Colors';
 import { useShowOncePerPeriod } from '@/hooks/useShowOncePerPeriod';
 import { mockCategorySummaryResponse, mockRecentExpensesResponse, MOCK_TODAY_EXPENSE } from '@/mocks/home';
-import { MOCK_WEEKLY_REPORT } from '@/mocks/report';
+import { MOCK_WEEKLY_REPORT, MOCK_WEEKLY_REPORT_RECOMMENDATIONS } from '@/mocks/report';
+import { useDevModeStore } from '@/store/devModeStore';
 import { useNotificationStore } from '@/store/notificationStore';
 import { getWeekIdentifier } from '@/utils/reportSchedule';
 
@@ -30,12 +33,26 @@ export default function HomeScreen() {
   const weekIdentifier = getWeekIdentifier();
   const shouldShowWeeklyReport = useShowOncePerPeriod(LAST_SHOWN_WEEK_STORAGE_KEY, weekIdentifier);
   const [reportVisible, setReportVisible] = useState(false);
+  const [recommendVisible, setRecommendVisible] = useState(false);
+  const [saveAlarmVisible, setSaveAlarmVisible] = useState(false);
+  const [selectedAlarm, setSelectedAlarm] = useState<AlarmFormValue | null>(null);
+  const isDevMode = useDevModeStore((state) => state.isDevMode);
 
   useEffect(() => {
     if (shouldShowWeeklyReport) {
       setReportVisible(true);
     }
   }, [shouldShowWeeklyReport]);
+
+  // 개발자 모드일 때는 AsyncStorage 기반 1회 표시 제한을 무시하고, 홈 화면에 포커스가 올 때마다
+  // 리포트를 다시 띄운다. 탭은 전환해도 언마운트되지 않아서 focus 이벤트로 "재진입"을 감지한다.
+  useFocusEffect(
+    useCallback(() => {
+      if (isDevMode) {
+        setReportVisible(true);
+      }
+    }, [isDevMode]),
+  );
 
   const categories = mockCategorySummaryResponse().data.categories;
   const nearbyExpenses = mockRecentExpensesResponse().data;
@@ -83,8 +100,47 @@ export default function HomeScreen() {
         visible={reportVisible}
         onClose={() => setReportVisible(false)}
         data={MOCK_WEEKLY_REPORT}
-        onViewRecommendations={() => {}}
+        onViewRecommendations={() => {
+          // ReportModal은 계속 visible로 두고, 그 위에 RecommendModal만 새로 연다(스택 유지, 번쩍임 방지).
+          setRecommendVisible(true);
+        }}
       />
+
+      <ReportRecommendationsModal
+        onClose={() => {
+          // 배경 탭/닫기: 흐름을 완전히 끝내는 동작이라 이때만 둘 다 닫는다.
+          setRecommendVisible(false);
+          setReportVisible(false);
+        }}
+        onConfirm={() => {
+          setRecommendVisible(false);
+          setReportVisible(false);
+        }}
+        onPrev={() => {
+          // ReportModal은 이미 visible 상태 그대로였으므로 RecommendModal만 닫으면 된다.
+          setRecommendVisible(false);
+        }}
+        onSelectRecommendation={(rec) => {
+          // RecommendModal은 계속 visible로 두고, 그 위에 SaveAlarmModal만 새로 연다.
+          setSelectedAlarm(rec.alarm);
+          setSaveAlarmVisible(true);
+        }}
+        recommendations={MOCK_WEEKLY_REPORT_RECOMMENDATIONS}
+        visible={recommendVisible}
+      />
+
+      {selectedAlarm ? (
+        <SaveAlarmModal
+          initialValue={selectedAlarm}
+          onClose={() => setSaveAlarmVisible(false)}
+          onReopenAfterLocationPicked={() => setSaveAlarmVisible(true)}
+          onSave={() => {
+            // TODO: 실제 알림 저장 API 연결. 지금은 SaveAlarmModal만 닫는다.
+            setSaveAlarmVisible(false);
+          }}
+          visible={saveAlarmVisible}
+        />
+      ) : null}
     </AppScreen>
   );
 }

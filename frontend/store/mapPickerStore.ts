@@ -17,10 +17,18 @@ type MapPickerStore = {
   setPickedLocation: (location: PickedLocation) => void;
   // 위치 제거
   clearPickedLocation: () => void;
+  // map-picker를 열기 전, 이미 정해진 위치(예: 추천 알림의 주소)를 미리 보여주고 싶을 때 쓰는 값.
+  // pickedLocation과 반대 방향(원래 화면 → map-picker)으로 흐른다.
+  initialLocation: PickedLocation | null;
+  setInitialLocation: (location: PickedLocation) => void;
+  clearInitialLocation: () => void;
 };
 
 export const useMapPickerStore = create<MapPickerStore>((set) => ({
   pickedLocation: null,
   setPickedLocation: (location) => set({ pickedLocation: location }),
   clearPickedLocation: () => set({ pickedLocation: null }),
+  initialLocation: null,
+  setInitialLocation: (location) => set({ initialLocation: location }),
+  clearInitialLocation: () => set({ initialLocation: null }),
 }));

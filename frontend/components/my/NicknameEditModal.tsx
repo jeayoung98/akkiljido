@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Button } from '@/components/common/button/Button';
-import { CenterModal } from '@/components/common/modal/CenterModal';
+import { CentralModal } from '@/components/common/modal/CentralModal';
 import Colors from '@/constants/Colors';
 
 const MAX_LENGTH = 20;
@@ -32,7 +32,7 @@ export function NicknameEditModal({ visible, nickname, onCancel, onSave }: Nickn
   };
 
   return (
-    <CenterModal visible={visible} onClose={onCancel}>
+    <CentralModal visible={visible} onClose={onCancel}>
       <View style={styles.card}>
         <Text style={styles.title}>닉네임 수정</Text>
 
@@ -63,7 +63,7 @@ export function NicknameEditModal({ visible, nickname, onCancel, onSave }: Nickn
           </Button>
         </View>
       </View>
-    </CenterModal>
+    </CentralModal>
   );
 }
 

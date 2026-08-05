@@ -84,9 +84,10 @@ export type AlarmFormValue = {
   name: string;
   placeId?: number;
   placeName: string;
-  /** 지도에서 고른 좌표. 알림 장소를 저장할 때(위치 알림 트리거링 판단에) 필요해서 추가했습니다. */
-  latitude?: number;
-  longitude?: number;
+  // 지도 검색과 실제로 이어지는 값은 이름이 아니라 이 주소·좌표다. MapInput도 이 값을 보여준다.
+  address: string;
+  lat: number;
+  lng: number;
   startTime: string;
   endTime: string;
   reason: string;
@@ -121,6 +122,7 @@ export function SaveAlarmModal({
   // 서로 다른 화면(스택)이라 props로 값을 주고받을 수 없어서, 전역 store를 다리로 사용한다.
   const pickedLocation = useMapPickerStore((state) => state.pickedLocation);
   const clearPickedLocation = useMapPickerStore((state) => state.clearPickedLocation);
+  const setInitialLocation = useMapPickerStore((state) => state.setInitialLocation);
 
   // 이 모달 안에서만 쓰는 임시 입력 상태. "알림 저장"을 눌러야만 onSave로 부모에 전달된다.
   const [form, setForm] = useState(initialValue);
@@ -152,12 +154,9 @@ export function SaveAlarmModal({
     // 지도 화면으로 이동하기 위해 모달을 닫았던 경우에만 장소를 반영하고 다시 엽니다.
     // 일반적인 MapInput 사용 결과를 이 모달이 가로채지 않도록 반환 플래그를 함께 확인합니다.
     if (isReturningFromMapRef.current && pickedLocation) {
-      setForm((current) => ({
-        ...current,
-        placeName: pickedLocation.address,
-        latitude: pickedLocation.lat,
-        longitude: pickedLocation.lng,
-      }));
+      updateField('address', pickedLocation.address);
+      updateField('lat', pickedLocation.lat);
+      updateField('lng', pickedLocation.lng);
       clearPickedLocation();
       onReopenAfterLocationPicked?.();
     }
@@ -165,7 +164,7 @@ export function SaveAlarmModal({
   }, [pickedLocation]);
 
   const isNameEmpty = !form.name.trim();
-  const isPlaceEmpty = !form.placeName.trim();
+  const isPlaceEmpty = !form.address.trim();
   const isStartTimeEmpty = !form.startTime.trim();
   const isEndTimeEmpty = !form.endTime.trim();
   const hasValidStartTime = isValidTime(form.startTime);
@@ -204,6 +203,7 @@ export function SaveAlarmModal({
       ...form,
       name: form.name.trim(),
       placeName: form.placeName.trim(),
+      address: form.address.trim(),
       startTime: form.startTime.trim(),
       endTime: form.endTime.trim(),
       reason: form.reason.trim(),
@@ -221,6 +221,11 @@ export function SaveAlarmModal({
   const handleSelectLocation = () => {
     // 지도 화면에서 돌아왔을 때 이 모달을 다시 열고, 그때까지의 입력값을 초기화하지 않도록 표시해둡니다.
     isReturningFromMapRef.current = true;
+    // 지금 갖고 있는 주소(추천 장소 또는 이전에 고른 장소)를 map-picker에 미리 알려줘서,
+    // 화면이 뜨자마자 그 위치에 핀이 중앙에 오도록 한다.
+    if (form.address.trim()) {
+      setInitialLocation({ address: form.address, lat: form.lat, lng: form.lng });
+    }
     onClose();
     router.push('/map-picker');
   };
@@ -282,7 +287,7 @@ export function SaveAlarmModal({
                   label="알림 장소"
                   onPress={handleSelectLocation}
                   style={showErrors && isPlaceEmpty ? styles.mapInputError : undefined}
-                  value={form.placeName || undefined}
+                  value={form.address || undefined}
                 />
                 {showErrors && isPlaceEmpty ? (
                   <Text style={styles.errorText}>알림 장소를 선택해 주세요.</Text>
