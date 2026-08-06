@@ -155,3 +155,19 @@ export async function fetchCalendarDay(
     transactionList: (data?.transactionList ?? []).map(toDayTransaction),
   };
 }
+
+/**
+ * 홈 화면의 "오늘 지출액" 카드용 헬퍼입니다. 전용 API가 없어서 일 단위 조회를 재사용합니다.
+ *
+ * 응답의 `amount`는 순수입 - 지출(net)이라 지출만 있어도 음수로 나오고, 수입이 섞이면 실제 지출
+ * 합계와도 달라집니다. 그래서 amount 대신 transactionList에서 소비만 직접 더합니다.
+ */
+export async function getTodayExpenseAmount(): Promise<number> {
+  const now = new Date();
+  const { year, month, day } = toCalendarParams(now);
+  const { transactionList } = await fetchCalendarDay(year, month, day);
+
+  return transactionList
+    .filter((transaction) => transaction.type === 'expense')
+    .reduce((sum, transaction) => sum + transaction.amount, 0);
+}

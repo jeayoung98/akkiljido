@@ -1,4 +1,3 @@
-import * as Location from 'expo-location';
 import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
@@ -10,19 +9,14 @@ import type { NearbyExpensePlace } from '@/mocks/home';
 const MAP_LEVEL = 6;
 const DEFAULT_CENTER: LatLng = { lat: 37.4979, lng: 127.0276 };
 
-// 목데이터 장소 좌표는 강남역 기준 고정값이라, 실제 GPS 위치로 지도가 옮겨가면(테스트하는 사람 위치에 따라)
-// 현재 위치 점이랑 마커들 사이 상대 위치가 어긋나서 한쪽에 몰려 보일 수 있다.
-// 그래서 마커는 목데이터의 절대 좌표 대신, 현재 위치 기준 상대 오프셋(왼쪽 2개·오른쪽 2개)으로 계산한다.
-const MARKER_OFFSETS: LatLng[] = [
-  { lat: 0.004, lng: -0.006 },
-  { lat: 0.004, lng: 0.006 },
-  { lat: -0.004, lng: -0.006 },
-  { lat: -0.004, lng: 0.006 },
-];
-
 type NearbyWeekSpendingCardProps = {
   totalAmount: number;
   places: NearbyExpensePlace[];
+  // 위치 권한 요청·GPS 조회는 HomeScreen이 API 호출용으로 이미 한 번 하기 때문에, 카드가 따로
+  // 다시 조회하지 않고 그 결과를 그대로 받아 쓴다(권한 팝업 중복, API와 지도 중심 위치가
+  // 어긋나는 것 방지).
+  currentLocation: LatLng | null;
+  locationUnavailable: boolean;
 };
 
 /**
@@ -30,31 +24,16 @@ type NearbyWeekSpendingCardProps = {
  * 반경 원은 안 그린다(장소 상세 화면과 달리 카드가 작아서 원까지 그리면 답답해 보임).
  * 미리보기 용도라 이동·확대·축소를 전부 막아서 항상 내 위치 기준 2km만 고정으로 보여준다.
  */
-export function NearbyWeekSpendingCard({ totalAmount, places }: NearbyWeekSpendingCardProps) {
-  const [currentLocation, setCurrentLocation] = useState<LatLng | null>(null);
-  // 권한 거부·조회 실패로 실제 위치를 못 받아온 경우를 구분해서, "현위치 기준" 문구를 그대로
-  // 보여주면 안 되는 상태(기본 위치로 대체됨)를 화면에서 알 수 있게 한다.
-  const [locationUnavailable, setLocationUnavailable] = useState(false);
+export function NearbyWeekSpendingCard({
+  totalAmount,
+  places,
+  currentLocation,
+  locationUnavailable,
+}: NearbyWeekSpendingCardProps) {
   // WebView 안의 카카오맵 SDK가 실제로 준비되기 전에 setCenter를 부르면 조용히 무시된다.
   // GPS 위치를 지도 준비보다 먼저 받아오는 경우가 많아서, 준비 신호를 따로 기다린다.
   const [mapReady, setMapReady] = useState(false);
   const mapRef = useRef<KakaoMapHandle>(null);
-
-  useEffect(() => {
-    (async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        setLocationUnavailable(true);
-        return;
-      }
-      try {
-        const position = await Location.getCurrentPositionAsync({});
-        setCurrentLocation({ lat: position.coords.latitude, lng: position.coords.longitude });
-      } catch {
-        setLocationUnavailable(true);
-      }
-    })();
-  }, []);
 
   // 지도는 initialCenter를 최초 1회만 HTML에 굽기 때문에(리로드 방지), 위치를 늦게 받아온 경우
   // 지도 중심이 DEFAULT_CENTER에 그대로 남아있는다. 지도가 준비되고 위치도 확보된 뒤에
@@ -67,19 +46,16 @@ export function NearbyWeekSpendingCard({ totalAmount, places }: NearbyWeekSpendi
 
   const center = currentLocation ?? DEFAULT_CENTER;
 
-  const markers: MapMarker[] = places.map((place, index) => {
-    const offset = MARKER_OFFSETS[index % MARKER_OFFSETS.length];
-    return {
-      // place.name은 같은 이름의 다른 지점이 있을 수 있어 고유하지 않다. 좌표 조합을 id로 쓴다
-      // (MapScreen의 일반 가게 마커도 같은 방식을 쓴다).
-      id: `${place.latitude},${place.longitude}`,
-      lat: center.lat + offset.lat,
-      lng: center.lng + offset.lng,
-      label: place.name,
-      amount: place.amount,
-      color: Colors.light.primary,
-    };
-  });
+  const markers: MapMarker[] = places.map((place) => ({
+    // place.name은 같은 이름의 다른 지점이 있을 수 있어 고유하지 않다. 좌표 조합을 id로 쓴다
+    // (MapScreen의 일반 가게 마커도 같은 방식을 쓴다).
+    id: `${place.latitude},${place.longitude}`,
+    lat: place.latitude,
+    lng: place.longitude,
+    label: place.name,
+    amount: place.amount,
+    color: Colors.light.primary,
+  }));
 
   return (
     <View style={styles.section}>

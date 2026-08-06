@@ -14,10 +14,13 @@ import Colors from '@/constants/Colors';
 import { MOCK_NOTIFICATION_PLACES, type NotificationPlace } from '@/mocks/notifications';
 
 // "+" 버튼을 누르면 이 빈 값으로 SaveAlarmModal을 연다. 지도에서 장소를 고르기 전까지는
-// placeName·좌표가 비어 있어서, 모달의 필수값 검사가 저장을 막아준다.
+// address·좌표가 비어 있어서, 모달의 필수값 검사(address)가 저장을 막아준다.
 const EMPTY_ALARM_FORM: AlarmFormValue = {
   name: '',
   placeName: '',
+  address: '',
+  lat: 0,
+  lng: 0,
   startTime: '',
   endTime: '',
   reason: '',
@@ -26,9 +29,10 @@ const EMPTY_ALARM_FORM: AlarmFormValue = {
 function toAlarmFormValue(place: NotificationPlace): AlarmFormValue {
   return {
     name: place.notificationPlaceName,
-    placeName: place.address,
-    latitude: place.latitude,
-    longitude: place.longitude,
+    placeName: place.notificationPlaceName,
+    address: place.address,
+    lat: place.latitude,
+    lng: place.longitude,
     startTime: place.startTime,
     endTime: place.endTime,
     reason: place.reason,
@@ -68,9 +72,9 @@ export default function NotificationSettingsScreen() {
             ? {
                 ...place,
                 notificationPlaceName: value.name,
-                address: value.placeName,
-                latitude: value.latitude ?? place.latitude,
-                longitude: value.longitude ?? place.longitude,
+                address: value.address,
+                latitude: value.lat,
+                longitude: value.lng,
                 startTime: value.startTime,
                 endTime: value.endTime,
                 reason: value.reason,
@@ -90,10 +94,10 @@ export default function NotificationSettingsScreen() {
       {
         notificationPlaceId: nextId,
         notificationPlaceName: value.name,
-        address: value.placeName,
-        // 지도에서 장소를 골라야만 저장할 수 있어서(placeName 필수 검사) 이 시점엔 항상 값이 있다.
-        latitude: value.latitude ?? 0,
-        longitude: value.longitude ?? 0,
+        address: value.address,
+        // 지도에서 장소를 골라야만 저장할 수 있어서(address 필수 검사) 이 시점엔 항상 값이 있다.
+        latitude: value.lat,
+        longitude: value.lng,
         startTime: value.startTime,
         endTime: value.endTime,
         reason: value.reason,

@@ -8,6 +8,13 @@ import { buildMapHtml, type LatLng, type MapMarker } from './kakaoMapHtml';
 // 기존에 '@/components/map/KakaoMap'에서 가져다 쓰던 화면들이 그대로 동작하도록 여기서도 다시 내보낸다.
 export type { LatLng, MapMarker };
 
+export type MapBounds = {
+  south: number;
+  west: number;
+  north: number;
+  east: number;
+};
+
 // RN에서 지도를 명령형으로 조작할 때 쓰는 핸들. ref로 접근한다.
 export type KakaoMapHandle = {
   zoomIn: () => void;
@@ -51,6 +58,8 @@ type KakaoMapProps = {
   onMarkerPress?: (id: string) => void;
   // 지도 확대/축소 레벨이 바뀔 때마다 알려준다(줌 버튼으로 바꾼 경우 + 사용자가 직접 핀치줌한 경우 둘 다 포함).
   onLevelChange?: (level: number) => void;
+  // 지도 이동·확대·축소가 끝난 시점의 화면 경계값. 지도 API의 south/west/north/east로 사용한다.
+  onBoundsChange?: (bounds: MapBounds) => void;
   // 로드뷰(거리 사진)가 열리거나 닫힐 때 알려준다. 화면이 닫기 버튼 표시 여부를 정하는 데 쓴다.
   onRoadviewChange?: (open: boolean) => void;
   // 로드뷰 모드에서 탭한 지점 근처(50m)에 로드뷰가 없을 때 알려준다.
@@ -77,6 +86,7 @@ export const KakaoMap = forwardRef<KakaoMapHandle, KakaoMapProps>(function Kakao
     onPinPress,
     onMarkerPress,
     onLevelChange,
+    onBoundsChange,
     onRoadviewChange,
     onRoadviewUnavailable,
     onReady,
@@ -172,6 +182,13 @@ export const KakaoMap = forwardRef<KakaoMapHandle, KakaoMapProps>(function Kakao
       onSelectLocation?.({ lat: message.lat, lng: message.lng });
     } else if (message.type === 'level') {
       onLevelChange?.(message.level);
+    } else if (message.type === 'bounds') {
+      onBoundsChange?.({
+        south: message.south,
+        west: message.west,
+        north: message.north,
+        east: message.east,
+      });
     } else if (message.type === 'roadview') {
       onRoadviewChange?.(message.open);
     } else if (message.type === 'roadviewUnavailable') {

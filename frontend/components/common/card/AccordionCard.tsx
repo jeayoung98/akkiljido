@@ -1,15 +1,10 @@
 // 공용 아코디언 카드. 헤더를 탭하면 children(상세 내용)이 펼쳐지고 접힌다.
 // 지도 탭의 가게별 거래 카드, 리포트 탭의 기간별 리포트 카드 등에서 재사용한다.
 import { useState, type ReactNode } from 'react';
-import { LayoutAnimation, Platform, Pressable, StyleProp, StyleSheet, UIManager, View, ViewStyle } from 'react-native';
+import { LayoutAnimation, Pressable, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 
 import { IconButton } from '@/components/common/button/IconButton';
 import Colors from '@/constants/Colors';
-
-// Android 구 아키텍처에서는 LayoutAnimation을 쓰려면 명시적으로 켜줘야 함
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
 
 type AccordionCardProps = {
   header: ReactNode; // 항상 보이는 부분. 헤더 줄 전체를 눌러도 토글된다.

@@ -77,9 +77,25 @@ export function getCategoryIconKey(categoryName?: string, categoryId?: number | 
   return CATEGORIES.find((category) => category.name === normalizedName)?.icon ?? 'other';
 }
 
-/** categoryName은 화면 표시용이고, 색상은 API와 동일한 categoryId를 기준으로 가져옵니다. */
-export function getCategoryColorById(categoryId: number | string) {
-  return Colors.category[Number(categoryId)] ?? Colors.category[11];
+/**
+ * 색상은 categoryId를 기준으로 가져오지만, 카테고리는 회원가입 시 사용자별로 자동 생성돼서
+ * 실제 categoryId가 이 목록의 1~11과 다를 수 있습니다(이름은 항상 이 11개 중 하나로 내려옵니다).
+ * 그래서 id가 이 목록에 없으면 categoryName으로 한 번 더 찾아보고, 그래도 없으면 `기타` 색을 씁니다.
+ */
+export function getCategoryColorById(categoryId: number | string, categoryName?: string) {
+  // 소득은 CATEGORIES에 없는 예약 id(INCOME_CATEGORY)라서 팔레트에서 바로 찾습니다.
+  if (Number(categoryId) === INCOME_CATEGORY_ID) return Colors.category[INCOME_CATEGORY_ID];
+
+  const matchedById = CATEGORIES.find((category) => category.id === Number(categoryId));
+  if (matchedById) return Colors.category[matchedById.id];
+
+  if (categoryName) {
+    const normalizedName = normalizeCategoryName(categoryName);
+    const matchedByName = CATEGORIES.find((category) => category.name === normalizedName);
+    if (matchedByName) return Colors.category[matchedByName.id];
+  }
+
+  return Colors.category[11];
 }
 
 export function getCategoryColorByName(categoryName: string) {

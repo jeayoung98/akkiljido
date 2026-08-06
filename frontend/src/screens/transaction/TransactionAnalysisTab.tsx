@@ -8,7 +8,7 @@ import { AnalysisCard } from '@/components/transaction/AnalysisCard';
 import { AnalysisLegend, type AnalysisLegendItem } from '@/components/transaction/AnalysisLegend';
 import { MonthPicker } from '@/components/transaction/MonthPicker';
 import { PieChart } from '@/components/transaction/PieChart';
-import { getCategoryColorByName } from '@/constants/categories';
+import { getCategoryColorById } from '@/constants/categories';
 import Colors from '@/constants/Colors';
 import { useCategoryAnalysis, useMyPlaceAnalysis } from '@/hooks/useAnalysis';
 import { toCalendarParams } from '@/src/api/calendarApi';
@@ -65,12 +65,8 @@ export function TransactionAnalysisTab({
         name: item.name,
         amount: item.amount,
         percent: item.percent,
-        /*
-         * 색은 categoryId가 아니라 categoryName으로 찾습니다.
-         * categoryId는 "내 카테고리"라 계정별로 발급돼서 프론트 상수(constants/categories.ts의 1~11)와
-         * 값이 다를 수 있고, 그때 id로 찾으면 모든 조각이 기타 색 하나로 뭉쳐 보입니다.
-         */
-        color: getCategoryColorByName(item.name),
+        // categoryId는 계정별로 발급돼 프론트 상수(1~11)와 다를 수 있어서, 이름을 함께 넘겨 색을 찾습니다.
+        color: getCategoryColorById(item.id, item.name),
       }));
     }
 

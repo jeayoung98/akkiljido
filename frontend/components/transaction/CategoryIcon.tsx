@@ -153,7 +153,7 @@ export function CategoryIcon({ categoryName, categoryId, type, size = 20, color 
     color ??
     (resolvedCategoryId === undefined
       ? getCategoryColorByName(categoryName ?? '')
-      : getCategoryColorById(resolvedCategoryId));
+      : getCategoryColorById(resolvedCategoryId, categoryName));
 
   return (
     <Svg
