@@ -288,7 +288,7 @@ class TransactionHistoryServiceTest {
 	}
 
 	@Test
-	@DisplayName("updateTransactionHistory 는 지출을 소득으로 바꾸면 카테고리와 결제 수단을 비운다")
+	@DisplayName("updateTransactionHistory 는 지출을 소득으로 바꾸면 장소·좌표·카테고리·결제 수단을 모두 비운다")
 	void updateExpenseToIncome() {
 		TransactionHistory entity = storedEntity(10L);
 		when(transactionHistoryRepository.findByIdAndUser_Id(10L, USER_ID)).thenReturn(Optional.of(entity));
@@ -299,9 +299,43 @@ class TransactionHistoryServiceTest {
 		assertThat(entity.getType()).isEqualTo(TransactionType.INCOME);
 		assertThat(entity.getCategory()).isNull();
 		assertThat(entity.getPaymentMethod()).isNull();
+		assertThat(entity.getAddress()).isNull();
+		assertThat(entity.getCoordinate()).isNull();
+		assertThat(entity.getBCode()).isNull();
+		assertThat(entity.getRegion1DepthName()).isNull();
+		assertThat(entity.getRegion2DepthName()).isNull();
+		assertThat(entity.getRegion3DepthName()).isNull();
+
 		assertThat(response.categoryId()).isNull();
 		assertThat(response.categoryName()).isNull();
 		assertThat(response.paymentMethod()).isNull();
+		assertThat(response.address()).isNull();
+		assertThat(response.latitude()).isNull();
+		assertThat(response.longitude()).isNull();
+
+		verifyNoInteractions(categoryService);
+	}
+
+	@Test
+	@DisplayName("updateTransactionHistory 는 소득으로 바꾸면서 장소·좌표를 함께 보내도 DB 에는 null 로 저장한다")
+	void updateExpenseToIncomeIgnoresPlaceAndCoordinate() {
+		TransactionHistory entity = storedEntity(10L);
+		when(transactionHistoryRepository.findByIdAndUser_Id(10L, USER_ID)).thenReturn(Optional.of(entity));
+
+		TransactionHistoryUpdateRequest request = new TransactionHistoryUpdateRequest(
+			null, null, TransactionType.INCOME, null, null, null,
+			"서울 강남구 역삼동", 35.1796, 129.0756, null);
+
+		TransactionHistoryResponse response = transactionHistoryService.updateTransactionHistory(
+			USER_ID, 10L, request);
+
+		assertThat(entity.getType()).isEqualTo(TransactionType.INCOME);
+		assertThat(entity.getAddress()).isNull();
+		assertThat(entity.getCoordinate()).isNull();
+		assertThat(entity.getBCode()).isNull();
+		assertThat(response.address()).isNull();
+		assertThat(response.latitude()).isNull();
+		assertThat(response.longitude()).isNull();
 
 		verifyNoInteractions(categoryService);
 	}

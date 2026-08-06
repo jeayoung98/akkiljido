@@ -118,8 +118,9 @@ public class TransactionHistory {
     /**
      * 거래내역의 기본 정보를 부분 수정(PATCH)한다.
      * 각 인자가 null 이면(요청에서 미전송) 기존 값을 그대로 유지한다.
-     * 법정동 정보(b_code/region_*)는 등록 시점 값을 유지한다.
-     * 수정 결과가 소득(INCOME)이면 지출 전용 필드(카테고리/결제 수단)는 비워진다.
+     * 수정 결과가 지출(EXPENSE)이면 법정동 정보(b_code/region_*)는 등록 시점 값을 유지한다.
+     * 수정 결과가 소득(INCOME)이면 지출 전용 필드(장소/좌표/카테고리/결제 수단)와
+     * 좌표에서 파생된 법정동 정보까지 모두 null 로 비워진다.
      */
     public void update(Category category, OffsetDateTime datetime, Long amount, TransactionType type,
                        String transactionName, String paymentMethod, String memo, String address,
@@ -155,13 +156,21 @@ public class TransactionHistory {
     }
 
     /**
-     * 소득(INCOME) 거래는 카테고리와 결제 수단을 갖지 않는다는 도메인 불변식을 강제한다.
+     * 소득(INCOME) 거래는 장소·좌표·카테고리·결제 수단을 갖지 않는다는 도메인 불변식을 강제한다.
      * 지출 -> 소득으로 유형이 바뀌는 수정에서 기존 값이 남지 않도록 등록/수정 마지막에 호출한다.
+     * 좌표에서 파생된 법정동 정보(b_code/region_*)도 함께 비워, 좌표는 없는데 지역만 남는 상태를 막는다.
      */
     private void clearExpenseOnlyFieldsIfIncome() {
-        if (this.type == TransactionType.INCOME) {
-            this.category = null;
-            this.paymentMethod = null;
+        if (this.type != TransactionType.INCOME) {
+            return;
         }
+        this.category = null;
+        this.paymentMethod = null;
+        this.address = null;
+        this.coordinate = null;
+        this.bCode = null;
+        this.region1DepthName = null;
+        this.region2DepthName = null;
+        this.region3DepthName = null;
     }
 }

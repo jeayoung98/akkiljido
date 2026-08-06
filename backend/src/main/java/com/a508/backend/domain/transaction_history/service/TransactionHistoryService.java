@@ -43,7 +43,10 @@ public class TransactionHistoryService {
 	public TransactionHistoryResponse createTransactionHistory(Long userId, TransactionHistoryCreateRequest request) {
 		validateTypeFields(request.type(), request.categoryId() != null, request.paymentMethod() != null);
 
-		RegionInfo region = resolveRegion(request.latitude(), request.longitude());
+		// 소득 거래는 장소/좌표를 저장하지 않으므로 법정동 변환(외부 API 호출)도 생략한다.
+		RegionInfo region = request.type() == TransactionType.INCOME
+			? RegionInfo.empty()
+			: resolveRegion(request.latitude(), request.longitude());
 
 		TransactionHistory saved = transactionHistoryRepository.save(
 			TransactionHistory.builder()
