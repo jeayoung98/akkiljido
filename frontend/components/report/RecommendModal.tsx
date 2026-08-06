@@ -1,12 +1,15 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Button } from '@/components/common/button/Button';
-import { CenterModal } from '@/components/common/modal/CentralModal';
+import { CentralModal } from '@/components/common/modal/CentralModal';
 import type { AlarmFormValue } from '@/components/common/modal/SaveAlarmModal';
 import { BrandLogo } from '@/components/onboarding/BrandLogo';
 import Colors from '@/constants/Colors';
 
 export type ReportRecommendation = {
+  // 리스트 key용 고유 ID. placeName+timeRange 조합은 같은 장소·시간대 추천이 여러 개면 겹칠 수 있어 따로 둔다.
+  id: string;
   // 강조 앞까지의 설명 문장. 뒤에 "{placeName} {timeRange}에 알림을 설정해 보세요!"가 자동으로 붙는다.
   description: string;
   placeName: string; // 초록으로 강조되는 장소명
@@ -15,10 +18,12 @@ export type ReportRecommendation = {
   alarm: AlarmFormValue;
 };
 
-export type WeeklyReportRecommendationsModalProps = {
+export type ReportRecommendationsModalProps = {
   visible: boolean;
   // 헤더 타이틀. 리포트 요약 모달과 같은 값을 쓰거나 생략하면 기본 문구가 나온다.
   title?: string;
+  // 헤더 배지 위에 뜨는 작은 라벨. ReportModal의 periodLabel과 같은 값을 준다. 기본은 "주간 리포트".
+  periodLabel?: string;
   recommendations: ReportRecommendation[];
   // 배경 탭/Android 뒤로가기로 닫을 때
   onClose: () => void;
@@ -30,24 +35,25 @@ export type WeeklyReportRecommendationsModalProps = {
   onSelectRecommendation: (rec: ReportRecommendation) => void;
 };
 
-/** 주간 리포트의 두 번째 페이지: AI가 추천한 위치 알림 목록을 보여주는 팝업 모달입니다. */
-export function WeeklyReportRecommendationsModal({
+/** 주간·월간 리포트의 두 번째 페이지: AI가 추천한 위치 알림 목록을 보여주는 팝업 모달입니다. */
+export function ReportRecommendationsModal({
   visible,
   title = '지난주 소비 리포트',
+  periodLabel = '주간 리포트',
   recommendations,
   onClose,
   onPrev,
   onConfirm,
   onSelectRecommendation,
-}: WeeklyReportRecommendationsModalProps) {
+}: ReportRecommendationsModalProps) {
   return (
-    <CenterModal visible={visible} onClose={onClose}>
-      {/* WeeklyReportModal과 같은 딥그린 헤더. 두 모달이 한 흐름(요약 → 추천)으로 보이게 모양을 맞춘다. */}
+    <CentralModal visible={visible} onClose={onClose}>
+      {/* ReportModal과 같은 딥그린 헤더. 두 모달이 한 흐름(요약 → 추천)으로 보이게 모양을 맞춘다. */}
       <View style={styles.header}>
         <View style={styles.badge}>
           <BrandLogo size={40} />
         </View>
-        <Text style={styles.subtitle}>주간 리포트</Text>
+        <Text style={styles.subtitle}>{periodLabel}</Text>
         <Text style={styles.title}>{title}</Text>
       </View>
 
@@ -59,7 +65,7 @@ export function WeeklyReportRecommendationsModal({
 
         {recommendations.map((rec, index) => (
           <Pressable
-            key={`${rec.placeName}-${rec.timeRange}`}
+            key={rec.id}
             onPress={() => onSelectRecommendation(rec)}
             style={({ pressed }) => [styles.recCard, pressed && styles.recCardPressed]}>
             <Text style={styles.recIndex}>{index + 1}.</Text>
@@ -70,6 +76,9 @@ export function WeeklyReportRecommendationsModal({
               </Text>
               에 알림을 설정해 보세요!
             </Text>
+            <View style={styles.recAction}>
+              <Ionicons name="add-circle-outline" size={26} color={Colors.light.reportHeaderBackground} />
+            </View>
           </Pressable>
         ))}
 
@@ -82,7 +91,7 @@ export function WeeklyReportRecommendationsModal({
           </Button>
         </View>
       </View>
-    </CenterModal>
+    </CentralModal>
   );
 }
 
@@ -154,6 +163,9 @@ const styles = StyleSheet.create({
   recHighlight: {
     fontWeight: '800',
     color: Colors.light.reportHeaderBackground,
+  },
+  recAction: {
+    alignSelf: 'center',
   },
   buttonRow: {
     flexDirection: 'row',
