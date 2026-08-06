@@ -23,8 +23,9 @@ const LAST_SHOWN_WEEK_STORAGE_KEY = 'report:lastShownWeek';
 const NICKNAME = 'Dust';
 
 /**
- * 홈 탭 화면입니다. 상단(인사말+알림)과 오늘 지출액 카드는 초록 배경 안에, 그 아래 두 카드
- * (내 주변 7일간 지출, 카테고리별 지출)는 흰 배경 안에 둬서 두 영역을 시각적으로 구분합니다.
+ * 홈 탭 화면입니다. 상단(인사말+알림)은 초록 배경, 그 아래 카드들(내 주변 7일간 지출, 카테고리별
+ * 지출)은 흰 배경 안에 둬서 두 영역을 시각적으로 구분합니다. 오늘 지출액 카드는 두 배경 경계에
+ * 걸치도록 음수 marginTop으로 끌어올려 배치합니다.
  * 데이터는 전부 mocks/home.ts에서 가져오며, 그중 "오늘 지출액"은 API가 아직 없어 임시 값입니다.
  * 알림 뱃지 개수는 store/notificationStore.ts의 안 읽은 알림 수를 그대로 씁니다.
  */
@@ -77,7 +78,10 @@ export default function HomeScreen() {
       <View style={styles.header}>
         <View style={styles.profileRow}>
           <Image source={require('@/assets/images/profile-icon.png')} style={styles.profileIcon} />
-          <Text style={styles.greeting}>안녕하세요, {NICKNAME}님</Text>
+          <View>
+            <Text style={styles.greeting}>안녕하세요, {NICKNAME}님</Text>
+            <Text style={styles.greetingSubtitle}>오늘도 함께 알뜰하게!</Text>
+          </View>
         </View>
 
         <View>
@@ -95,12 +99,15 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <View style={styles.topContent}>
+      {/* 흰 배경이 시작되는 이 영역도 헤더처럼 스크롤 밖에 고정해서, 카드가 ScrollView 경계에
+          잘리지 않고 초록/흰 배경 경계에 걸친 모습 그대로 항상 보이게 한다. */}
+      <View style={styles.todayCardSection}>
+        <View style={styles.todayCardWrapper}>
           <TodaySpendingCard amount={MOCK_TODAY_EXPENSE} />
         </View>
+      </View>
 
-        {/* 오늘 지출액 카드까지만 초록 배경이고, 그 아래부터는 흰 배경으로 이어진다. */}
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.body}>
           <NearbyWeekSpendingCard places={nearbyExpenses.placeList} totalAmount={nearbyExpenses.totalAmount} />
           <CategorySummaryCard categories={categories} onPressMore={() => router.push('/list?tab=analysis')} />
@@ -162,7 +169,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingBottom: 16,
+    // 카드가 이 아래에서 위로 걸쳐 올라오므로, 커진 프로필 아이콘과 겹치지 않을 만큼 여백을 둔다.
+    paddingBottom: 40,
   },
   profileRow: {
     flexDirection: 'row',
@@ -170,14 +178,20 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   profileIcon: {
-    width: 44,
-    height: 44,
+    width: 56,
+    height: 56,
     resizeMode: 'contain',
   },
   greeting: {
     color: '#FFFFFF',
     fontSize: 17,
     fontWeight: '700',
+  },
+  greetingSubtitle: {
+    marginTop: 2,
+    color: Colors.onboarding.lightText,
+    fontSize: 12,
+    fontWeight: '500',
   },
   badge: {
     position: 'absolute',
@@ -199,16 +213,23 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
   },
-  topContent: {
+  // 흰 배경이 시작되는 지점. 헤더와 마찬가지로 스크롤 밖에 고정되어 있어 카드가 잘리지 않는다.
+  todayCardSection: {
+    backgroundColor: Colors.light.background,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     paddingHorizontal: 16,
-    paddingBottom: 20,
+    paddingBottom: 16,
+  },
+  todayCardWrapper: {
+    // 카드 윗부분이 초록 헤더 위로 올라가 걸치도록 이 섹션의 시작 지점보다 위로 끌어올린다.
+    marginTop: -32,
   },
   body: {
     flexGrow: 1,
     backgroundColor: Colors.light.background,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
     padding: 16,
+    paddingTop: 0,
     gap: 24,
   },
 });
