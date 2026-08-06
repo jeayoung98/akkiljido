@@ -34,7 +34,7 @@ export function CategorySummaryCard({ categories, onPressMore }: CategorySummary
         <Text style={styles.emptyText}>이번 달 지출 내역이 아직 없어요.</Text>
       ) : (
         categories.map((category, index) => {
-          const categoryColor = getCategoryColorById(category.categoryId);
+          const categoryColor = getCategoryColorById(category.categoryId, category.categoryName);
           return (
             <View key={category.categoryId} style={[styles.row, index > 0 && styles.rowSpacing]}>
               <View style={[styles.iconBadge, { backgroundColor: `${categoryColor}26` }]}>

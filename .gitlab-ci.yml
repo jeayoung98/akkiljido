@@ -1,0 +1,85 @@
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    - when: never
+
+stages:
+  - test
+  - verify-deploy
+  - migrate
+  - deploy
+
+backend-test:
+  stage: test
+  image: eclipse-temurin:21-jdk
+  tags:
+    - ci_test
+  script:
+    - cd backend
+    - bash ./gradlew clean test --no-daemon
+
+production-ssh-check:
+  stage: verify-deploy
+  image: alpine:3.20
+  tags:
+    - prod_deploy
+  script:
+    - apk add --no-cache openssh-client
+    - install -d -m 700 "$HOME/.ssh"
+    - install -m 600 "$SSH_PRIVATE_KEY" "$HOME/.ssh/id_ed25519"
+    - install -m 644 "$SSH_KNOWN_HOSTS" "$HOME/.ssh/known_hosts"
+    - |
+      ssh \
+        -i "$HOME/.ssh/id_ed25519" \
+        -o BatchMode=yes \
+        -o IdentitiesOnly=yes \
+        -o StrictHostKeyChecking=yes \
+        "$DEPLOY_USER@$DEPLOY_HOST" \
+        'whoami && hostname'
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      when: manual
+    - when: never
+  allow_failure: true
+
+production-db-migrate:
+  stage: migrate
+  image: alpine:3.20
+  resource_group: production
+  interruptible: false
+  tags:
+    - prod_deploy
+  script:
+    - apk add --no-cache openssh-client tar
+    - install -d -m 700 "$HOME/.ssh"
+    - install -m 600 "$SSH_PRIVATE_KEY" "$HOME/.ssh/id_ed25519"
+    - install -m 644 "$SSH_KNOWN_HOSTS" "$HOME/.ssh/known_hosts"
+    - sh scripts/run-db-migrations.sh
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      when: on_success
+    - when: never
+  allow_failure: false
+
+production-deploy:
+  stage: deploy
+  image: alpine:3.20
+  resource_group: production
+  interruptible: false
+  environment:
+    name: production
+    url: https://i15a508.p.ssafy.io
+  tags:
+    - prod_deploy
+  script:
+    - apk add --no-cache openssh-client tar curl
+    - install -d -m 700 "$HOME/.ssh"
+    - install -m 600 "$SSH_PRIVATE_KEY" "$HOME/.ssh/id_ed25519"
+    - install -m 644 "$SSH_KNOWN_HOSTS" "$HOME/.ssh/known_hosts"
+    - sh scripts/deploy-production.sh
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      when: on_success
+    - when: never
+  allow_failure: false

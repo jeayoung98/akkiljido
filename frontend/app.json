@@ -11,14 +11,14 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "com.a508.googlelogintest",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.frontend"
+      "predictiveBackGestureEnabled": false
     },
     "web": {
       "bundler": "metro",
@@ -27,6 +27,7 @@
     },
     "plugins": [
       "expo-router",
+      "@react-native-google-signin/google-signin",
       [
         "expo-splash-screen",
         {
@@ -38,9 +39,10 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "내 주변 지출 내역과 현재 위치 기준 지도를 보여주기 위해 위치 정보를 사용합니다."
+          "locationWhenInUsePermission": "앱의 주변 내역과 현재 위치 기준 지점을 보여주기 위해 위치 정보를 사용합니다."
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true
