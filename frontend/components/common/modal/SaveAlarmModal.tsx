@@ -1,4 +1,4 @@
-import { useRouter } from 'expo-router';
+import { useIsFocused, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
@@ -32,6 +32,19 @@ type FieldInputProps = Pick<TextInputProps, 'inputMode' | 'maxLength'> & {
   containerStyle?: StyleProp<ViewStyle>;
   valueStyle?: StyleProp<TextStyle>;
 };
+
+// TimeInput은 입력 중 "12:0"처럼 완성 전 상태도 허용합니다.
+// 저장 시점에는 정확히 HH:mm 형식인지 별도로 검사해 잘못된 시간대가 API까지 전달되지 않게 합니다.
+const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+function isValidTime(value: string) {
+  return TIME_PATTERN.test(value);
+}
+
+function toMinutes(value: string) {
+  const [hour, minute] = value.split(':').map(Number);
+  return hour * 60 + minute;
+}
 
 // 알림 시간과 항상 같은 높이를 유지해야 해서(여러 줄로 늘어나면 둘의 높이가 어긋난다),
 // 한 줄로만 입력받고 내용이 길어지면 옆으로 계속 입력되도록 합니다(스크롤은 TextInput 기본 동작).
@@ -71,6 +84,10 @@ export type AlarmFormValue = {
   name: string;
   placeId?: number;
   placeName: string;
+  // 지도 검색과 실제로 이어지는 값은 이름이 아니라 이 주소·좌표다. MapInput도 이 값을 보여준다.
+  address: string;
+  lat: number;
+  lng: number;
   startTime: string;
   endTime: string;
   reason: string;
@@ -84,6 +101,9 @@ export type SaveAlarmModalProps = {
   onReopenAfterLocationPicked?: () => void;
   onSave: (value: AlarmFormValue) => void;
   saveLoading?: boolean;
+  /** AI 추천이 아니라 직접 추가하는 흐름 등에서 문구를 바꿔야 할 때 씁니다. */
+  title?: string;
+  description?: string;
 };
 
 /** AI 추천값을 확인하고 수정한 뒤 저장 요청값으로 전달하는 알림 추가 모달입니다. */
@@ -94,12 +114,15 @@ export function SaveAlarmModal({
   onReopenAfterLocationPicked,
   onSave,
   saveLoading = false,
+  title = '추천 위치 알림 추가',
+  description = 'AI 추천 내용을 수정한 뒤 저장할 수 있어요.',
 }: SaveAlarmModalProps) {
   const router = useRouter();
   // map-picker 화면이 위치를 고르고 나면 이 store에 결과를 담아둔다. 모달과 map-picker는
   // 서로 다른 화면(스택)이라 props로 값을 주고받을 수 없어서, 전역 store를 다리로 사용한다.
   const pickedLocation = useMapPickerStore((state) => state.pickedLocation);
   const clearPickedLocation = useMapPickerStore((state) => state.clearPickedLocation);
+  const setInitialLocation = useMapPickerStore((state) => state.setInitialLocation);
 
   // 이 모달 안에서만 쓰는 임시 입력 상태. "알림 저장"을 눌러야만 onSave로 부모에 전달된다.
   const [form, setForm] = useState(initialValue);
@@ -126,24 +149,57 @@ export function SaveAlarmModal({
     }
   }, [initialValue, visible]);
 
+  const isFocused = useIsFocused();
+
   // 지도 화면에서 장소를 선택하고 돌아오면 store에 담긴 값을 읽어 알림 장소에 반영합니다.
+  // pickedLocation은 map-picker가 router.back()으로 돌아오기도 전에(아직 지도 화면일 때) 먼저 바뀌기
+  // 때문에, 값 변경 자체가 아니라 "이 화면이 실제로 다시 포커스를 받은 뒤"에 반영해야 한다.
+  // useFocusEffect(useCallback(...))는 effect 참조가 바뀔 때마다(=pickedLocation이 바뀔 때마다)
+  // 내부적으로 즉시 한 번 더 호출되는 구현이라, 실제 focus 이벤트를 기다리지 않고 화면 전환 중
+  // 애매한 시점에 먼저 실행돼버릴 수 있었다(그러면 아직 안 열린 상태로 소비되고 끝나버린다).
+  // 대신 isFocused를 일반 상태값으로 구독해서, pickedLocation과 isFocused가 "둘 다" 갖춰진
+  // 시점에만 정확히 한 번 반영되게 한다 — 둘 중 어느 쪽이 먼저 바뀌어도 안전하다.
   useEffect(() => {
-    // 지도 화면으로 이동하기 위해 모달을 닫았던 경우에만 장소를 반영하고 다시 엽니다.
-    // 일반적인 MapInput 사용 결과를 이 모달이 가로채지 않도록 반환 플래그를 함께 확인합니다.
-    if (isReturningFromMapRef.current && pickedLocation) {
-      updateField('placeName', pickedLocation.address);
+    if (isFocused && isReturningFromMapRef.current && pickedLocation) {
+      // 지도 화면으로 이동하기 위해 모달을 닫았던 경우에만 장소를 반영하고 다시 엽니다.
+      // 일반적인 MapInput 사용 결과를 이 모달이 가로채지 않도록 반환 플래그를 함께 확인합니다.
+      updateField('address', pickedLocation.address);
+      updateField('lat', pickedLocation.lat);
+      updateField('lng', pickedLocation.lng);
       clearPickedLocation();
       onReopenAfterLocationPicked?.();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pickedLocation]);
+  }, [isFocused, pickedLocation]);
 
   const isNameEmpty = !form.name.trim();
-  const isPlaceEmpty = !form.placeName.trim();
+  const isPlaceEmpty = !form.address.trim();
   const isStartTimeEmpty = !form.startTime.trim();
   const isEndTimeEmpty = !form.endTime.trim();
+  const hasValidStartTime = isValidTime(form.startTime);
+  const hasValidEndTime = isValidTime(form.endTime);
+  const hasSameTimeRange = hasValidStartTime && hasValidEndTime && form.startTime === form.endTime;
+  // 시작 시간이 더 늦으면 오류가 아니라 자정을 넘기는 알림으로 해석합니다.
+  const isOvernightAlarm = hasValidStartTime && hasValidEndTime && toMinutes(form.startTime) > toMinutes(form.endTime);
+  const startTimeError = isStartTimeEmpty
+    ? '시작 시간을 입력해 주세요.'
+    : !hasValidStartTime
+      ? 'HH:mm 형식으로 입력해 주세요.'
+      : undefined;
+  const endTimeError = isEndTimeEmpty
+    ? '끝 시간을 입력해 주세요.'
+    : !hasValidEndTime
+      ? 'HH:mm 형식으로 입력해 주세요.'
+      : undefined;
   // 알림 추가 이유는 AI 설명용 선택 항목이며 이름·장소·시간만 필수로 검사합니다.
-  const hasError = isNameEmpty || isPlaceEmpty || isStartTimeEmpty || isEndTimeEmpty;
+  const hasError = isNameEmpty || isPlaceEmpty || Boolean(startTimeError) || Boolean(endTimeError) || hasSameTimeRange;
+  // 시간 안내는 두 입력칸 아래 한 곳에만 표시해, 시작·끝 시간 박스의 높이를 항상 같게 유지합니다.
+  const timeMessage = showErrors
+    ? startTimeError ?? endTimeError ?? (hasSameTimeRange ? '시작 시간과 끝 시간은 다르게 설정해 주세요.' : undefined)
+    : isOvernightAlarm
+      ? '다음 날까지 이어지는 알림이에요.'
+      : undefined;
+  const isTimeMessageError = showErrors && Boolean(startTimeError || endTimeError || hasSameTimeRange);
 
   const handleSave = () => {
     if (hasError) {
@@ -156,6 +212,7 @@ export function SaveAlarmModal({
       ...form,
       name: form.name.trim(),
       placeName: form.placeName.trim(),
+      address: form.address.trim(),
       startTime: form.startTime.trim(),
       endTime: form.endTime.trim(),
       reason: form.reason.trim(),
@@ -173,6 +230,11 @@ export function SaveAlarmModal({
   const handleSelectLocation = () => {
     // 지도 화면에서 돌아왔을 때 이 모달을 다시 열고, 그때까지의 입력값을 초기화하지 않도록 표시해둡니다.
     isReturningFromMapRef.current = true;
+    // 지금 갖고 있는 주소(추천 장소 또는 이전에 고른 장소)를 map-picker에 미리 알려줘서,
+    // 화면이 뜨자마자 그 위치에 핀이 중앙에 오도록 한다.
+    if (form.address.trim()) {
+      setInitialLocation({ address: form.address, lat: form.lat, lng: form.lng });
+    }
     onClose();
     router.push('/map-picker');
   };
@@ -202,9 +264,9 @@ export function SaveAlarmModal({
             <View style={styles.header}>
               <View style={styles.headerTextArea}>
                 <Text accessibilityRole="header" style={styles.title}>
-                  추천 위치 알림 추가
+                  {title}
                 </Text>
-                <Text style={styles.description}>AI 추천 내용을 수정한 뒤 저장할 수 있어요.</Text>
+                <Text style={styles.description}>{description}</Text>
               </View>
               <IconButton
                 color={Colors.light.placeholder}
@@ -234,7 +296,7 @@ export function SaveAlarmModal({
                   label="알림 장소"
                   onPress={handleSelectLocation}
                   style={showErrors && isPlaceEmpty ? styles.mapInputError : undefined}
-                  value={form.placeName || undefined}
+                  value={form.address || undefined}
                 />
                 {showErrors && isPlaceEmpty ? (
                   <Text style={styles.errorText}>알림 장소를 선택해 주세요.</Text>
@@ -243,7 +305,7 @@ export function SaveAlarmModal({
 
               {/* 알림 시작·끝 시간은 항상 같은 세로 높이를 유지해야 해서 나란히 한 줄에 배치한다. */}
               <View style={styles.row}>
-                <View style={[styles.fieldBox, styles.timeField, showErrors && isStartTimeEmpty && styles.fieldBoxError]}>
+                <View style={[styles.fieldBox, styles.timeField, showErrors && Boolean(startTimeError) && styles.fieldBoxError]}>
                   <Text style={styles.fieldLabel}>알림 시작 시간</Text>
                   <TimeInput
                     containerStyle={styles.timeInputContainer}
@@ -252,10 +314,9 @@ export function SaveAlarmModal({
                     placeholder="18:30"
                     value={form.startTime}
                   />
-                  {showErrors && isStartTimeEmpty ? <Text style={styles.errorText}>시작 시간을 입력해 주세요.</Text> : null}
                 </View>
 
-                <View style={[styles.fieldBox, styles.timeField, showErrors && isEndTimeEmpty && styles.fieldBoxError]}>
+                <View style={[styles.fieldBox, styles.timeField, showErrors && Boolean(endTimeError) && styles.fieldBoxError]}>
                   <Text style={styles.fieldLabel}>알림 끝 시간</Text>
                   <TimeInput
                     containerStyle={styles.timeInputContainer}
@@ -264,9 +325,14 @@ export function SaveAlarmModal({
                     placeholder="19:30"
                     value={form.endTime}
                   />
-                  {showErrors && isEndTimeEmpty ? <Text style={styles.errorText}>끝 시간을 입력해 주세요.</Text> : null}
                 </View>
               </View>
+
+              {timeMessage ? (
+                <Text style={[styles.timeMessage, isTimeMessageError && styles.timeMessageError]}>
+                  {timeMessage}
+                </Text>
+              ) : null}
 
               <FieldInput
                 label="알림 추가 이유"
@@ -345,6 +411,15 @@ const styles = StyleSheet.create({
     marginTop: 4,
     color: Colors.light.danger,
     fontSize: 12,
+  },
+  timeMessage: {
+    marginTop: -6,
+    color: Colors.light.cardAccent,
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  timeMessageError: {
+    color: Colors.light.danger,
   },
   fieldBox: {
     backgroundColor: `${Colors.light.primary}1A`,

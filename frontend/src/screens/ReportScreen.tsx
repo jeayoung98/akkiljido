@@ -6,9 +6,9 @@ import AppScreen from '@/components/common/AppScreen';
 import AccordionCard from '@/components/common/card/AccordionCard';
 import { SaveAlarmModal, type AlarmFormValue } from '@/components/common/modal/SaveAlarmModal';
 import SegmentedControl from '@/components/common/segmented-control/SegmentedControl';
-import type { ReportRecommendation } from '@/components/report/WeeklyReportRecommendationsModal';
+import type { ReportRecommendation } from '@/components/report/RecommendModal';
 import Colors from '@/constants/Colors';
-import { MOCK_MONTHLY_REPORTS, MOCK_WEEKLY_REPORTS, type ReportHistoryEntry } from '@/mocks/report';
+import { MOCK_MONTHLY_REPORTS, MOCK_WEEKLY_REPORTS, type ReportHistoryEntry } from '@/mocks/reportScreen';
 
 type ReportTab = 'weekly' | 'monthly';
 
@@ -47,16 +47,8 @@ export default function ReportScreen() {
   const [selectedAlarm, setSelectedAlarm] = useState<AlarmFormValue | null>(null);
 
   const handleSelectRecommendation = (rec: ReportRecommendation) => {
-    // rec.alarm에는 추천 시각 하나(time)만 있어서, 시작·끝 시간은 화면에 이미 보여주는
-    // timeRange("14:00~17:00")를 그대로 나눠서 채운다.
-    const [startTime, endTime] = rec.timeRange.split('~');
-    setSelectedAlarm({
-      name: rec.alarm.name,
-      placeName: rec.alarm.placeName,
-      startTime,
-      endTime,
-      reason: rec.alarm.reason,
-    });
+    // rec.alarm이 이미 SaveAlarmModal이 쓰는 AlarmFormValue와 같은 모양이라 그대로 넘긴다.
+    setSelectedAlarm(rec.alarm);
     setSaveAlarmVisible(true);
   };
 

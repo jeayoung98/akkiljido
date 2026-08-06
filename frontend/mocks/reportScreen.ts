@@ -1,10 +1,10 @@
-import type { WeeklyReportData } from '@/components/report/WeeklyReportModal';
-import type { ReportRecommendation } from '@/components/report/WeeklyReportRecommendationsModal';
+import type { ReportData } from '@/components/report/ReportModal';
+import type { ReportRecommendation } from '@/components/report/RecommendModal';
 
-// 리포트 하나(요약 데이터 + 알림 추천 목록)를 함께 묶은 형태. 과거 리포트 목록 화면에서
+// 리포트 하나(요약 데이터 + 알림 추천 목록)를 함께 묶은 형태. 과거 리포트 목록 화면(ReportScreen)에서
 // 아코디언 카드 하나가 이 타입 하나에 대응한다.
 export type ReportHistoryEntry = {
-  data: WeeklyReportData;
+  data: ReportData;
   recommendations: ReportRecommendation[];
 };
 
@@ -30,7 +30,11 @@ export const MOCK_WEEKLY_REPORTS: ReportHistoryEntry[] = [
         alarm: {
           name: '카페·간식 한도 알림',
           placeName: 'GS25 회사앞점',
-          time: '14:00',
+          address: '서울 강남구 역삼동 702',
+          lat: 37.5001,
+          lng: 127.037,
+          startTime: '14:00',
+          endTime: '17:00',
           reason: '카페·간식 소비가 주간 평균보다 14% 높아서 추천해요.',
         },
       },
@@ -42,7 +46,11 @@ export const MOCK_WEEKLY_REPORTS: ReportHistoryEntry[] = [
         alarm: {
           name: '오후 카페 알림',
           placeName: '스타벅스 강남역점',
-          time: '14:00',
+          address: '서울 강남구 강남대로 396',
+          lat: 37.498,
+          lng: 127.0281,
+          startTime: '14:00',
+          endTime: '17:00',
           reason: '오후 2~5시에 카페 방문이 몰려 있어서 추천해요.',
         },
       },
@@ -68,7 +76,11 @@ export const MOCK_WEEKLY_REPORTS: ReportHistoryEntry[] = [
         alarm: {
           name: '점심 편의점 알림',
           placeName: 'CU 연대앞점',
-          time: '12:00',
+          address: '서울 강남구 역삼동 611',
+          lat: 37.5009,
+          lng: 127.0359,
+          startTime: '12:00',
+          endTime: '13:00',
           reason: '점심시간에 편의점 방문이 잦아서 추천해요.',
         },
       },
@@ -94,7 +106,11 @@ export const MOCK_WEEKLY_REPORTS: ReportHistoryEntry[] = [
         alarm: {
           name: '주말 외식 알림',
           placeName: '김밥천국 역삼점',
-          time: '18:00',
+          address: '서울 강남구 역삼동 645',
+          lat: 37.5012,
+          lng: 127.0355,
+          startTime: '18:00',
+          endTime: '20:00',
           reason: '주말 저녁 외식 지출이 잦아서 추천해요.',
         },
       },
@@ -124,7 +140,11 @@ export const MOCK_MONTHLY_REPORTS: ReportHistoryEntry[] = [
         alarm: {
           name: '쇼핑 한도 알림',
           placeName: '무신사 스탠다드 강남점',
-          time: '18:00',
+          address: '서울 강남구 논현동 92',
+          lat: 37.5115,
+          lng: 127.0221,
+          startTime: '18:00',
+          endTime: '21:00',
           reason: '이번 달 쇼핑 지출이 크게 늘어서 추천해요.',
         },
       },
@@ -150,7 +170,11 @@ export const MOCK_MONTHLY_REPORTS: ReportHistoryEntry[] = [
         alarm: {
           name: '점심 카페 알림',
           placeName: '스타벅스 강남역점',
-          time: '12:00',
+          address: '서울 강남구 강남대로 396',
+          lat: 37.498,
+          lng: 127.0281,
+          startTime: '12:00',
+          endTime: '13:00',
           reason: '한 달 내내 카페 방문이 꾸준해서 추천해요.',
         },
       },
@@ -159,5 +183,5 @@ export const MOCK_MONTHLY_REPORTS: ReportHistoryEntry[] = [
 ];
 
 // 팝업 모달 단독 테스트용으로 계속 쓰이는 단일 값들. 배열의 가장 최근(첫 번째) 항목을 그대로 쓴다.
-export const MOCK_WEEKLY_REPORT: WeeklyReportData = MOCK_WEEKLY_REPORTS[0].data;
-export const MOCK_MONTHLY_REPORT: WeeklyReportData = MOCK_MONTHLY_REPORTS[0].data;
+export const MOCK_WEEKLY_REPORT: ReportData = MOCK_WEEKLY_REPORTS[0].data;
+export const MOCK_MONTHLY_REPORT: ReportData = MOCK_MONTHLY_REPORTS[0].data;
