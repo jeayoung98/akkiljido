@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Alert, StyleSheet, Text, View } from 'react-native';
 
 import AppScreen from '@/components/common/AppScreen';
 import BottomSheet from '@/components/common/BottomSheet';
@@ -13,10 +13,8 @@ import { MapInput } from '@/components/common/input/MapInput';
 import { TextInput } from '@/components/common/input/TextInput';
 import { ConfirmModal } from '@/components/common/modal/ConfirmModal';
 import Colors from '@/constants/Colors';
-import { toMyPlaceListResponse } from '@/mocks/transactions';
+import { createMyPlace, deleteMyPlace, getMyPlaces, type MyPlace } from '@/src/api/myPlaceApi';
 import { useMapPickerStore } from '@/store/mapPickerStore';
-
-type MyPlace = ReturnType<typeof toMyPlaceListResponse>['data'][number];
 
 // 이름에 "집"이 들어가면 집 아이콘, 그 외(직장/클라이언트사 등)는 건물 아이콘을 쓴다.
 // 장소 종류가 늘어나면(예: 학교) 이 규칙을 더 다듬어야 할 수 있다.
@@ -30,16 +28,30 @@ function PlaceIcon({ name }: { name: string }) {
 }
 
 export default function MyPlacesScreen() {
-  const [places, setPlaces] = useState<MyPlace[]>(() => toMyPlaceListResponse().data);
+  const [places, setPlaces] = useState<MyPlace[]>([]);
   const [deleteTarget, setDeleteTarget] = useState<MyPlace | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const [isAddVisible, setIsAddVisible] = useState(false);
   const [newPlaceName, setNewPlaceName] = useState('');
   const [newPlaceAddress, setNewPlaceAddress] = useState('');
   const [newPlaceCoords, setNewPlaceCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [adding, setAdding] = useState(false);
   const pickedLocation = useMapPickerStore((state) => state.pickedLocation);
   const clearPickedLocation = useMapPickerStore((state) => state.clearPickedLocation);
   const isReturningFromMapRef = useRef(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await getMyPlaces();
+        console.info('[my-places] list success', data);
+        setPlaces(data);
+      } catch (error) {
+        console.error('[my-places] list failed', error);
+      }
+    })();
+  }, []);
 
   // 지도에서 위치를 고르고 돌아온 경우에만 선택값을 폼 상태로 옮기고, 장소 추가 시트를 다시 띄운다.
   // (pickedLocation은 다른 화면의 지도 선택 흐름과 공유하는 전역 store라, 이 화면에서 연 게 아니면 건드리지 않는다.)
@@ -68,34 +80,46 @@ export default function MyPlacesScreen() {
     setNewPlaceCoords(null);
   };
 
-  const handleAddPlace = () => {
+  const handleAddPlace = async () => {
     if (!isAddFormValid || !newPlaceCoords) {
       return;
     }
-    // TODO: 실제 장소 추가 API 연결. 지금은 화면 상태에만 반영한다.
-    setPlaces((prev) => [
-      ...prev,
-      {
-        placeId: Date.now(),
+    try {
+      setAdding(true);
+      const created = await createMyPlace({
         myPlaceName: newPlaceName.trim(),
         address: newPlaceAddress,
         latitude: newPlaceCoords.latitude,
         longitude: newPlaceCoords.longitude,
-        totalAmount: 0,
-      },
-    ]);
-    setNewPlaceName('');
-    setNewPlaceAddress('');
-    setNewPlaceCoords(null);
-    setIsAddVisible(false);
+      });
+      setPlaces((prev) => [...prev, created]);
+      setNewPlaceName('');
+      setNewPlaceAddress('');
+      setNewPlaceCoords(null);
+      setIsAddVisible(false);
+    } catch (error) {
+      console.error('[my-places] add failed', error);
+      Alert.alert('장소 추가에 실패했어요', error instanceof Error ? error.message : undefined);
+    } finally {
+      setAdding(false);
+    }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!deleteTarget) {
       return;
     }
-    setPlaces((prev) => prev.filter((place) => place.placeId !== deleteTarget.placeId));
-    setDeleteTarget(null);
+    try {
+      setDeleting(true);
+      await deleteMyPlace(deleteTarget.placeId);
+      setPlaces((prev) => prev.filter((place) => place.placeId !== deleteTarget.placeId));
+      setDeleteTarget(null);
+    } catch (error) {
+      console.error('[my-places] delete failed', error);
+      Alert.alert('장소 삭제에 실패했어요', error instanceof Error ? error.message : undefined);
+    } finally {
+      setDeleting(false);
+    }
   };
 
   return (
@@ -126,6 +150,7 @@ export default function MyPlacesScreen() {
 
       <ConfirmModal
         confirmLabel="삭제"
+        confirmLoading={deleting}
         description="등록한 장소 정보가 삭제돼요."
         destructive
         onCancel={() => setDeleteTarget(null)}
@@ -155,7 +180,11 @@ export default function MyPlacesScreen() {
           />
           <MapInput label="주소" onPress={handleOpenMapPicker} value={newPlaceAddress || undefined} />
 
-          <Button disabled={!isAddFormValid} onPress={handleAddPlace} style={styles.addSubmitButton}>
+          <Button
+            disabled={!isAddFormValid}
+            loading={adding}
+            onPress={handleAddPlace}
+            style={styles.addSubmitButton}>
             장소 추가
           </Button>
         </View>

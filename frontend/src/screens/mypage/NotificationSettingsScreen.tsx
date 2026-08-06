@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRef, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import AppScreen from '@/components/common/AppScreen';
 import InfoListItem from '@/components/common/card/InfoListItem';
@@ -11,7 +11,13 @@ import { AddCircleButton } from '@/components/my/AddCircleButton';
 import { KebabMenu } from '@/components/my/KebabMenu';
 import { Switch } from '@/components/my/Switch';
 import Colors from '@/constants/Colors';
-import { MOCK_NOTIFICATION_PLACES, type NotificationPlace } from '@/mocks/notifications';
+import {
+  createNotificationPlace,
+  deleteNotificationPlace,
+  getNotificationPlaces,
+  updateNotificationPlace,
+  type NotificationPlace,
+} from '@/src/api/notificationPlaceApi';
 
 // "+" 버튼을 누르면 이 빈 값으로 SaveAlarmModal을 연다. 지도에서 장소를 고르기 전까지는
 // address·좌표가 비어 있어서, 모달의 필수값 검사(address)가 저장을 막아준다.
@@ -46,15 +52,37 @@ function toAlarmFormValue(place: NotificationPlace): AlarmFormValue {
 export default function NotificationSettingsScreen() {
   const [weeklyReport, setWeeklyReport] = useState(true);
   const [monthlyReport, setMonthlyReport] = useState(true);
-  const [places, setPlaces] = useState<NotificationPlace[]>(MOCK_NOTIFICATION_PLACES);
+  const [places, setPlaces] = useState<NotificationPlace[]>([]);
   const [deleteTarget, setDeleteTarget] = useState<NotificationPlace | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [addModalVisible, setAddModalVisible] = useState(false);
   const [editTarget, setEditTarget] = useState<NotificationPlace | null>(null);
+  const [saving, setSaving] = useState(false);
   // 지도 선택을 위해 모달을 잠시 닫을 때 수정 대상을 기억해 두었다가, 돌아오면 같은 수정 모드로 다시 엽니다.
   const pendingEditTargetRef = useRef<NotificationPlace | null>(null);
 
-  const handleTogglePlace = (id: number, next: boolean) => {
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await getNotificationPlaces();
+        console.info('[notification] list success', data);
+        setPlaces(data);
+      } catch (error) {
+        console.error('[notification] list failed', error);
+      }
+    })();
+  }, []);
+
+  const handleTogglePlace = async (id: number, next: boolean) => {
     setPlaces((prev) => prev.map((place) => (place.notificationPlaceId === id ? { ...place, active: next } : place)));
+    try {
+      await updateNotificationPlace(id, { active: next });
+    } catch (error) {
+      console.error('[notification] toggle failed', error);
+      // 실패하면 화면에 반영했던 토글을 원래 상태로 되돌립니다.
+      setPlaces((prev) => prev.map((place) => (place.notificationPlaceId === id ? { ...place, active: !next } : place)));
+      Alert.alert('알림 상태 변경에 실패했어요', error instanceof Error ? error.message : undefined);
+    }
   };
 
   const handleAddPlace = () => {
@@ -63,48 +91,39 @@ export default function NotificationSettingsScreen() {
     setAddModalVisible(true);
   };
 
-  const handleSavePlace = (value: AlarmFormValue) => {
-    if (editTarget) {
-      // 수정 시에는 id와 토글 상태는 유지하고, 모달에서 편집한 정보만 같은 항목에 덮어씁니다.
-      setPlaces((prev) =>
-        prev.map((place) =>
-          place.notificationPlaceId === editTarget.notificationPlaceId
-            ? {
-                ...place,
-                notificationPlaceName: value.name,
-                address: value.address,
-                latitude: value.lat,
-                longitude: value.lng,
-                startTime: value.startTime,
-                endTime: value.endTime,
-                reason: value.reason,
-              }
-            : place,
-        ),
-      );
-      setEditTarget(null);
-      pendingEditTargetRef.current = null;
-      return;
-    }
+  const handleSavePlace = async (value: AlarmFormValue) => {
+    const input = {
+      notificationPlaceName: value.name,
+      address: value.address,
+      latitude: value.lat,
+      longitude: value.lng,
+      startTime: value.startTime,
+      endTime: value.endTime,
+      reason: value.reason,
+    };
 
-    // 추가 시에는 화면에서만 사용할 다음 id를 만들어 목록 마지막에 넣습니다. API 연결 시 POST 요청으로 교체합니다.
-    const nextId = places.reduce((max, place) => Math.max(max, place.notificationPlaceId), 0) + 1;
-    setPlaces((prev) => [
-      ...prev,
-      {
-        notificationPlaceId: nextId,
-        notificationPlaceName: value.name,
-        address: value.address,
-        // 지도에서 장소를 골라야만 저장할 수 있어서(address 필수 검사) 이 시점엔 항상 값이 있다.
-        latitude: value.lat,
-        longitude: value.lng,
-        startTime: value.startTime,
-        endTime: value.endTime,
-        reason: value.reason,
-        active: true,
-      },
-    ]);
-    setAddModalVisible(false);
+    try {
+      setSaving(true);
+
+      if (editTarget) {
+        const updated = await updateNotificationPlace(editTarget.notificationPlaceId, input);
+        setPlaces((prev) =>
+          prev.map((place) => (place.notificationPlaceId === editTarget.notificationPlaceId ? updated : place)),
+        );
+        setEditTarget(null);
+        pendingEditTargetRef.current = null;
+        return;
+      }
+
+      const created = await createNotificationPlace(input);
+      setPlaces((prev) => [...prev, created]);
+      setAddModalVisible(false);
+    } catch (error) {
+      console.error('[notification] save failed', error);
+      Alert.alert('위치 알림 저장에 실패했어요', error instanceof Error ? error.message : undefined);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleEditPlace = (place: NotificationPlace) => {
@@ -130,10 +149,19 @@ export default function NotificationSettingsScreen() {
     setAddModalVisible(true);
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (!deleteTarget) return;
-    setPlaces((prev) => prev.filter((place) => place.notificationPlaceId !== deleteTarget.notificationPlaceId));
-    setDeleteTarget(null);
+    try {
+      setDeleting(true);
+      await deleteNotificationPlace(deleteTarget.notificationPlaceId);
+      setPlaces((prev) => prev.filter((place) => place.notificationPlaceId !== deleteTarget.notificationPlaceId));
+      setDeleteTarget(null);
+    } catch (error) {
+      console.error('[notification] delete failed', error);
+      Alert.alert('위치 알림 삭제에 실패했어요', error instanceof Error ? error.message : undefined);
+    } finally {
+      setDeleting(false);
+    }
   };
 
   return (
@@ -216,6 +244,7 @@ export default function NotificationSettingsScreen() {
 
       <ConfirmModal
         confirmLabel="삭제"
+        confirmLoading={deleting}
         description={deleteTarget ? `"${deleteTarget.notificationPlaceName}" 알림이 삭제됩니다.` : undefined}
         destructive
         onCancel={() => setDeleteTarget(null)}
@@ -230,6 +259,7 @@ export default function NotificationSettingsScreen() {
         onClose={handleCloseSaveModal}
         onReopenAfterLocationPicked={handleReopenAfterLocationPicked}
         onSave={handleSavePlace}
+        saveLoading={saving}
         title={editTarget ? '위치 알림 수정' : '위치 알림 추가'}
         visible={addModalVisible || editTarget != null}
       />
