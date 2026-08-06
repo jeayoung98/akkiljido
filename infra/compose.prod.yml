@@ -1,0 +1,87 @@
+name: akkiljido-prod
+
+services:
+  postgres:
+    image: postgis/postgis:16-3.5
+    environment:
+      POSTGRES_DB: ${DB_NAME:?DB_NAME must be set}
+      POSTGRES_USER: ${DB_USERNAME:?DB_USERNAME must be set}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - app-network
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+
+  redis:
+    image: redis:7.4-alpine
+    networks:
+      - app-network
+    healthcheck:
+      test:
+        - CMD
+        - redis-cli
+        - ping
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    ports:
+      - "127.0.0.1:${SERVER_PORT:-8080}:8080"
+    environment:
+      SERVER_PORT: "8080"
+      SPRING_PROFILES_ACTIVE: prod
+
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: ${DB_NAME:?DB_NAME must be set}
+      DB_USERNAME: ${DB_USERNAME:?DB_USERNAME must be set}
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set}
+
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+
+      KAKAO_API_KEY: ${KAKAO_API_KEY:?KAKAO_API_KEY is required}
+
+      GMS_BASE_URL: ${GMS_BASE_URL:-https://gms.ssafy.io/gmsapi/api.openai.com/v1}
+      GMS_KEY: ${GMS_KEY:?GMS_KEY is required}
+      GMS_MODEL: ${GMS_MODEL:-gpt-5.4-mini}
+
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:?GOOGLE_CLIENT_ID is required}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+
+      FCM_ENABLED: ${FCM_ENABLED:-false}
+      GOOGLE_APPLICATION_CREDENTIALS: ${GOOGLE_APPLICATION_CREDENTIALS:?GOOGLE_APPLICATION_CREDENTIALS is required}
+
+    volumes:
+      - /opt/akkiljido/secrets/ssafycommon-6de18-firebase-adminsdk-fbsvc-c4d200273a.json:/app/secrets/ssafycommon-6de18-firebase-adminsdk-fbsvc-c4d200273a.json:ro
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - app-network
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+
+networks:
+  app-network:
+    driver: bridge
