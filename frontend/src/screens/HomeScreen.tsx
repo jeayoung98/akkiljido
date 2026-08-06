@@ -13,7 +13,7 @@ import { ReportRecommendationsModal } from '@/components/report/RecommendModal';
 import Colors from '@/constants/Colors';
 import { useShowOncePerPeriod } from '@/hooks/useShowOncePerPeriod';
 import { mockCategorySummaryResponse, mockRecentExpensesResponse, MOCK_TODAY_EXPENSE } from '@/mocks/home';
-import { MOCK_WEEKLY_REPORT, MOCK_WEEKLY_REPORT_RECOMMENDATIONS } from '@/mocks/report';
+import { MOCK_WEEKLY_REPORT, MOCK_WEEKLY_REPORT_RECOMMENDATIONS } from '@/mocks/reportModal';
 import { useDevModeStore } from '@/store/devModeStore';
 import { useNotificationStore } from '@/store/notificationStore';
 import { getWeekIdentifier } from '@/utils/reportSchedule';

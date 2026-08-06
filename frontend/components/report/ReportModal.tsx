@@ -15,6 +15,8 @@ export type ReportData = {
   topCategory: { name: string; amount: number };
   topPlace: { name: string; count: number };
   body: string[]; // AI 분석 문장들. 이어 붙여서 한 문단으로 보여준다.
+  publishedAt: string; // 리포트 발행 일시. "2026-08-01T07:00:00" (과거 리포트 목록에 "발행 8월 1일 오전 7:00"로 표시)
+  comparedToPrevious: number; // 직전 기간 대비 증감률(%). 양수/음수 부호 포함. "전주/전월 대비 +14%"에 쓴다.
 };
 
 export type ReportModalProps = {

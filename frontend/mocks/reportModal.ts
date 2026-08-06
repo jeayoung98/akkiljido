@@ -1,7 +1,7 @@
 import type { ReportData } from '@/components/report/ReportModal';
 import type { ReportRecommendation } from '@/components/report/RecommendModal';
 
-// TODO: 실제 주간 리포트 데이터 연동 전까지 쓰는 임시 값.
+// TODO: 실제 주간 리포트 데이터 연동 전까지 쓰는 임시 값. 홈 화면의 ReportModal(팝업)에서 쓴다.
 export const MOCK_WEEKLY_REPORT: ReportData = {
   period: { start: '2026-07-27', end: '2026-08-02' },
   headline: '이번 주도 알뜰하게 보내셨네요!',
@@ -9,6 +9,8 @@ export const MOCK_WEEKLY_REPORT: ReportData = {
   topCategory: { name: '카페·간식', amount: 42000 },
   topPlace: { name: '스타벅스 강남역점', count: 5 },
   body: ['이번 주 지출은 지난주보다 12% 줄었어요.', '카페 지출 비중이 가장 높았어요.'],
+  publishedAt: '2026-08-03T07:00:00',
+  comparedToPrevious: -12,
 };
 
 // TODO: 실제 추천 데이터 연동 전까지 쓰는 임시 값. MOCK_WEEKLY_REPORT의 "알뜰 추천 보기"에서 쓴다.
@@ -39,4 +41,6 @@ export const MOCK_MONTHLY_REPORT: ReportData = {
   topCategory: { name: '쇼핑', amount: 214000 },
   topPlace: { name: '무신사 스탠다드 강남점', count: 3 },
   body: ['이번 달 지출은 지난달보다 8% 줄었어요.', '쇼핑 지출 비중이 가장 높았어요.'],
+  publishedAt: '2026-08-01T07:00:00',
+  comparedToPrevious: -8,
 };
