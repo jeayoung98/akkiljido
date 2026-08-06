@@ -43,7 +43,7 @@ public class CalendarService {
         OffsetDateTime endDateTime = DateTimeUtils.startOfNextDay(selectedDate);
 
         List<TransactionHistory> transactions =
-                transactionHistoryRepository.findAllByUserIdAndDatetimeRange(
+                transactionHistoryRepository.findAllWithCategoryByUserIdAndDatetimeRange(
                         userId, startDateTime, endDateTime);
 
         return DailyCalendarResponse.of(selectedDate, transactions);
