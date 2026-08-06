@@ -10,7 +10,7 @@ import { IconButton } from '@/components/common/button/IconButton';
 import BaseCard from '@/components/common/card/BaseCard';
 import { SearchInput } from '@/components/common/input/SearchInput';
 import { Scroll } from '@/components/common/Scroll';
-import { KakaoMap, type KakaoMapHandle } from '@/components/map/KakaoMap';
+import { KakaoMap, type KakaoMapHandle, type MapBounds } from '@/components/map/KakaoMap';
 import { MapZoom } from '@/components/map/MapZoom';
 import Colors from '@/constants/Colors';
 import { useMapPickerStore } from '@/store/mapPickerStore';
@@ -59,6 +59,18 @@ export default function MapPickerScreen() {
   const scrollViewRef = useRef<ScrollView>(null);
   // 각 카드가 리스트 안에서 세로로 몇 px 위치에 있는지 기록해뒀다가, 핀 클릭 시 그 위치로 스크롤한다.
   const cardOffsets = useRef<number[]>([]);
+  // 지금 화면에 보이는 지도의 중심 좌표. 검색을 "여기서 가까운 순"으로 정렬하는 기준으로 쓴다.
+  // 지도를 드래그/확대할 때마다 갱신되지만 화면을 다시 그릴 필요는 없어서 state 대신 ref에 담는다.
+  const mapCenterRef = useRef<{ lat: number; lng: number } | null>(null);
+
+  // 지도 이동·확대·축소가 끝날 때마다 화면 경계를 받아, 그 한가운데를 현재 중심으로 기록한다.
+  // (KakaoMap이 중심 좌표를 따로 알려주지 않아 경계값의 중점으로 계산한다.)
+  const handleBoundsChange = (bounds: MapBounds) => {
+    mapCenterRef.current = {
+      lat: (bounds.south + bounds.north) / 2,
+      lng: (bounds.west + bounds.east) / 2,
+    };
+  };
 
   // 좌표를 "선택된 상태"로 즉시 반영한다 — 주소는 "주소 확인 중..."으로 먼저 보여주고,
   // reverseGeocode가 끝나면 실제 주소로 교체한다(패널 자체는 좌표만 있어도 바로 뜨게 하기 위함).
@@ -131,11 +143,15 @@ export default function MapPickerScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // 검색창에서 검색을 실행했을 때 호출되는 함수. 결과를 저장하고, 지도는 첫 번째 결과 위치로 옮긴다.
+  // 검색창에서 검색을 실행했을 때 호출되는 함수.
+  // 지금 보고 있는 지도 중심을 기준 좌표로 함께 넘겨서, 결과가 "여기서 가까운 순"으로 정렬되게 한다
+  // (그러지 않으면 강남을 보면서 "스타벅스"를 검색해도 경주·제주 지점이 먼저 나온다).
+  // 지도 준비 전이라 중심을 아직 못 받았다면 내 위치 → 기본 좌표(서울시청) 순으로 대신 쓴다.
   const handleSearch = async (query: string) => {
+    const searchCenter = mapCenterRef.current ?? currentLocation ?? DEFAULT_CENTER;
     let places;
     try {
-      places = await searchPlaces(query);
+      places = await searchPlaces(query, searchCenter);
     } catch {
       Alert.alert('검색에 실패했어요', '잠시 후 다시 시도해주세요.');
       return;
@@ -212,6 +228,7 @@ export default function MapPickerScreen() {
         selectedPin={selected ? { lat: selected.lat, lng: selected.lng } : undefined}
         onSelectLocation={handleMapTap}
         onPinPress={handlePinPress}
+        onBoundsChange={handleBoundsChange}
         onRoadviewChange={setRoadviewOpen}
         onRoadviewUnavailable={() =>
           Alert.alert('로드뷰가 없는 지점이에요', '파란 선이 표시된 도로 근처를 눌러주세요.')
@@ -311,8 +328,9 @@ export default function MapPickerScreen() {
               padding: 12,
               maxHeight: 220,
             }}>
+            {/* 정렬 기준을 적어두면 "왜 이 순서인지"가 바로 보인다. */}
             <Text style={{ alignSelf: 'flex-end', color: Colors.light.textSecondary, marginBottom: 8 }}>
-              검색 결과: {results.length}개
+              가까운 순 · 검색 결과 {results.length}개
             </Text>
 
             <Scroll ref={scrollViewRef} height={LIST_HEIGHT}>

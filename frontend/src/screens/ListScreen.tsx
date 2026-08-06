@@ -22,6 +22,7 @@ import { TransactionTabBar, type TransactionTab } from '@/components/transaction
 import TransactionItem from '@/components/transaction/TransactionItem';
 import Colors from '@/constants/Colors';
 import { useCategories } from '@/hooks/useCategories';
+import { useKeyboardHeight } from '@/hooks/useKeyboardHeight';
 import { useCreateTransaction, useTransactionList, useTransactionSearch } from '@/hooks/useTransactions';
 import {
   toApiDate,
@@ -161,6 +162,31 @@ export default function ListScreen() {
   const pickedLocation = useMapPickerStore((state) => state.pickedLocation);
   const clearPickedLocation = useMapPickerStore((state) => state.clearPickedLocation);
   const isReturningFromMapRef = useRef(false);
+
+  // 추가 시트는 화면 아래에 고정돼 있어서, 키보드가 올라오면 아래쪽 입력창(결제 수단 등)이 그대로 가립니다.
+  // 키보드 높이만큼 스크롤 아래 여백을 늘려 두고, 포커스된 입력창을 그 위로 스크롤해서 보이게 합니다.
+  const keyboardHeight = useKeyboardHeight();
+  const addScrollRef = useRef<ScrollView>(null);
+  // 지금 포커스된 입력창이 시트 스크롤 안에서 세로로 몇 px에 있는지. 키보드가 올라온 뒤 그 위치로 스크롤합니다.
+  const [focusedFieldOffset, setFocusedFieldOffset] = useState<number | null>(null);
+  const fieldOffsets = useRef<Record<string, number>>({});
+
+  /** 각 입력 그룹의 세로 위치를 기록해 둡니다(onLayout). 포커스 시 어디로 스크롤할지 계산하는 데 씁니다. */
+  const handleFieldLayout = (field: string) => (event: { nativeEvent: { layout: { y: number } } }) => {
+    fieldOffsets.current[field] = event.nativeEvent.layout.y;
+  };
+
+  const handleFieldFocus = (field: string) => () => {
+    setFocusedFieldOffset(fieldOffsets.current[field] ?? null);
+  };
+
+  // 키보드가 실제로 올라와 아래 여백이 반영된 뒤에 스크롤해야 원하는 위치까지 이동합니다.
+  // (여백이 늘어나기 전에 스크롤하면 스크롤 가능 범위가 부족해 중간에서 멈춥니다.)
+  useEffect(() => {
+    if (keyboardHeight === 0 || focusedFieldOffset === null) return;
+    // 라벨까지 함께 보이도록 입력창 위로 24px 정도 여유를 둡니다.
+    addScrollRef.current?.scrollTo({ y: Math.max(0, focusedFieldOffset - 24), animated: true });
+  }, [keyboardHeight, focusedFieldOffset]);
 
   /** 적용된 필터를 목록·검색 API의 쿼리 파라미터로 변환합니다. */
   const listQuery = useMemo(() => {
@@ -532,19 +558,32 @@ export default function ListScreen() {
       </BottomSheet>
 
       <BottomSheet initialHeight={0.82} maxHeight={0.92} minHeight={0.62} onClose={() => setIsAddVisible(false)} visible={isAddVisible}>
-        <ScrollView contentContainerStyle={styles.addContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        <ScrollView
+          ref={addScrollRef}
+          // 키보드가 덮는 만큼 아래 여백을 더해, 가려진 입력창을 키보드 위로 스크롤할 수 있게 합니다.
+          contentContainerStyle={[styles.addContent, { paddingBottom: 36 + keyboardHeight }]}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}>
           <Text style={styles.addTitle}>내역 추가</Text>
           <SegmentedControl<TransactionType> onChange={handleChangeAddType} options={ADD_TRANSACTION_TYPE_OPTIONS} value={addType} />
-          <TextInput label="항목명" labelInside onChangeText={setAddName} placeholder={addType === 'expense' ? '예) 스타벅스, 식료품' : '예) 월급, 용돈'} value={addName} />
-          <CurrencyInput label="금액" onChangeValue={setAddAmount} value={addAmount} />
+          <View onLayout={handleFieldLayout('name')}>
+            <TextInput label="항목명" labelInside onChangeText={setAddName} onFocus={handleFieldFocus('name')} placeholder={addType === 'expense' ? '예) 스타벅스, 식료품' : '예) 월급, 용돈'} value={addName} />
+          </View>
+          <View onLayout={handleFieldLayout('amount')}>
+            <CurrencyInput label="금액" onChangeValue={setAddAmount} onFocus={handleFieldFocus('amount')} value={addAmount} />
+          </View>
           {/* 결제 수단·위치·카테고리는 소비에만 있는 입력입니다. 소득은 항목명·금액·날짜만 받습니다. */}
           {addType === 'expense' ? (
             <>
-              <TextInput label="결제 수단" labelInside maxLength={10} onChangeText={setAddPaymentMethod} placeholder="예) 신한카드, 현금" value={addPaymentMethod} />
+              <View onLayout={handleFieldLayout('paymentMethod')}>
+                <TextInput label="결제 수단" labelInside maxLength={10} onChangeText={setAddPaymentMethod} onFocus={handleFieldFocus('paymentMethod')} placeholder="예) 신한카드, 현금" value={addPaymentMethod} />
+              </View>
               <MapInput label="위치" onPress={handleOpenMapPicker} value={addAddress || undefined} />
               <View style={styles.addTwoColumnRow}>
                 <SelectInput
                   containerStyle={styles.addHalfField}
+                  // 시트 아래쪽에 있는 칸이라 아래로 펼치면 목록이 잘리거나 키보드에 가립니다. 위로 펼칩니다.
+                  dropdownDirection="up"
                   label="카테고리"
                   labelInside
                   onChange={setAddCategoryId}
@@ -620,6 +659,7 @@ const styles = StyleSheet.create({
   resetText: { color: Colors.light.primary, fontSize: 13, fontWeight: '700' },
   addContent: { gap: 14, paddingHorizontal: 20, paddingBottom: 36 },
   addTitle: { marginBottom: 2, color: Colors.light.cardTitle, fontSize: 18, fontWeight: '800', textAlign: 'center' },
+  // 카테고리 목록은 화면 전체를 덮는 Modal 위에 그려지므로(SelectInput), 여기서 겹침 순서를 신경 쓸 필요가 없습니다.
   addTwoColumnRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   addHalfField: { flex: 1 },
   addWarningText: { color: Colors.light.danger, fontSize: 13 },

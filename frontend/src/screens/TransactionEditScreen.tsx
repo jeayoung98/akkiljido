@@ -71,6 +71,18 @@ function formatPlace(address: string) {
 }
 
 /**
+ * 소득·소비 구분 드롭다운의 선택지.
+ * +/− 부호만으로는 어느 쪽인지 한눈에 안 들어온다는 피드백이 있어, 글자와 색으로 구분한다.
+ */
+const TYPE_OPTIONS: { value: TransactionType; label: string; color: string }[] = [
+  { value: 'expense', label: '💸 소비', color: Colors.light.danger },
+  { value: 'income', label: '💰 소득', color: Colors.light.primary },
+];
+
+/** 소득 거래에서 잠기는 항목에 값 대신 보여줄 안내 문구. */
+const INCOME_LOCKED_TEXT = '소득은 해당 없음';
+
+/**
  * 거래 수정 화면입니다.
  * GET /api/v1/transaction/{transactionId}로 기존 값을 불러오고,
  * 저장 시 PATCH로 "바뀐 필드만" 보냅니다(PATCH라 보내지 않은 필드는 서버가 그대로 유지).
@@ -100,7 +112,13 @@ export default function TransactionEditScreen() {
 
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
+  const [isTypeOpen, setIsTypeOpen] = useState(false);
   const isSaving = updateMutation.isPending;
+
+  // 소득 거래에는 장소·카테고리·결제 수단 개념이 없어서(등록 화면도 소득이면 이 입력들을 아예 감춥니다)
+  // 수정 화면에서도 잠급니다. 잠긴 항목은 저장할 때 변경분에서도 제외합니다.
+  const isIncome = type === 'income';
+  const selectedTypeOption = TYPE_OPTIONS.find((option) => option.value === type) ?? TYPE_OPTIONS[0];
 
   // 상세 조회 응답이 도착하면 폼의 초기값으로 한 번 채웁니다.
   // (transactionId가 같으면 다시 채우지 않아, 사용자가 입력하던 값이 재조회로 날아가지 않습니다.)
@@ -141,8 +159,16 @@ export default function TransactionEditScreen() {
     setAmount(digits ? Number(digits) : null);
   };
 
-  const handleToggleType = () => {
-    setType((current) => (current === 'income' ? 'expense' : 'income'));
+  /**
+   * 구분(소비/소득)을 바꿉니다. 소득으로 바꾸면 장소·카테고리·결제 수단이 잠기므로,
+   * 그 항목들의 열려 있던 목록도 함께 닫아 둡니다.
+   */
+  const handleSelectType = (nextType: TransactionType) => {
+    setType(nextType);
+    setIsTypeOpen(false);
+    if (nextType === 'income') {
+      setIsCategoryOpen(false);
+    }
   };
 
   const handleSelectDay = (day: DateData) => {
@@ -179,19 +205,27 @@ export default function TransactionEditScreen() {
     if (type !== original.type) changes.type = type;
     // 서버가 "+09" 같은 오프셋을 붙여 보낼 수 있으므로 앞 19자리(yyyy-MM-dd HH:mm:ss)만 비교합니다.
     if (nextDatetime !== original.datetime.slice(0, 19)) changes.datetime = nextDatetime;
-    if (address !== original.address) changes.address = address;
-    if (Number.isFinite(nextCategoryId) && nextCategoryId !== original.categoryId) {
-      changes.categoryId = nextCategoryId;
-    }
-    // 공백으로 보내면 서버가 400으로 거절하므로, 값이 있을 때만 보냅니다.
-    if (trimmedPaymentMethod && trimmedPaymentMethod !== original.paymentMethod) {
-      changes.paymentMethod = trimmedPaymentMethod;
-    }
     if (memo !== original.memo) changes.memo = memo;
-    // 장소를 다시 고른 경우에만 좌표를 함께 보냅니다.
-    if (coords && (coords.latitude !== original.latitude || coords.longitude !== original.longitude)) {
-      changes.latitude = coords.latitude;
-      changes.longitude = coords.longitude;
+
+    /*
+     * 장소·카테고리·결제 수단은 소비에만 있는 항목입니다. 소득으로 저장할 때는 화면에서 잠겨 있으니
+     * 변경분에도 넣지 않습니다. (빈 값으로 덮어쓰면 서버가 400으로 거절하거나 기존 값이 지워지므로,
+     * "보내지 않아서 서버가 그대로 두게" 하는 편이 안전합니다.)
+     */
+    if (!isIncome) {
+      if (address !== original.address) changes.address = address;
+      if (Number.isFinite(nextCategoryId) && nextCategoryId !== original.categoryId) {
+        changes.categoryId = nextCategoryId;
+      }
+      // 공백으로 보내면 서버가 400으로 거절하므로, 값이 있을 때만 보냅니다.
+      if (trimmedPaymentMethod && trimmedPaymentMethod !== original.paymentMethod) {
+        changes.paymentMethod = trimmedPaymentMethod;
+      }
+      // 장소를 다시 고른 경우에만 좌표를 함께 보냅니다.
+      if (coords && (coords.latitude !== original.latitude || coords.longitude !== original.longitude)) {
+        changes.latitude = coords.latitude;
+        changes.longitude = coords.longitude;
+      }
     }
 
     return changes;
@@ -201,8 +235,12 @@ export default function TransactionEditScreen() {
   const handleSave = async () => {
     if (!transaction || isSaving) return;
 
-    if (!name.trim() || amount === null || !categoryId) {
-      Alert.alert('입력을 확인해 주세요', '가게명, 금액, 카테고리는 꼭 입력해야 해요.');
+    // 소득은 카테고리를 쓰지 않으므로(잠겨 있음) 가게명·금액만 확인합니다.
+    if (!name.trim() || amount === null || (!isIncome && !categoryId)) {
+      Alert.alert(
+        '입력을 확인해 주세요',
+        isIncome ? '항목명과 금액은 꼭 입력해야 해요.' : '가게명, 금액, 카테고리는 꼭 입력해야 해요.',
+      );
       return;
     }
 
@@ -245,13 +283,70 @@ export default function TransactionEditScreen() {
               />
             </View>
 
-            <Text style={styles.fieldLabel}>가게명</Text>
+            {/* 구분(소비/소득)은 +/− 부호 대신 드롭다운으로 골라, 어느 쪽인지 글자와 색으로 바로 보이게 한다. */}
+            <View style={styles.typeFieldRow}>
+              <Text style={[styles.fieldLabel, styles.typeFieldLabel]}>구분</Text>
+              <Pressable
+                accessibilityLabel="소비·소득 구분"
+                accessibilityRole="button"
+                accessibilityState={{ expanded: isTypeOpen }}
+                onPress={() => setIsTypeOpen((current) => !current)}
+                style={({ pressed }) => [
+                  styles.typeTrigger,
+                  { borderColor: selectedTypeOption.color },
+                  pressed && styles.pressed,
+                ]}>
+                <Text style={[styles.typeTriggerText, { color: selectedTypeOption.color }]}>
+                  {selectedTypeOption.label}
+                </Text>
+                <Ionicons
+                  color={selectedTypeOption.color}
+                  name={isTypeOpen ? 'chevron-up' : 'chevron-down'}
+                  size={14}
+                />
+              </Pressable>
+            </View>
+
+            {/*
+              아래 카테고리 목록과 같은 방식으로, 겹쳐 띄우지 않고 제자리에서 펼쳐 아래 입력들을 잠시 밀어낸다.
+              absolute로 겹쳐 띄우면 부모 영역 밖이라 터치가 전달되지 않아 선택이 안 된다.
+            */}
+            {isTypeOpen ? (
+              <View style={styles.typeDropdown}>
+                {TYPE_OPTIONS.map((option) => {
+                  const isSelected = option.value === type;
+                  return (
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: isSelected }}
+                      key={option.value}
+                      onPress={() => handleSelectType(option.value)}
+                      style={({ pressed }) => [
+                        styles.typeOption,
+                        isSelected && { backgroundColor: `${option.color}1A` },
+                        pressed && styles.pressed,
+                      ]}>
+                      <Text
+                        style={[
+                          styles.typeOptionText,
+                          { color: option.color },
+                          isSelected && styles.typeOptionTextSelected,
+                        ]}>
+                        {option.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            ) : null}
+
+            <Text style={styles.fieldLabel}>{isIncome ? '항목명' : '가게명'}</Text>
             <View style={styles.nameFieldRow}>
               <TextInput
                 containerStyle={styles.nameInput}
                 maxLength={10}
                 onChangeText={setName}
-                placeholder="가게명을 입력해 주세요"
+                placeholder={isIncome ? '항목명을 입력해 주세요' : '가게명을 입력해 주세요'}
                 value={name}
               />
               <IconButton
@@ -265,13 +360,12 @@ export default function TransactionEditScreen() {
 
             <Text style={styles.fieldLabel}>금액</Text>
             <View style={styles.amountRow}>
-              <Pressable
-                accessibilityLabel="수입·소비 전환"
-                accessibilityRole="button"
-                onPress={handleToggleType}
-                style={styles.signButton}>
-                <Text style={styles.signButtonText}>{type === 'income' ? '+' : '−'}</Text>
-              </Pressable>
+              {/* 구분은 위 드롭다운에서 고른다. 여기 부호는 고른 결과를 다시 한 번 색으로 보여주기만 한다. */}
+              <View style={[styles.signBadge, { backgroundColor: `${selectedTypeOption.color}1A` }]}>
+                <Text style={[styles.signBadgeText, { color: selectedTypeOption.color }]}>
+                  {isIncome ? '+' : '−'}
+                </Text>
+              </View>
 
               <NativeTextInput
                 accessibilityLabel="금액"
@@ -282,7 +376,11 @@ export default function TransactionEditScreen() {
                 placeholderTextColor={Colors.light.placeholder}
                 // 자릿수에 맞춰 폭을 늘려서 "원"이 바로 옆에 붙게 하고, 그래도 카드 밖으로
                 // 넘치지 않도록 160을 상한으로 둔다.
-                style={[styles.amountInput, { width: Math.min(160, Math.max(24, amountText.length * 15 + 2)) }]}
+                // 금액 글자색도 구분에 맞춰 바꿔서, 소득·소비가 부호 하나가 아니라 화면 전체로 티나게 한다.
+                style={[
+                  styles.amountInput,
+                  { color: selectedTypeOption.color, width: Math.min(160, Math.max(24, amountText.length * 15 + 2)) },
+                ]}
                 value={amountText}
               />
               <Text style={styles.amountUnit}>원</Text>
@@ -305,7 +403,10 @@ export default function TransactionEditScreen() {
               trailingIcon={<Ionicons color={Colors.light.textSecondary} name="calendar-outline" size={16} />}
               value={formatDateDisplay(date)}
             />
+            {/* 소득에는 장소·카테고리·결제 수단이 없으므로 잠급니다(등록 화면에서도 소득이면 이 입력들이 없습니다). */}
             <EditableInfoRow
+              disabled={isIncome}
+              disabledText={INCOME_LOCKED_TEXT}
               label="장소"
               onPress={handleOpenMapPicker}
               trailingIcon={<Ionicons color={Colors.light.textSecondary} name="location-outline" size={16} />}
@@ -314,6 +415,8 @@ export default function TransactionEditScreen() {
 
             <View>
               <EditableInfoRow
+                disabled={isIncome}
+                disabledText={INCOME_LOCKED_TEXT}
                 label="카테고리"
                 onPress={() => setIsCategoryOpen((current) => !current)}
                 showDivider={!isCategoryOpen}
@@ -327,7 +430,7 @@ export default function TransactionEditScreen() {
                 value={selectedCategoryName}
               />
 
-              {isCategoryOpen ? (
+              {isCategoryOpen && !isIncome ? (
                 <View style={styles.categoryDropdown}>
                   {categorySelectOptions.map((option) => {
                     const isSelected = option.value === categoryId;
@@ -357,6 +460,8 @@ export default function TransactionEditScreen() {
             </View>
 
             <EditableInfoRow
+              disabled={isIncome}
+              disabledText={INCOME_LOCKED_TEXT}
               editable
               label="결제 수단"
               onChangeText={setPaymentMethod}
@@ -450,6 +555,57 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
   },
+  typeFieldRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  typeFieldLabel: {
+    marginTop: 0,
+    marginBottom: 0,
+  },
+  typeTrigger: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    minWidth: 104,
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderWidth: 1.5,
+    borderRadius: 12,
+    backgroundColor: Colors.light.cardBackground,
+  },
+  typeTriggerText: {
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  // 제자리에서 펼쳐지는 목록. 트리거(오른쪽 정렬)와 같은 쪽에 붙도록 alignSelf를 준다.
+  typeDropdown: {
+    alignSelf: 'flex-end',
+    minWidth: 120,
+    marginTop: 6,
+    padding: 4,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
+    borderRadius: 12,
+    backgroundColor: Colors.light.cardBackground,
+  },
+  typeOption: {
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  typeOptionText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  typeOptionTextSelected: {
+    fontWeight: '800',
+  },
+  pressed: {
+    opacity: 0.7,
+  },
   nameFieldRow: {
     position: 'relative',
     justifyContent: 'center',
@@ -466,16 +622,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
-  signButton: {
+  signBadge: {
     width: 36,
     height: 36,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 12,
-    backgroundColor: Colors.light.inputBackground,
   },
-  signButtonText: {
-    color: Colors.light.primary,
+  signBadgeText: {
     fontSize: 20,
     fontWeight: '800',
   },
