@@ -14,6 +14,7 @@ import {
 import { Calendar, type DateData, LocaleConfig } from 'react-native-calendars';
 
 import AppScreen from '@/components/common/AppScreen';
+import { AsyncStateView } from '@/components/common/AsyncStateView';
 import { Button } from '@/components/common/button/Button';
 import { IconButton } from '@/components/common/button/IconButton';
 import { TextButton } from '@/components/common/button/TextButton';
@@ -22,10 +23,14 @@ import { AppHeader } from '@/components/common/header/AppHeader';
 import { TextInput } from '@/components/common/input/TextInput';
 import { CategoryIcon } from '@/components/transaction/CategoryIcon';
 import { EditableInfoRow } from '@/components/transaction/EditableInfoRow';
-import type { TransactionType } from '@/components/transaction/TransactionItem';
-import { CATEGORY_ID_SELECT_OPTIONS, CATEGORY_NAME_BY_ID } from '@/constants/categories';
 import Colors from '@/constants/Colors';
-import { MOCK_TRANSACTIONS } from '@/mocks/transactionViewData';
+import { useCategories } from '@/hooks/useCategories';
+import { useTransactionDetail, useUpdateTransaction } from '@/hooks/useTransactions';
+import {
+  type TransactionDetail,
+  type TransactionType,
+  type TransactionUpdateInput,
+} from '@/src/api/transactionsApi';
 import { useMapPickerStore } from '@/store/mapPickerStore';
 
 // DateInput.tsx가 이미 등록해두는 것과 같은 설정이다. react-native-calendars의 전역 설정이라
@@ -40,9 +45,16 @@ LocaleConfig.locales.kr = {
 LocaleConfig.defaultLocale = 'kr';
 
 function toDateOnly(datetime: string) {
-  // "YYYY-MM-DD HH:mm:ss+09"에서 날짜 부분만 로컬 Date로 만든다(시간은 수정 대상이 아니라 버린다).
+  // "YYYY-MM-DD HH:mm:ss"(뒤에 +09가 붙을 수도 있음)에서 날짜 부분만 로컬 Date로 만든다.
   const [year, month, day] = datetime.slice(0, 10).split('-').map(Number);
+  if (!year || !month || !day) return new Date();
   return new Date(year, month - 1, day);
+}
+
+/** 원본 datetime의 시:분:초를 그대로 유지한다. 화면에서 시간은 수정 대상이 아니기 때문이다. */
+function toTimeOnly(datetime: string) {
+  const time = datetime.slice(11, 19);
+  return /^\d{2}:\d{2}:\d{2}$/.test(time) ? time : '00:00:00';
 }
 
 function toDateString(date: Date) {
@@ -59,8 +71,9 @@ function formatPlace(address: string) {
 }
 
 /**
- * 거래 수정 화면입니다. 아직 수정 API가 없어서, 저장을 누르면 MOCK_TRANSACTIONS 배열의
- * 해당 항목을 직접 바꿔치기합니다. 실제 API가 붙으면 이 저장 로직만 PATCH 호출로 바꾸면 됩니다.
+ * 거래 수정 화면입니다.
+ * GET /api/v1/transaction/{transactionId}로 기존 값을 불러오고,
+ * 저장 시 PATCH로 "바뀐 필드만" 보냅니다(PATCH라 보내지 않은 필드는 서버가 그대로 유지).
  *
  * 디자인이 DateInput·MapInput·SelectInput·CurrencyInput 같은 공용 입력 컴포넌트의 기본 모양과
  * 많이 달라서(한 줄짜리 카드 항목), 그 컴포넌트들을 고치는 대신 이 화면 전용으로
@@ -68,45 +81,59 @@ function formatPlace(address: string) {
  */
 export default function TransactionEditScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const transaction = MOCK_TRANSACTIONS.find((record) => String(record.transactionId) === id);
+  const { transaction, isLoading, error, refetch } = useTransactionDetail(id);
+  const { selectOptions: categorySelectOptions, categoryNameById } = useCategories();
+  const updateMutation = useUpdateTransaction();
 
   const pickedLocation = useMapPickerStore((state) => state.pickedLocation);
   const clearPickedLocation = useMapPickerStore((state) => state.clearPickedLocation);
 
-  const [name, setName] = useState(transaction?.name ?? '');
-  const [amount, setAmount] = useState<number | null>(transaction?.amount ?? null);
-  const [type, setType] = useState<TransactionType>(transaction?.type ?? 'expense');
-  const [date, setDate] = useState(() => (transaction ? toDateOnly(transaction.datetime) : new Date()));
-  const [address, setAddress] = useState(transaction?.address ?? '');
-  const [categoryId, setCategoryId] = useState<string | null>(
-    transaction ? String(transaction.categoryId) : null,
-  );
-  const [paymentMethod, setPaymentMethod] = useState(transaction?.paymentMethod ?? '');
-  const [memo, setMemo] = useState(transaction?.memo ?? '');
+  const [name, setName] = useState('');
+  const [amount, setAmount] = useState<number | null>(null);
+  const [type, setType] = useState<TransactionType>('expense');
+  const [date, setDate] = useState(() => new Date());
+  const [address, setAddress] = useState('');
+  const [coords, setCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [categoryId, setCategoryId] = useState<string | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState('');
+  const [memo, setMemo] = useState('');
 
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
+  const isSaving = updateMutation.isPending;
+
+  // 상세 조회 응답이 도착하면 폼의 초기값으로 한 번 채웁니다.
+  // (transactionId가 같으면 다시 채우지 않아, 사용자가 입력하던 값이 재조회로 날아가지 않습니다.)
+  useEffect(() => {
+    if (!transaction) return;
+
+    setName(transaction.name);
+    setAmount(transaction.amount);
+    setType(transaction.type);
+    setDate(toDateOnly(transaction.datetime));
+    setAddress(transaction.address);
+    setCoords(
+      transaction.latitude !== null && transaction.longitude !== null
+        ? { latitude: transaction.latitude, longitude: transaction.longitude }
+        : null,
+    );
+    setCategoryId(String(transaction.categoryId));
+    setPaymentMethod(transaction.paymentMethod);
+    setMemo(transaction.memo);
+  }, [transaction?.transactionId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // map-picker에서 장소를 고르고 돌아오면 store에 값이 채워진다. 여기서 읽어서 반영한 뒤 비운다.
   useEffect(() => {
-    if (pickedLocation) {
-      setAddress(pickedLocation.address);
-      clearPickedLocation();
-    }
+    if (!pickedLocation) return;
+
+    setAddress(pickedLocation.address);
+    setCoords({ latitude: pickedLocation.lat, longitude: pickedLocation.lng });
+    clearPickedLocation();
   }, [pickedLocation, clearPickedLocation]);
 
-  if (!transaction) {
-    return (
-      <AppScreen backgroundColor={Colors.light.background}>
-        <AppHeader showBackButton title="거래 수정" />
-        <View style={styles.notFound}>
-          <Text style={styles.notFoundText}>거래 내역을 찾을 수 없어요.</Text>
-        </View>
-      </AppScreen>
-    );
-  }
-
-  const selectedCategoryName = categoryId ? (CATEGORY_NAME_BY_ID.get(categoryId) ?? '기타') : '기타';
+  // 카테고리 목록을 못 받았을 때 엉뚱한 이름('기타')을 보여주지 않도록, 상세 응답의 이름으로 되돌립니다.
+  const selectedCategoryName =
+    (categoryId ? categoryNameById.get(categoryId) : undefined) ?? transaction?.categoryName ?? '-';
   const amountText = amount === null ? '' : amount.toLocaleString('ko-KR');
 
   const handleAmountChange = (text: string) => {
@@ -136,178 +163,227 @@ export default function TransactionEditScreen() {
     router.back();
   };
 
-  const handleSave = () => {
+  /**
+   * 원본과 달라진 필드만 골라 PATCH body를 만듭니다.
+   * 전부 보내도 되지만, 그러면 다른 화면에서 먼저 바뀐 값까지 되돌릴 수 있어 변경분만 보냅니다.
+   */
+  const buildChanges = (original: TransactionDetail): TransactionUpdateInput => {
+    const changes: TransactionUpdateInput = {};
+    const trimmedName = name.trim();
+    const trimmedPaymentMethod = paymentMethod.trim();
+    const nextDatetime = `${toDateString(date)} ${toTimeOnly(original.datetime)}`;
+    const nextCategoryId = Number(categoryId);
+
+    if (trimmedName !== original.name) changes.name = trimmedName;
+    if (amount !== null && amount !== original.amount) changes.amount = amount;
+    if (type !== original.type) changes.type = type;
+    // 서버가 "+09" 같은 오프셋을 붙여 보낼 수 있으므로 앞 19자리(yyyy-MM-dd HH:mm:ss)만 비교합니다.
+    if (nextDatetime !== original.datetime.slice(0, 19)) changes.datetime = nextDatetime;
+    if (address !== original.address) changes.address = address;
+    if (Number.isFinite(nextCategoryId) && nextCategoryId !== original.categoryId) {
+      changes.categoryId = nextCategoryId;
+    }
+    // 공백으로 보내면 서버가 400으로 거절하므로, 값이 있을 때만 보냅니다.
+    if (trimmedPaymentMethod && trimmedPaymentMethod !== original.paymentMethod) {
+      changes.paymentMethod = trimmedPaymentMethod;
+    }
+    if (memo !== original.memo) changes.memo = memo;
+    // 장소를 다시 고른 경우에만 좌표를 함께 보냅니다.
+    if (coords && (coords.latitude !== original.latitude || coords.longitude !== original.longitude)) {
+      changes.latitude = coords.latitude;
+      changes.longitude = coords.longitude;
+    }
+
+    return changes;
+  };
+
+  /** PATCH /api/v1/transaction/{transactionId} */
+  const handleSave = async () => {
+    if (!transaction || isSaving) return;
+
     if (!name.trim() || amount === null || !categoryId) {
       Alert.alert('입력을 확인해 주세요', '가게명, 금액, 카테고리는 꼭 입력해야 해요.');
       return;
     }
 
-    // TODO(API): PATCH /transactions/{id} 성공 후 React Query의 거래 상세·목록 쿼리를 invalidate하고,
-    // 현재처럼 목업 배열을 직접 바꿔치기하지 않도록 교체합니다.
-    transaction.name = name.trim();
-    transaction.amount = amount;
-    transaction.type = type;
-    transaction.datetime = `${toDateString(date)} ${transaction.datetime.slice(11)}`;
-    transaction.address = address;
-    transaction.categoryId = Number(categoryId);
-    transaction.categoryName = selectedCategoryName;
-    transaction.paymentMethod = paymentMethod;
-    transaction.memo = memo;
+    const changes = buildChanges(transaction);
 
-    // back()으로 돌아가면 상세 화면이 원래 있던 자리(리스트 바로 위)로 정확히 한 칸만 돌아간다.
-    // 화면에 방금 바꾼 값을 보여주는 건 TransactionDetailScreen의 useFocusEffect가 담당한다
-    // (화면을 다시 마운트하지 않고도 포커스를 받을 때마다 MOCK_TRANSACTIONS를 다시 읽는다).
-    router.back();
+    if (Object.keys(changes).length === 0) {
+      // 바뀐 게 없으면 굳이 요청하지 않고 그대로 돌아갑니다.
+      router.back();
+      return;
+    }
+
+    try {
+      await updateMutation.mutateAsync({ transactionId: transaction.transactionId, input: changes });
+      // back()으로 돌아가면 상세 화면이 원래 있던 자리(리스트 바로 위)로 정확히 한 칸만 돌아가고,
+      // 수정 훅이 거래 캐시를 무효화했기 때문에 상세·목록이 알아서 방금 저장한 값을 다시 받아온다.
+      router.back();
+    } catch (caught) {
+      Alert.alert('수정 실패', caught instanceof Error ? caught.message : '거래를 수정하지 못했어요.');
+    }
   };
 
   return (
     <AppScreen backgroundColor={Colors.light.background}>
       <AppHeader showBackButton title="거래 수정" />
 
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <BaseCard style={styles.summaryCard}>
-          <View style={styles.iconContainer}>
-            <CategoryIcon categoryName={selectedCategoryName} size={28} />
-          </View>
+      <AsyncStateView
+        emptyMessage="거래 내역을 찾을 수 없어요."
+        error={error}
+        isEmpty={!transaction}
+        isLoading={isLoading}
+        onRetry={refetch}>
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          <BaseCard style={styles.summaryCard}>
+            <View style={styles.iconContainer}>
+              <CategoryIcon
+                categoryId={categoryId ?? undefined}
+                categoryName={selectedCategoryName}
+                size={28}
+              />
+            </View>
 
-          <Text style={styles.fieldLabel}>가게명</Text>
-          <View style={styles.nameFieldRow}>
-            <TextInput
-              containerStyle={styles.nameInput}
-              onChangeText={setName}
-              placeholder="가게명을 입력해 주세요"
-              value={name}
-            />
-            <IconButton
-              color={Colors.light.placeholder}
-              name="close"
-              onPress={() => setName('')}
-              size={16}
-              style={styles.nameClearButton}
-            />
-          </View>
+            <Text style={styles.fieldLabel}>가게명</Text>
+            <View style={styles.nameFieldRow}>
+              <TextInput
+                containerStyle={styles.nameInput}
+                maxLength={10}
+                onChangeText={setName}
+                placeholder="가게명을 입력해 주세요"
+                value={name}
+              />
+              <IconButton
+                color={Colors.light.placeholder}
+                name="close"
+                onPress={() => setName('')}
+                size={16}
+                style={styles.nameClearButton}
+              />
+            </View>
 
-          <Text style={styles.fieldLabel}>금액</Text>
-          <View style={styles.amountRow}>
-            <Pressable
-              accessibilityLabel="수입·소비 전환"
-              accessibilityRole="button"
-              onPress={handleToggleType}
-              style={styles.signButton}>
-              <Text style={styles.signButtonText}>{type === 'income' ? '+' : '−'}</Text>
-            </Pressable>
+            <Text style={styles.fieldLabel}>금액</Text>
+            <View style={styles.amountRow}>
+              <Pressable
+                accessibilityLabel="수입·소비 전환"
+                accessibilityRole="button"
+                onPress={handleToggleType}
+                style={styles.signButton}>
+                <Text style={styles.signButtonText}>{type === 'income' ? '+' : '−'}</Text>
+              </Pressable>
 
-            <NativeTextInput
-              accessibilityLabel="금액"
-              inputMode="numeric"
-              keyboardType="number-pad"
-              onChangeText={handleAmountChange}
-              placeholder="0"
-              placeholderTextColor={Colors.light.placeholder}
-              // 자릿수에 맞춰 폭을 늘려서 "원"이 바로 옆에 붙게 하고, 그래도 카드 밖으로
-              // 넘치지 않도록 160을 상한으로 둔다.
-              style={[styles.amountInput, { width: Math.min(160, Math.max(24, amountText.length * 15 + 2)) }]}
-              value={amountText}
-            />
-            <Text style={styles.amountUnit}>원</Text>
+              <NativeTextInput
+                accessibilityLabel="금액"
+                inputMode="numeric"
+                keyboardType="number-pad"
+                onChangeText={handleAmountChange}
+                placeholder="0"
+                placeholderTextColor={Colors.light.placeholder}
+                // 자릿수에 맞춰 폭을 늘려서 "원"이 바로 옆에 붙게 하고, 그래도 카드 밖으로
+                // 넘치지 않도록 160을 상한으로 둔다.
+                style={[styles.amountInput, { width: Math.min(160, Math.max(24, amountText.length * 15 + 2)) }]}
+                value={amountText}
+              />
+              <Text style={styles.amountUnit}>원</Text>
 
-            <View style={styles.amountSpacer} />
+              <View style={styles.amountSpacer} />
 
-            <IconButton
-              color={Colors.light.placeholder}
-              name="close"
-              onPress={() => setAmount(null)}
-              size={16}
-            />
-          </View>
-        </BaseCard>
+              <IconButton
+                color={Colors.light.placeholder}
+                name="close"
+                onPress={() => setAmount(null)}
+                size={16}
+              />
+            </View>
+          </BaseCard>
 
-        <View style={styles.fieldsCard}>
-          <EditableInfoRow
-            label="일자"
-            onPress={() => setIsDatePickerOpen(true)}
-            trailingIcon={<Ionicons color={Colors.light.textSecondary} name="calendar-outline" size={16} />}
-            value={formatDateDisplay(date)}
-          />
-          <EditableInfoRow
-            label="장소"
-            onPress={handleOpenMapPicker}
-            trailingIcon={<Ionicons color={Colors.light.textSecondary} name="location-outline" size={16} />}
-            value={formatPlace(address)}
-          />
-
-          <View>
+          <View style={styles.fieldsCard}>
             <EditableInfoRow
-              label="카테고리"
-              onPress={() => setIsCategoryOpen((current) => !current)}
-              showDivider={!isCategoryOpen}
-              trailingIcon={
-                <Ionicons
-                  color={Colors.light.textSecondary}
-                  name={isCategoryOpen ? 'chevron-up' : 'chevron-down'}
-                  size={16}
-                />
-              }
-              value={selectedCategoryName}
+              label="일자"
+              onPress={() => setIsDatePickerOpen(true)}
+              trailingIcon={<Ionicons color={Colors.light.textSecondary} name="calendar-outline" size={16} />}
+              value={formatDateDisplay(date)}
+            />
+            <EditableInfoRow
+              label="장소"
+              onPress={handleOpenMapPicker}
+              trailingIcon={<Ionicons color={Colors.light.textSecondary} name="location-outline" size={16} />}
+              value={formatPlace(address)}
             />
 
-            {isCategoryOpen ? (
-              <View style={styles.categoryDropdown}>
-                {CATEGORY_ID_SELECT_OPTIONS.map((option) => {
-                  const isSelected = option.value === categoryId;
-                  return (
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityState={{ selected: isSelected }}
-                      key={option.value}
-                      onPress={() => handleSelectCategory(option.value)}
-                      style={({ pressed }) => [
-                        styles.categoryOption,
-                        isSelected && styles.categoryOptionSelected,
-                        pressed && styles.categoryOptionPressed,
-                      ]}>
-                      <Text
-                        style={[
-                          styles.categoryOptionText,
-                          isSelected && styles.categoryOptionTextSelected,
+            <View>
+              <EditableInfoRow
+                label="카테고리"
+                onPress={() => setIsCategoryOpen((current) => !current)}
+                showDivider={!isCategoryOpen}
+                trailingIcon={
+                  <Ionicons
+                    color={Colors.light.textSecondary}
+                    name={isCategoryOpen ? 'chevron-up' : 'chevron-down'}
+                    size={16}
+                  />
+                }
+                value={selectedCategoryName}
+              />
+
+              {isCategoryOpen ? (
+                <View style={styles.categoryDropdown}>
+                  {categorySelectOptions.map((option) => {
+                    const isSelected = option.value === categoryId;
+                    return (
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityState={{ selected: isSelected }}
+                        key={option.value}
+                        onPress={() => handleSelectCategory(option.value)}
+                        style={({ pressed }) => [
+                          styles.categoryOption,
+                          isSelected && styles.categoryOptionSelected,
+                          pressed && styles.categoryOptionPressed,
                         ]}>
-                        {option.label}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            ) : null}
+                        <Text
+                          style={[
+                            styles.categoryOptionText,
+                            isSelected && styles.categoryOptionTextSelected,
+                          ]}>
+                          {option.label}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              ) : null}
+            </View>
+
+            <EditableInfoRow
+              editable
+              label="결제 수단"
+              onChangeText={setPaymentMethod}
+              onClear={() => setPaymentMethod('')}
+              placeholder="결제 수단을 입력해 주세요"
+              value={paymentMethod}
+            />
+            <EditableInfoRow
+              editable
+              label="메모"
+              onChangeText={setMemo}
+              onClear={() => setMemo('')}
+              placeholder="메모를 입력해 주세요"
+              showDivider={false}
+              value={memo}
+            />
           </View>
 
-          <EditableInfoRow
-            editable
-            label="결제 수단"
-            onChangeText={setPaymentMethod}
-            onClear={() => setPaymentMethod('')}
-            placeholder="결제 수단을 입력해 주세요"
-            value={paymentMethod}
-          />
-          <EditableInfoRow
-            editable
-            label="메모"
-            onChangeText={setMemo}
-            onClear={() => setMemo('')}
-            placeholder="메모를 입력해 주세요"
-            showDivider={false}
-            value={memo}
-          />
-        </View>
-
-        <View style={styles.actions}>
-          <Button onPress={handleCancel} style={styles.actionButton} variant="white">
-            취소
-          </Button>
-          <Button onPress={handleSave} style={styles.actionButton} variant="green">
-            저장
-          </Button>
-        </View>
-      </ScrollView>
+          <View style={styles.actions}>
+            <Button onPress={handleCancel} style={styles.actionButton} variant="white">
+              취소
+            </Button>
+            <Button loading={isSaving} onPress={handleSave} style={styles.actionButton} variant="green">
+              저장
+            </Button>
+          </View>
+        </ScrollView>
+      </AsyncStateView>
 
       {isDatePickerOpen ? (
         <Modal animationType="fade" onRequestClose={() => setIsDatePickerOpen(false)} transparent visible>
@@ -463,16 +539,6 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     flex: 1,
-  },
-  notFound: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
-  },
-  notFoundText: {
-    color: Colors.light.textSecondary,
-    fontSize: 14,
   },
   backdrop: {
     flex: 1,
