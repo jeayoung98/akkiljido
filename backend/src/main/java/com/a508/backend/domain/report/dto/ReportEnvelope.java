@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
@@ -18,7 +19,12 @@ import io.swagger.v3.oas.annotations.media.Schema;
  *   <li>summary — 컬럼에 없는 건수·장소 수</li>
  *   <li>recommendations — 추천 모달 프리필 재료가 프론트까지 가는 유일한 통로</li>
  * </ul>
+ * <p>
+ * ⚠ 이 구조는 ai_answer 컬럼에 <b>문자열로 저장</b>되므로, 필드를 지우면 이미 저장된 리포트에는
+ * 그 키가 남아 있다. 그래서 모르는 필드를 무시하도록 열어 둔다 — 스키마를 진화시켜도 과거
+ * 리포트 조회가 깨지지 않아야 한다.
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 @Schema(description = "리포트 봉투(상세 조회 응답 본체)")
 public record ReportEnvelope(
 
@@ -38,6 +44,7 @@ public record ReportEnvelope(
 	List<RecommendationItem> recommendations
 ) {
 
+	@JsonIgnoreProperties(ignoreUnknown = true)
 	@Schema(description = "리포트 기간(양끝 포함)")
 	public record Period(
 
@@ -51,6 +58,7 @@ public record ReportEnvelope(
 	) {
 	}
 
+	@JsonIgnoreProperties(ignoreUnknown = true)
 	@Schema(description = "요약 수치")
 	public record Summary(
 
