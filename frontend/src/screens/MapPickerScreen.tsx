@@ -28,10 +28,19 @@ export default function MapPickerScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const setPickedLocation = useMapPickerStore((state) => state.setPickedLocation);
+  const initialLocation = useMapPickerStore((state) => state.initialLocation);
+  const clearInitialLocation = useMapPickerStore((state) => state.clearInitialLocation);
   const [searchText, setSearchText] = useState('');
   const [results, setResults] = useState<PlaceResult[]>([]);
   // 지도를 직접 탭했을 때만 쓰인다. 검색 결과는 리스트에서 "선택" 누르면 바로 확정되고, 이 state를 거치지 않는다.
-  const [selected, setSelected] = useState<PlaceResult | null>(null);
+  // initialLocation이 있으면(추천 알림 등) 첫 렌더부터 그 위치로 선택된 상태로 시작해서, KakaoMap의
+  // initialCenter(첫 렌더 값으로 고정됨)가 처음부터 그 좌표를 향하게 한다 — WebView가 늦게 준비되는
+  // 문제 때문에 setCenter만으로는 항상 중앙에 오지 않는다.
+  const [selected, setSelected] = useState<PlaceResult | null>(() =>
+    initialLocation
+      ? { name: initialLocation.address, address: initialLocation.address, lat: initialLocation.lat, lng: initialLocation.lng }
+      : null,
+  );
   // 검색 결과 리스트에서 카드(선택 버튼 제외)를 눌렀을 때, 지도만 미리 이동시키는 용도.
   const [previewCenter, setPreviewCenter] = useState<{ lat: number; lng: number } | null>(null);
   // 지도의 핀을 눌렀을 때, 리스트에서 그 핀에 해당하는 카드를 강조하기 위한 인덱스.
@@ -103,7 +112,23 @@ export default function MapPickerScreen() {
   };
 
   useEffect(() => {
+    if (initialLocation) {
+      // 이미 정해진 위치(추천 알림 등)를 갖고 들어온 경우, 현재 위치로 옮기지 않고 그 위치를 그대로 보여준다.
+      return;
+    }
     handleLocate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // 이전 화면(예: 추천 알림)이 미리 넘겨준 위치가 있으면(selected는 이미 위에서 이 값으로 시작함),
+  // WebView가 늦게 준비돼 initialCenter가 못 먹혔을 경우를 대비해 setCenter로 한 번 더 확실히 옮긴다.
+  useEffect(() => {
+    if (!initialLocation) {
+      return;
+    }
+    mapRef.current?.setCenter({ lat: initialLocation.lat, lng: initialLocation.lng });
+    clearInitialLocation();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // 검색창에서 검색을 실행했을 때 호출되는 함수. 결과를 저장하고, 지도는 첫 번째 결과 위치로 옮긴다.

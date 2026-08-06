@@ -3,7 +3,7 @@ import { Modal, Pressable, StyleProp, StyleSheet, View, ViewStyle } from 'react-
 
 import Colors from '@/constants/Colors';
 
-export type CenterModalProps = {
+export type CentralModalProps = {
   /** Modal의 표시 여부는 사용하는 화면에서 관리합니다. */
   visible: boolean;
   onClose: () => void;
@@ -19,13 +19,13 @@ export type CenterModalProps = {
  * 카드 내부 레이아웃(패딩, 헤더 유무 등)은 children으로 넘겨준 화면이 알아서 구성합니다.
  * ConfirmModal, SaveAlarmModal 등 가운데 모달들이 각자 이 틀을 따로 만들던 걸 여기로 모았습니다.
  */
-export function CenterModal({
+export function CentralModal({
   visible,
   onClose,
   dismissOnBackdropPress = true,
   cardStyle,
   children,
-}: CenterModalProps) {
+}: CentralModalProps) {
   const handleBackdropPress = () => {
     if (dismissOnBackdropPress) onClose();
   };
