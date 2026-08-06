@@ -39,7 +39,7 @@ public class SecurityConfig {
 
 					.requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
 
-					.requestMatchers(HttpMethod.PATCH, "/api/v1/users/me/nickname").hasRole("GUEST", "USER")
+					.requestMatchers(HttpMethod.PATCH, "/api/v1/users/me/nickname").hasAnyRole("GUEST", "USER")
 
 					.requestMatchers(HttpMethod.POST, "/api/v1/auth/logout").hasAnyRole("GUEST", "USER")
 
