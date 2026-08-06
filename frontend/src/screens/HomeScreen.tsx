@@ -10,8 +10,9 @@ import { NearbyWeekSpendingCard } from '@/components/home/NearbyWeekSpendingCard
 import { TodaySpendingCard } from '@/components/home/TodaySpendingCard';
 import type { LatLng } from '@/components/map/KakaoMap';
 import Colors from '@/constants/Colors';
+import { getTodayExpenseAmount } from '@/src/api/calendarApi';
 import { getCategorySummary, getRecentExpenses } from '@/src/api/homeApi';
-import { MOCK_TODAY_EXPENSE, type CategorySummaryItem, type NearbyExpensePlace } from '@/mocks/home';
+import type { CategorySummaryItem, NearbyExpensePlace } from '@/mocks/home';
 import { useNotificationStore } from '@/store/notificationStore';
 
 const NICKNAME = 'Dust';
@@ -19,12 +20,13 @@ const NICKNAME = 'Dust';
 /**
  * 홈 탭 화면입니다. 상단(인사말+알림)과 오늘 지출액 카드는 초록 배경 안에, 그 아래 두 카드
  * (내 주변 7일간 지출, 카테고리별 지출)는 흰 배경 안에 둬서 두 영역을 시각적으로 구분합니다.
- * 카테고리·내 주변 지출은 src/api/homeApi.ts로 실제 API 연결했고, "오늘 지출액"은 API가 아직
- * 없어서 mocks/home.ts의 임시 값을 그대로 씁니다.
+ * 데이터는 전부 src/api/에서 실제 API로 가져옵니다. "오늘 지출액"은 전용 API가 없어서
+ * 캘린더 day API(오늘 날짜)를 재사용하고, transactionList에서 지출만 합산합니다.
  * 알림 뱃지 개수는 store/notificationStore.ts의 안 읽은 알림 수를 그대로 씁니다.
  */
 export default function HomeScreen() {
   const [categories, setCategories] = useState<CategorySummaryItem[]>([]);
+  const [todayExpense, setTodayExpense] = useState(0);
   const [nearbyExpenses, setNearbyExpenses] = useState<{ totalAmount: number; placeList: NearbyExpensePlace[] }>({
     totalAmount: 0,
     placeList: [],
@@ -47,6 +49,19 @@ export default function HomeScreen() {
         setCategories(summary.categories);
       } catch (error) {
         console.error('[home] category-summary failed', error);
+      }
+    })();
+  }, []);
+
+  // 전용 API가 없어서 캘린더 day API(오늘 날짜)를 재사용한다. 자세한 이유는 calendarApi.ts 참고.
+  useEffect(() => {
+    (async () => {
+      try {
+        const amount = await getTodayExpenseAmount();
+        console.info('[home] today-expense success', amount);
+        setTodayExpense(amount);
+      } catch (error) {
+        console.error('[home] today-expense failed', error);
       }
     })();
   }, []);
@@ -108,7 +123,7 @@ export default function HomeScreen() {
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.topContent}>
-          <TodaySpendingCard amount={MOCK_TODAY_EXPENSE} />
+          <TodaySpendingCard amount={todayExpense} />
         </View>
 
         {/* 오늘 지출액 카드까지만 초록 배경이고, 그 아래부터는 흰 배경으로 이어진다. */}
