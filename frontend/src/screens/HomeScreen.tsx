@@ -8,6 +8,7 @@ import { IconButton } from '@/components/common/button/IconButton';
 import { CategorySummaryCard } from '@/components/home/CategorySummaryCard';
 import { NearbyWeekSpendingCard } from '@/components/home/NearbyWeekSpendingCard';
 import { TodaySpendingCard } from '@/components/home/TodaySpendingCard';
+import type { LatLng } from '@/components/map/KakaoMap';
 import Colors from '@/constants/Colors';
 import { getCategorySummary, getRecentExpenses } from '@/src/api/homeApi';
 import { MOCK_TODAY_EXPENSE, type CategorySummaryItem, type NearbyExpensePlace } from '@/mocks/home';
@@ -28,6 +29,10 @@ export default function HomeScreen() {
     totalAmount: 0,
     placeList: [],
   });
+  // 위치는 여기서 한 번만 조회해서 API 호출(recent-expenses)과 NearbyWeekSpendingCard의 지도 중심에
+  // 똑같이 쓴다. 카드가 따로 또 조회하면 권한 팝업이 중복되고, API가 쓴 위치랑 지도 중심이 어긋날 수 있다.
+  const [currentLocation, setCurrentLocation] = useState<LatLng | null>(null);
+  const [locationUnavailable, setLocationUnavailable] = useState(false);
   const unreadNotificationCount = useNotificationStore(
     (state) => state.notifications.filter((item) => !item.read).length
   );
@@ -46,23 +51,36 @@ export default function HomeScreen() {
     })();
   }, []);
 
-  // 위치 권한이 없으면 API 자체를 호출하지 않는다(latitude/longitude가 필수 파라미터라서 값이 없으면
-  // 호출할 수 없다). 이 경우도 카드가 기본 위치로 대체 표시되는 기존 로직 그대로 둔다.
   useEffect(() => {
     (async () => {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        setLocationUnavailable(true);
+        return;
+      }
       try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== 'granted') return;
-
         const position = await Location.getCurrentPositionAsync({});
-        const recentExpenses = await getRecentExpenses(position.coords.latitude, position.coords.longitude);
+        setCurrentLocation({ lat: position.coords.latitude, lng: position.coords.longitude });
+      } catch {
+        setLocationUnavailable(true);
+      }
+    })();
+  }, []);
+
+  // recent-expenses는 latitude/longitude가 필수 파라미터라서, 위치를 확보한 뒤에만 호출한다.
+  useEffect(() => {
+    if (!currentLocation) return;
+
+    (async () => {
+      try {
+        const recentExpenses = await getRecentExpenses(currentLocation.lat, currentLocation.lng);
         console.info('[home] recent-expenses success', recentExpenses);
         setNearbyExpenses(recentExpenses);
       } catch (error) {
         console.error('[home] recent-expenses failed', error);
       }
     })();
-  }, []);
+  }, [currentLocation]);
 
   return (
     <AppScreen backgroundColor={Colors.light.primary}>
@@ -95,7 +113,12 @@ export default function HomeScreen() {
 
         {/* 오늘 지출액 카드까지만 초록 배경이고, 그 아래부터는 흰 배경으로 이어진다. */}
         <View style={styles.body}>
-          <NearbyWeekSpendingCard places={nearbyExpenses.placeList} totalAmount={nearbyExpenses.totalAmount} />
+          <NearbyWeekSpendingCard
+            currentLocation={currentLocation}
+            locationUnavailable={locationUnavailable}
+            places={nearbyExpenses.placeList}
+            totalAmount={nearbyExpenses.totalAmount}
+          />
           <CategorySummaryCard categories={categories} onPressMore={() => router.push('/list?tab=analysis')} />
         </View>
       </ScrollView>
