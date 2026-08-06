@@ -20,8 +20,12 @@ import jakarta.validation.constraints.Size;
  * 카테고리(categoryId)와 결제 수단(payment_method)은 수정 후의 거래 유형에 따라 허용 여부가 달라진다.
  * 수정 결과가 소득(INCOME)이면 둘 다 보낼 수 없고(기존 값도 비워진다), 지출(EXPENSE)이면 둘 다 채워져 있어야 한다.
  * 기존 값과 요청을 합친 상태로 판단해야 하는 규칙이라 서비스 계층에서 검증한다.
+ * <p>
+ * 장소(address)와 좌표(latitude/longitude)도 소득 거래에는 존재하지 않는 값이다.
+ * 수정 결과가 소득(INCOME)이면 요청에 값이 있어도 무시하고, 기존 값과 파생된 법정동 정보까지 null 로 비운다.
  */
-@Schema(description = "거래내역 부분 수정(PATCH) 요청. 보내지 않은 필드는 기존 값을 유지한다.")
+@Schema(description = "거래내역 부분 수정(PATCH) 요청. 보내지 않은 필드는 기존 값을 유지한다. "
+	+ "수정 결과가 소득(INCOME)이면 장소·좌표·카테고리·결제 수단은 모두 null 로 저장된다.")
 public record TransactionHistoryUpdateRequest(
 
 	@Schema(description = "거래명", example = "김밥천국")
@@ -48,16 +52,16 @@ public record TransactionHistoryUpdateRequest(
 	@JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
 	LocalDateTime datetime,
 
-	@Schema(description = "주소", example = "서울 강남구 역삼동")
+	@Schema(description = "주소. 수정 결과가 소득(INCOME)이면 무시되고 null 로 저장된다.", example = "서울 강남구 역삼동")
 	@Size(max = 50, message = "주소는 50자 이하여야 합니다.")
 	String address,
 
-	@Schema(description = "위도", example = "35.1796")
+	@Schema(description = "위도. 수정 결과가 소득(INCOME)이면 무시되고 null 로 저장된다.", example = "35.1796")
 	@DecimalMin(value = "-90.0", message = "위도는 -90 이상이어야 합니다.")
 	@DecimalMax(value = "90.0", message = "위도는 90 이하여야 합니다.")
 	Double latitude,
 
-	@Schema(description = "경도", example = "129.0756")
+	@Schema(description = "경도. 수정 결과가 소득(INCOME)이면 무시되고 null 로 저장된다.", example = "129.0756")
 	@DecimalMin(value = "-180.0", message = "경도는 -180 이상이어야 합니다.")
 	@DecimalMax(value = "180.0", message = "경도는 180 이하여야 합니다.")
 	Double longitude,
