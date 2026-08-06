@@ -62,7 +62,7 @@ export function TransactionAnalysisTab({
         amount,
         percent: totalAmount === 0 ? 0 : Math.round((amount / totalAmount) * 100),
         // 카테고리 분석은 지도·아이콘과 같은 categoryId 팔레트 색을 씁니다.
-        color: getCategoryColorById(categoryId),
+        color: getCategoryColorById(categoryId, name),
       }))
       .sort((left, right) => right.amount - left.amount);
 
