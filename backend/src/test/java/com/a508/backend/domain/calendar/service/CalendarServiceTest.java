@@ -19,6 +19,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import com.a508.backend.domain.calendar.dto.response.CalendarDateResponse;
 import com.a508.backend.domain.calendar.dto.response.DailyCalendarResponse;
 import com.a508.backend.domain.calendar.dto.response.MonthlyCalendarResponse;
+import com.a508.backend.domain.category.entity.Category;
 import com.a508.backend.domain.transaction_history.entity.TransactionHistory;
 import com.a508.backend.domain.transaction_history.entity.TransactionType;
 import com.a508.backend.domain.transaction_history.repository.TransactionHistoryRepository;
@@ -128,14 +129,14 @@ class CalendarServiceTest {
 
         List<TransactionHistory> transactions = List.of(
                 createTransaction(1L, LocalDateTime.of(2024, 7, 17, 9, 0),
-                        "급여", 50000L, TransactionType.INCOME),
+                        "급여", 50000L, TransactionType.INCOME, null, null),
                 createTransaction(2L, LocalDateTime.of(2024, 7, 17, 12, 0),
-                        "스타벅스", 4100L, TransactionType.EXPENSE),
+                        "스타벅스", 4100L, TransactionType.EXPENSE, 3L, "카페"),
                 createTransaction(3L, LocalDateTime.of(2024, 7, 17, 18, 0),
-                        "장보기", 82400L, TransactionType.EXPENSE));
+                        "장보기", 82400L, TransactionType.EXPENSE, 4L, "생활"));
 
         when(transactionHistoryRepository
-                .findAllByUserIdAndDatetimeRange(
+                .findAllWithCategoryByUserIdAndDatetimeRange(
                         USER_ID, startDateTime, endDateTime))
                 .thenReturn(transactions);
 
@@ -149,14 +150,18 @@ class CalendarServiceTest {
         assertThat(response.transactionList().get(0).name()).isEqualTo("급여");
         assertThat(response.transactionList().get(0).amount()).isEqualTo(50000L);
         assertThat(response.transactionList().get(0).type()).isEqualTo(TransactionType.INCOME);
+        assertThat(response.transactionList().get(0).categoryId()).isNull();
+        assertThat(response.transactionList().get(0).categoryName()).isNull();
 
         assertThat(response.transactionList().get(1).transactionId()).isEqualTo(2L);
         assertThat(response.transactionList().get(1).name()).isEqualTo("스타벅스");
         assertThat(response.transactionList().get(1).amount()).isEqualTo(4100L);
         assertThat(response.transactionList().get(1).type()).isEqualTo(TransactionType.EXPENSE);
+        assertThat(response.transactionList().get(1).categoryId()).isEqualTo(3L);
+        assertThat(response.transactionList().get(1).categoryName()).isEqualTo("카페");
 
         verify(transactionHistoryRepository)
-                .findAllByUserIdAndDatetimeRange(
+                .findAllWithCategoryByUserIdAndDatetimeRange(
                         USER_ID, startDateTime, endDateTime);
     }
 
@@ -168,7 +173,7 @@ class CalendarServiceTest {
         OffsetDateTime endDateTime = DateTimeUtils.startOfNextDay(selectedDate);
 
         when(transactionHistoryRepository
-                .findAllByUserIdAndDatetimeRange(
+                .findAllWithCategoryByUserIdAndDatetimeRange(
                         USER_ID, startDateTime, endDateTime))
                 .thenReturn(List.of());
 
@@ -198,7 +203,7 @@ class CalendarServiceTest {
         OffsetDateTime endDateTime = DateTimeUtils.startOfNextDay(selectedDate);
 
         when(transactionHistoryRepository
-                .findAllByUserIdAndDatetimeRange(
+                .findAllWithCategoryByUserIdAndDatetimeRange(
                         USER_ID, startDateTime, endDateTime))
                 .thenReturn(List.of());
 
@@ -206,18 +211,22 @@ class CalendarServiceTest {
 
         assertThat(response.date()).isEqualTo(selectedDate);
         verify(transactionHistoryRepository)
-                .findAllByUserIdAndDatetimeRange(
+                .findAllWithCategoryByUserIdAndDatetimeRange(
                         USER_ID, startDateTime, endDateTime);
     }
 
     private TransactionHistory createTransaction(
             LocalDateTime datetime, Long amount, TransactionType type) {
-        return createTransaction(null, datetime, "거래", amount, type);
+        return type == TransactionType.INCOME
+                ? createTransaction(null, datetime, "거래", amount, type, null, null)
+                : createTransaction(null, datetime, "거래", amount, type, 1L, "기타");
     }
 
     private TransactionHistory createTransaction(
-            Long id, LocalDateTime datetime, String name, Long amount, TransactionType type) {
+            Long id, LocalDateTime datetime, String name, Long amount, TransactionType type,
+            Long categoryId, String categoryName) {
         TransactionHistory transaction = TransactionHistory.builder()
+                .category(categoryId == null ? null : createCategory(categoryId, categoryName))
                 .datetime(DateTimeUtils.toServiceOffset(datetime))
                 .amount(amount)
                 .type(type)
@@ -230,5 +239,15 @@ class CalendarServiceTest {
         }
 
         return transaction;
+    }
+
+    private Category createCategory(Long id, String name) {
+        Category category = Category.builder()
+                .name(name)
+                .build();
+
+        ReflectionTestUtils.setField(category, "id", id);
+
+        return category;
     }
 }
