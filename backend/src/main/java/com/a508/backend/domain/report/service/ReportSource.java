@@ -35,10 +35,14 @@ public record ReportSource(
 			.toList();
 	}
 
-	/** 재량지출 — 지출에서 고정비(자동이체)·송금(계좌이체)을 뺀 것. 리포트가 다루는 주 대상. */
+	/**
+	 * 재량지출 — 지출에서 고정비(자동이체)·송금(계좌이체)을 뺀 것. 리포트가 다루는 주 대상.
+	 * 결제 수단은 소득 거래에서 null 이 될 수 있는 컬럼이라, Set.of 의 contains(null) NPE 를 피하려 null 을 먼저 걸러 통과시킨다.
+	 */
 	public List<TransactionHistory> discretionary() {
 		return expenses().stream()
-			.filter(transaction -> !NON_DISCRETIONARY_PAYMENT.contains(transaction.getPaymentMethod()))
+			.filter(transaction -> transaction.getPaymentMethod() == null
+				|| !NON_DISCRETIONARY_PAYMENT.contains(transaction.getPaymentMethod()))
 			.toList();
 	}
 

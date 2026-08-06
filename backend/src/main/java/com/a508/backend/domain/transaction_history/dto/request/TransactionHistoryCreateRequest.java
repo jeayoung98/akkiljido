@@ -11,10 +11,15 @@ import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 /**
  * 거래내역 등록 요청. JSON 키는 API 스펙을 그대로 따른다(payment_method 는 snake_case).
+ * <p>
+ * 결제 수단(payment_method)과 카테고리(categoryId)는 거래 유형에 따라 필수 여부가 달라지므로
+ * Bean Validation 으로 단독 검증하지 않고 서비스 계층에서 type 과 함께 검증한다.
+ * 지출(EXPENSE)이면 둘 다 필수, 소득(INCOME)이면 둘 다 보낼 수 없다.
  */
 @Schema(description = "거래내역 등록 요청")
 public record TransactionHistoryCreateRequest(
@@ -32,14 +37,13 @@ public record TransactionHistoryCreateRequest(
 	@NotNull(message = "거래 유형은 필수입니다.")
 	TransactionType type,
 
-	@Schema(description = "결제 수단", example = "카드")
+	@Schema(description = "결제 수단. 지출(EXPENSE)은 필수, 소득(INCOME)은 보낼 수 없다.", example = "카드")
 	@JsonProperty("payment_method")
-	@NotBlank(message = "결제 수단은 필수입니다.")
+	@Pattern(regexp = ".*\\S.*", flags = Pattern.Flag.DOTALL, message = "결제 수단은 공백일 수 없습니다.")
 	@Size(max = 10, message = "결제 수단은 10자 이하여야 합니다.")
 	String paymentMethod,
 
-	@Schema(description = "카테고리 ID", example = "3")
-	@NotNull(message = "카테고리는 필수입니다.")
+	@Schema(description = "카테고리 ID. 지출(EXPENSE)은 필수, 소득(INCOME)은 보낼 수 없다.", example = "3")
 	Long categoryId,
 
 	@Schema(description = "거래 일시", example = "2026-07-27 15:30:00")

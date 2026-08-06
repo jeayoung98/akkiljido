@@ -33,6 +33,8 @@ public enum ExceptionType {
 	INVALID_TRANSACTION_TYPE(BAD_REQUEST, "T003", "거래 유형이 올바르지 않습니다."),
 	INVALID_DATE_FORMAT(BAD_REQUEST, "T004", "날짜 형식이 올바르지 않습니다."),
 	INVALID_DATE_RANGE(BAD_REQUEST, "T005", "조회 시작일은 종료일보다 이후일 수 없습니다."),
+	INCOME_FIELD_NOT_ALLOWED(BAD_REQUEST, "T008", "소득 거래에는 카테고리와 결제 수단을 지정할 수 없습니다."),
+	EXPENSE_FIELD_REQUIRED(BAD_REQUEST, "T009", "지출 거래에는 카테고리와 결제 수단이 필수입니다."),
 
 	// transaction map
 	INVALID_MAP_BOUNDS(BAD_REQUEST, "T006", "지도 조회 좌표 범위가 올바르지 않습니다."),

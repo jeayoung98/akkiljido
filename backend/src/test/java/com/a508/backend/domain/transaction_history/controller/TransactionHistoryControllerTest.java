@@ -126,6 +126,99 @@ class TransactionHistoryControllerTest {
 	}
 
 	@Test
+	@DisplayName("POST 소득 등록은 카테고리·결제 수단 없이 200 을 반환하고 두 필드가 null 로 역직렬화된다")
+	void createIncome() throws Exception {
+		String incomeBody = """
+			{
+			  "name": "월급",
+			  "amount": 3000000,
+			  "type": "INCOME",
+			  "datetime": "2026-07-25 10:00:00",
+			  "memo": "7월 급여"
+			}
+			""";
+
+		mockMvc.perform(post("/api/v1/transaction")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(incomeBody))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.success").value(true));
+
+		ArgumentCaptor<TransactionHistoryCreateRequest> captor =
+			ArgumentCaptor.forClass(TransactionHistoryCreateRequest.class);
+		verify(service).createTransactionHistory(eq(MOCK_USER_ID), captor.capture());
+		TransactionHistoryCreateRequest request = captor.getValue();
+
+		assertThat(request.type()).isEqualTo(TransactionType.INCOME);
+		assertThat(request.paymentMethod()).isNull();
+		assertThat(request.categoryId()).isNull();
+	}
+
+	@Test
+	@DisplayName("POST 소득 등록에 카테고리·결제 수단이 섞여 있으면 400 과 코드 T008 을 반환한다")
+	void createIncomeWithExpenseOnlyFields() throws Exception {
+		when(service.createTransactionHistory(eq(MOCK_USER_ID), any()))
+			.thenThrow(new BusinessException(ExceptionType.INCOME_FIELD_NOT_ALLOWED));
+
+		String incomeBody = """
+			{
+			  "name": "월급",
+			  "amount": 3000000,
+			  "type": "INCOME",
+			  "payment_method": "카드",
+			  "categoryId": 3,
+			  "datetime": "2026-07-25 10:00:00"
+			}
+			""";
+
+		mockMvc.perform(post("/api/v1/transaction")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(incomeBody))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.success").value(false))
+			.andExpect(jsonPath("$.code").value("T008"));
+	}
+
+	@Test
+	@DisplayName("POST 지출 등록에 카테고리·결제 수단이 없으면 400 과 코드 T009 를 반환한다")
+	void createExpenseWithoutRequiredFields() throws Exception {
+		when(service.createTransactionHistory(eq(MOCK_USER_ID), any()))
+			.thenThrow(new BusinessException(ExceptionType.EXPENSE_FIELD_REQUIRED));
+
+		String expenseBody = """
+			{
+			  "name": "스타벅스",
+			  "amount": 15000,
+			  "type": "EXPENSE",
+			  "datetime": "2026-07-27 15:30:00"
+			}
+			""";
+
+		mockMvc.perform(post("/api/v1/transaction")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(expenseBody))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.success").value(false))
+			.andExpect(jsonPath("$.code").value("T009"));
+	}
+
+	@Test
+	@DisplayName("GET 상세 조회에서 소득 거래는 payment_method/categoryId/categoryName 이 null 로 내려간다")
+	void findOneIncome() throws Exception {
+		TransactionHistoryResponse income = new TransactionHistoryResponse(
+			2L, "월급", 3000000L, TransactionType.INCOME, null, null, null,
+			LocalDateTime.of(2026, 7, 25, 10, 0, 0), null, null, null, "7월 급여");
+		when(service.findOneTransactionHistoryResponse(MOCK_USER_ID, 2L)).thenReturn(income);
+
+		mockMvc.perform(get("/api/v1/transaction/{transactionId}", 2L))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.data.type").value("INCOME"))
+			.andExpect(jsonPath("$.data.payment_method").value(nullValue()))
+			.andExpect(jsonPath("$.data.categoryId").value(nullValue()))
+			.andExpect(jsonPath("$.data.categoryName").value(nullValue()));
+	}
+
+	@Test
 	@DisplayName("POST 등록 시 필수 필드(name) 누락이면 400 과 코드 C002 를 반환한다")
 	void createValidationFail() throws Exception {
 		String invalidBody = """

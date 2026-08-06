@@ -6,6 +6,7 @@ import java.util.Locale;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.a508.backend.domain.category.entity.Category;
 import com.a508.backend.domain.category.service.CategoryService;
 import com.a508.backend.domain.transaction_history.dto.request.TransactionHistoryCreateRequest;
 import com.a508.backend.domain.transaction_history.dto.request.TransactionHistoryUpdateRequest;
@@ -40,12 +41,14 @@ public class TransactionHistoryService {
 
 	@Transactional
 	public TransactionHistoryResponse createTransactionHistory(Long userId, TransactionHistoryCreateRequest request) {
+		validateTypeFields(request.type(), request.categoryId() != null, request.paymentMethod() != null);
+
 		RegionInfo region = resolveRegion(request.latitude(), request.longitude());
 
 		TransactionHistory saved = transactionHistoryRepository.save(
 			TransactionHistory.builder()
 				.user(userService.getUser(userId))
-				.category(categoryService.getOwnedCategory(userId, request.categoryId()))
+				.category(resolveCategory(userId, request.categoryId()))
 				.datetime(DateTimeUtils.toServiceOffset(request.datetime()))
 				.amount(request.amount())
 				.type(request.type())
@@ -72,8 +75,17 @@ public class TransactionHistoryService {
 	public TransactionHistoryResponse updateTransactionHistory(Long userId, Long transactionId,
 		TransactionHistoryUpdateRequest request) {
 		TransactionHistory transaction = getOwnedTransaction(userId, transactionId);
+
+		// 미전송 필드는 기존 값을 유지하므로, 요청과 기존 값을 합친 "수정 후 상태"로 검증한다.
+		TransactionType targetType = request.type() != null ? request.type() : transaction.getType();
+		boolean toIncome = targetType == TransactionType.INCOME;
+		validateTypeFields(
+			targetType,
+			request.categoryId() != null || (!toIncome && transaction.getCategory() != null),
+			request.paymentMethod() != null || (!toIncome && transaction.getPaymentMethod() != null));
+
 		transaction.update(
-			request.categoryId() != null ? categoryService.getOwnedCategory(userId, request.categoryId()) : null,
+			resolveCategory(userId, request.categoryId()),
 			DateTimeUtils.toServiceOffset(request.datetime()),
 			request.amount(),
 			request.type(),
@@ -146,6 +158,32 @@ public class TransactionHistoryService {
 			return null;
 		}
 		return query.trim();
+	}
+
+	/**
+	 * 거래 유형과 카테고리·결제 수단의 조합을 검증한다.
+	 * <p>
+	 * 소득(INCOME)은 카테고리와 결제 수단을 갖지 않는 거래이므로 두 값을 받지 않는다.
+	 * 지출(EXPENSE)은 두 값이 모두 있어야 한다. 유형별로 필수 여부가 달라져
+	 * Bean Validation 의 필드 단위 검증으로는 표현할 수 없어 여기서 검증한다.
+	 */
+	private void validateTypeFields(TransactionType type, boolean hasCategory, boolean hasPaymentMethod) {
+		if (type == TransactionType.INCOME) {
+			if (hasCategory || hasPaymentMethod) {
+				throw new BusinessException(ExceptionType.INCOME_FIELD_NOT_ALLOWED);
+			}
+			return;
+		}
+		if (!hasCategory || !hasPaymentMethod) {
+			throw new BusinessException(ExceptionType.EXPENSE_FIELD_REQUIRED);
+		}
+	}
+
+	/**
+	 * 카테고리 ID 가 있으면 소유권을 검증해 조회하고, 없으면(소득 거래이거나 PATCH 미전송) null 을 반환한다.
+	 */
+	private Category resolveCategory(Long userId, Long categoryId) {
+		return categoryId == null ? null : categoryService.getOwnedCategory(userId, categoryId);
 	}
 
 	/**

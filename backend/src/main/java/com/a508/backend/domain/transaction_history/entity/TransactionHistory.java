@@ -44,8 +44,9 @@ public class TransactionHistory {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "category_id", nullable = false)
+    // 소득(INCOME) 거래는 카테고리를 갖지 않으므로 null 을 허용한다(지출은 필수 - 서비스 계층에서 검증).
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_id")
     private Category category;
 
     @Column(nullable = false)
@@ -61,7 +62,8 @@ public class TransactionHistory {
     @Column(name = "transaction_name", length = 10, nullable = false)
     private String transactionName;
 
-    @Column(name = "payment_method", length = 30, nullable = false)
+    // 소득(INCOME) 거래는 결제 수단을 갖지 않으므로 null 을 허용한다(지출은 필수 - 서비스 계층에서 검증).
+    @Column(name = "payment_method", length = 30)
     private String paymentMethod;
 
     // ERD 상 존재하는 컬럼이나 현재 API 스펙에는 노출되지 않는다(항상 null). 스키마 정합성을 위해 유지.
@@ -110,12 +112,14 @@ public class TransactionHistory {
         this.region2DepthName = region2DepthName;
         this.region3DepthName = region3DepthName;
         this.coordinate = coordinate;
+        clearExpenseOnlyFieldsIfIncome();
     }
 
     /**
      * 거래내역의 기본 정보를 부분 수정(PATCH)한다.
      * 각 인자가 null 이면(요청에서 미전송) 기존 값을 그대로 유지한다.
      * 법정동 정보(b_code/region_*)는 등록 시점 값을 유지한다.
+     * 수정 결과가 소득(INCOME)이면 지출 전용 필드(카테고리/결제 수단)는 비워진다.
      */
     public void update(Category category, OffsetDateTime datetime, Long amount, TransactionType type,
                        String transactionName, String paymentMethod, String memo, String address,
@@ -146,6 +150,18 @@ public class TransactionHistory {
         }
         if (coordinate != null) {
             this.coordinate = coordinate;
+        }
+        clearExpenseOnlyFieldsIfIncome();
+    }
+
+    /**
+     * 소득(INCOME) 거래는 카테고리와 결제 수단을 갖지 않는다는 도메인 불변식을 강제한다.
+     * 지출 -> 소득으로 유형이 바뀌는 수정에서 기존 값이 남지 않도록 등록/수정 마지막에 호출한다.
+     */
+    private void clearExpenseOnlyFieldsIfIncome() {
+        if (this.type == TransactionType.INCOME) {
+            this.category = null;
+            this.paymentMethod = null;
         }
     }
 }
