@@ -90,9 +90,19 @@ export default function TransactionDetailScreen() {
 
             <View style={styles.infoCard}>
               <InfoRow label="일자" value={formatDate(transaction.datetime)} />
-              <InfoRow label="장소" value={orDash(formatPlace(transaction.address))} />
-              <InfoRow label="카테고리" value={orDash(transaction.categoryName)} />
-              <InfoRow label="결제 수단" value={orDash(transaction.paymentMethod)} />
+              {/*
+                장소·카테고리·결제 수단은 소비에만 있는 정보입니다. 등록 화면도 소득이면 이 값들을 받지 않고,
+                수정 화면에서도 잠깁니다. 다만 소비였다가 소득으로 바뀐 거래는 서버에 예전 값이 남아 있을 수
+                있어서(결제 수단·카테고리는 "수정 결과가 소득이면 보낼 수 없다"는 스펙 때문에 앱에서 지울 수
+                없습니다), 소득 거래에서는 이 항목들을 아예 표시하지 않습니다.
+              */}
+              {transaction.type === 'expense' ? (
+                <>
+                  <InfoRow label="장소" value={orDash(formatPlace(transaction.address))} />
+                  <InfoRow label="카테고리" value={orDash(transaction.categoryName)} />
+                  <InfoRow label="결제 수단" value={orDash(transaction.paymentMethod)} />
+                </>
+              ) : null}
               <InfoRow label="메모" showDivider={false} value={orDash(transaction.memo)} />
             </View>
 

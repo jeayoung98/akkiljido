@@ -25,14 +25,6 @@ type EditableInfoRowProps = {
   onChangeText?: (text: string) => void;
   /** 전달하면 값 오른쪽에 지우기(×) 버튼이 붙습니다. */
   onClear?: () => void;
-  /**
-   * true면 이 항목을 잠급니다. 눌러도 아무 반응이 없고, 입력창은 타이핑이 막히며,
-   * 지우기 버튼·안내 아이콘도 숨겨서 "지금은 건드릴 수 없는 항목"임이 보이게 합니다.
-   * (소득 거래의 장소·카테고리·결제 수단처럼 해당 없는 항목에 사용합니다.)
-   */
-  disabled?: boolean;
-  /** 잠겼을 때 값 대신 보여줄 짧은 안내 문구입니다(예: '소득은 해당 없음'). */
-  disabledText?: string;
   showDivider?: boolean;
   style?: StyleProp<ViewStyle>;
 };
@@ -51,20 +43,14 @@ export function EditableInfoRow({
   editable = false,
   onChangeText,
   onClear,
-  disabled = false,
-  disabledText,
   showDivider = true,
   style,
 }: EditableInfoRowProps) {
-  // 잠긴 항목은 값을 바꿀 수 없으므로 입력창 대신 안내 문구(또는 기존 값)를 흐리게만 보여줍니다.
-  const isEditable = editable && !disabled;
-  const displayText = disabled ? (disabledText ?? value) : value;
-
   const content = (
     <>
-      <Text style={[styles.label, disabled && styles.disabledText]}>{label}</Text>
+      <Text style={styles.label}>{label}</Text>
       <View style={styles.valueArea}>
-        {isEditable ? (
+        {editable ? (
           <NativeTextInput
             onChangeText={onChangeText}
             placeholder={placeholder}
@@ -73,26 +59,19 @@ export function EditableInfoRow({
             value={value}
           />
         ) : (
-          <Text
-            numberOfLines={1}
-            style={[
-              styles.value,
-              !displayText && styles.placeholderText,
-              disabled && styles.disabledText,
-            ]}>
-            {displayText || placeholder}
+          <Text numberOfLines={1} style={[styles.value, !value && styles.placeholderText]}>
+            {value || placeholder}
           </Text>
         )}
-        {/* 잠긴 항목은 누를 수 없으니, 누를 수 있다는 신호인 아이콘·지우기 버튼을 함께 숨깁니다. */}
-        {!disabled ? trailingIcon : null}
-        {!disabled && onClear ? (
+        {trailingIcon}
+        {onClear ? (
           <IconButton color={Colors.light.placeholder} name="close" onPress={onClear} size={16} />
         ) : null}
       </View>
     </>
   );
 
-  if (onPress && !disabled) {
+  if (onPress) {
     return (
       <Pressable
         accessibilityLabel={label}
@@ -104,13 +83,7 @@ export function EditableInfoRow({
     );
   }
 
-  return (
-    <View
-      accessibilityState={{ disabled }}
-      style={[styles.row, showDivider && styles.divider, disabled && styles.disabledRow, style]}>
-      {content}
-    </View>
-  );
+  return <View style={[styles.row, showDivider && styles.divider, style]}>{content}</View>;
 }
 
 const styles = StyleSheet.create({
@@ -145,14 +118,6 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   placeholderText: {
-    color: Colors.light.placeholder,
-    fontWeight: '400',
-  },
-  // 잠긴 항목은 배경을 옅게 깔고 글자를 흐리게 해서 "입력 대상이 아님"을 한눈에 보이게 합니다.
-  disabledRow: {
-    backgroundColor: Colors.light.cardMutedBackground,
-  },
-  disabledText: {
     color: Colors.light.placeholder,
     fontWeight: '400',
   },

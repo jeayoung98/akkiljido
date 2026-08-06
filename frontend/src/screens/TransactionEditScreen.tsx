@@ -79,9 +79,6 @@ const TYPE_OPTIONS: { value: TransactionType; label: string; color: string }[] =
   { value: 'income', label: '💰 소득', color: Colors.light.primary },
 ];
 
-/** 소득 거래에서 잠기는 항목에 값 대신 보여줄 안내 문구. */
-const INCOME_LOCKED_TEXT = '소득은 해당 없음';
-
 /**
  * 거래 수정 화면입니다.
  * GET /api/v1/transaction/{transactionId}로 기존 값을 불러오고,
@@ -208,9 +205,8 @@ export default function TransactionEditScreen() {
     if (memo !== original.memo) changes.memo = memo;
 
     /*
-     * 장소·카테고리·결제 수단은 소비에만 있는 항목입니다. 소득으로 저장할 때는 화면에서 잠겨 있으니
-     * 변경분에도 넣지 않습니다. (빈 값으로 덮어쓰면 서버가 400으로 거절하거나 기존 값이 지워지므로,
-     * "보내지 않아서 서버가 그대로 두게" 하는 편이 안전합니다.)
+     * 장소·카테고리·결제 수단·좌표는 소비에만 있는 항목이라, 소득으로 저장할 때는 아무것도 보내지 않습니다.
+     * 소득 거래에서는 상세·수정 화면이 이 항목들을 보여주지 않습니다.)
      */
     if (!isIncome) {
       if (address !== original.address) changes.address = address;
@@ -403,72 +399,73 @@ export default function TransactionEditScreen() {
               trailingIcon={<Ionicons color={Colors.light.textSecondary} name="calendar-outline" size={16} />}
               value={formatDateDisplay(date)}
             />
-            {/* 소득에는 장소·카테고리·결제 수단이 없으므로 잠급니다(등록 화면에서도 소득이면 이 입력들이 없습니다). */}
-            <EditableInfoRow
-              disabled={isIncome}
-              disabledText={INCOME_LOCKED_TEXT}
-              label="장소"
-              onPress={handleOpenMapPicker}
-              trailingIcon={<Ionicons color={Colors.light.textSecondary} name="location-outline" size={16} />}
-              value={formatPlace(address)}
-            />
+            {/*
+              장소·카테고리·결제 수단은 소비에만 있는 항목이라, 소득이면 잠그는 대신 아예 표시하지 않습니다.
+              (등록 화면과 상세 화면도 소득일 때 이 항목들을 보여주지 않습니다.)
+            */}
+            {!isIncome ? (
+              <>
+                <EditableInfoRow
+                  label="장소"
+                  onPress={handleOpenMapPicker}
+                  trailingIcon={<Ionicons color={Colors.light.textSecondary} name="location-outline" size={16} />}
+                  value={formatPlace(address)}
+                />
 
-            <View>
-              <EditableInfoRow
-                disabled={isIncome}
-                disabledText={INCOME_LOCKED_TEXT}
-                label="카테고리"
-                onPress={() => setIsCategoryOpen((current) => !current)}
-                showDivider={!isCategoryOpen}
-                trailingIcon={
-                  <Ionicons
-                    color={Colors.light.textSecondary}
-                    name={isCategoryOpen ? 'chevron-up' : 'chevron-down'}
-                    size={16}
+                <View>
+                  <EditableInfoRow
+                    label="카테고리"
+                    onPress={() => setIsCategoryOpen((current) => !current)}
+                    showDivider={!isCategoryOpen}
+                    trailingIcon={
+                      <Ionicons
+                        color={Colors.light.textSecondary}
+                        name={isCategoryOpen ? 'chevron-up' : 'chevron-down'}
+                        size={16}
+                      />
+                    }
+                    value={selectedCategoryName}
                   />
-                }
-                value={selectedCategoryName}
-              />
 
-              {isCategoryOpen && !isIncome ? (
-                <View style={styles.categoryDropdown}>
-                  {categorySelectOptions.map((option) => {
-                    const isSelected = option.value === categoryId;
-                    return (
-                      <Pressable
-                        accessibilityRole="button"
-                        accessibilityState={{ selected: isSelected }}
-                        key={option.value}
-                        onPress={() => handleSelectCategory(option.value)}
-                        style={({ pressed }) => [
-                          styles.categoryOption,
-                          isSelected && styles.categoryOptionSelected,
-                          pressed && styles.categoryOptionPressed,
-                        ]}>
-                        <Text
-                          style={[
-                            styles.categoryOptionText,
-                            isSelected && styles.categoryOptionTextSelected,
-                          ]}>
-                          {option.label}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
+                  {isCategoryOpen ? (
+                    <View style={styles.categoryDropdown}>
+                      {categorySelectOptions.map((option) => {
+                        const isSelected = option.value === categoryId;
+                        return (
+                          <Pressable
+                            accessibilityRole="button"
+                            accessibilityState={{ selected: isSelected }}
+                            key={option.value}
+                            onPress={() => handleSelectCategory(option.value)}
+                            style={({ pressed }) => [
+                              styles.categoryOption,
+                              isSelected && styles.categoryOptionSelected,
+                              pressed && styles.categoryOptionPressed,
+                            ]}>
+                            <Text
+                              style={[
+                                styles.categoryOptionText,
+                                isSelected && styles.categoryOptionTextSelected,
+                              ]}>
+                              {option.label}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  ) : null}
                 </View>
-              ) : null}
-            </View>
 
-            <EditableInfoRow
-              disabled={isIncome}
-              disabledText={INCOME_LOCKED_TEXT}
-              editable
-              label="결제 수단"
-              onChangeText={setPaymentMethod}
-              onClear={() => setPaymentMethod('')}
-              placeholder="결제 수단을 입력해 주세요"
-              value={paymentMethod}
-            />
+                <EditableInfoRow
+                  editable
+                  label="결제 수단"
+                  onChangeText={setPaymentMethod}
+                  onClear={() => setPaymentMethod('')}
+                  placeholder="결제 수단을 입력해 주세요"
+                  value={paymentMethod}
+                />
+              </>
+            ) : null}
             <EditableInfoRow
               editable
               label="메모"
