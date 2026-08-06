@@ -28,4 +28,19 @@ public interface TransactionHistoryRepository
 		@Param("userId") Long userId,
 		@Param("startDateTime") OffsetDateTime startDateTime,
 		@Param("endDateTime") OffsetDateTime endDateTime);
+
+	/** 특정 기간의 사용자 거래내역을 카테고리와 함께 거래 일시 오름차순으로 조회한다. */
+	@Query("""
+		select t
+		from TransactionHistory t
+			left join fetch t.category
+		where t.user.id = :userId
+			and t.datetime >= :startDateTime
+			and t.datetime < :endDateTime
+		order by t.datetime asc
+		""")
+	List<TransactionHistory> findAllWithCategoryByUserIdAndDatetimeRange(
+		@Param("userId") Long userId,
+		@Param("startDateTime") OffsetDateTime startDateTime,
+		@Param("endDateTime") OffsetDateTime endDateTime);
 }

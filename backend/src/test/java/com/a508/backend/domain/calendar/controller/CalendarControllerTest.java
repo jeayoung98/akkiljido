@@ -138,9 +138,9 @@ class CalendarControllerTest {
                 -36500L,
                 List.of(
                         new CalendarTransactionResponse(
-                                1L, "급여", 50000L, TransactionType.INCOME),
+                                1L, "급여", 50000L, TransactionType.INCOME, null, null),
                         new CalendarTransactionResponse(
-                                2L, "스타벅스", 86500L, TransactionType.EXPENSE)));
+                                2L, "스타벅스", 86500L, TransactionType.EXPENSE, 3L, "카페")));
 
         when(calendarService.getDailyCalendar(USER_ID, 2024, 7, 17)).thenReturn(response);
 
@@ -156,10 +156,14 @@ class CalendarControllerTest {
                 .andExpect(jsonPath("$.data.transactionList[0].name").value("급여"))
                 .andExpect(jsonPath("$.data.transactionList[0].amount").value(50000))
                 .andExpect(jsonPath("$.data.transactionList[0].type").value("INCOME"))
+                .andExpect(jsonPath("$.data.transactionList[0].categoryId").isEmpty())
+                .andExpect(jsonPath("$.data.transactionList[0].categoryName").isEmpty())
                 .andExpect(jsonPath("$.data.transactionList[1].transactionId").value(2))
                 .andExpect(jsonPath("$.data.transactionList[1].name").value("스타벅스"))
                 .andExpect(jsonPath("$.data.transactionList[1].amount").value(86500))
-                .andExpect(jsonPath("$.data.transactionList[1].type").value("EXPENSE"));
+                .andExpect(jsonPath("$.data.transactionList[1].type").value("EXPENSE"))
+                .andExpect(jsonPath("$.data.transactionList[1].categoryId").value(3))
+                .andExpect(jsonPath("$.data.transactionList[1].categoryName").value("카페"));
 
         verify(calendarService).getDailyCalendar(USER_ID, 2024, 7, 17);
     }
