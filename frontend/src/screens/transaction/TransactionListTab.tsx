@@ -23,6 +23,7 @@ function toGroupItems(transactions: TransactionListItem[]): TransactionGroupItem
         categoryId={transaction.categoryId}
         categoryName={transaction.categoryName}
         size={20}
+        type={transaction.type}
       />
     ),
     amount: transaction.amount,

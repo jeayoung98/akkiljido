@@ -156,11 +156,17 @@ export function TransactionCalendarTab({
                 amount={item.amount}
                 /*
                  * 일 단위 조회 응답에는 카테고리가 없습니다(백엔드에 추가 요청해둔 상태).
-                 * 값이 실제로 내려올 때만 아이콘을 그려서, 지금은 빈 아이콘 자리가 생기지 않게 합니다.
+                 * 소득은 카테고리와 무관하게 돈주머니 아이콘을 쓰므로 지금도 그릴 수 있고,
+                 * 소비는 categoryName이 실제로 내려올 때만 그려서 빈 아이콘 자리가 생기지 않게 합니다.
                  */
                 leading={
-                  item.categoryName ? (
-                    <CategoryIcon categoryId={item.categoryId} categoryName={item.categoryName} size={20} />
+                  item.type === 'income' || item.categoryName ? (
+                    <CategoryIcon
+                      categoryId={item.categoryId}
+                      categoryName={item.categoryName}
+                      size={20}
+                      type={item.type}
+                    />
                   ) : undefined
                 }
                 onPress={() => onOpenDetail(String(item.transactionId))}

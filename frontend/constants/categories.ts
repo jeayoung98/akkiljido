@@ -1,4 +1,4 @@
-import Colors from '@/constants/Colors';
+import Colors, { INCOME_CATEGORY_ID } from '@/constants/Colors';
 
 /**
  * 프론트에서 사용하는 카테고리 마스터 데이터입니다.
@@ -16,7 +16,8 @@ export type CategoryIconKey =
   | 'living'
   | 'beauty'
   | 'education'
-  | 'other';
+  | 'other'
+  | 'income';
 
 export const CATEGORIES = [
   { id: 1, name: '음식점', icon: 'restaurant' },
@@ -31,6 +32,23 @@ export const CATEGORIES = [
   { id: 10, name: '교육', icon: 'education' },
   { id: 11, name: '기타', icon: 'other' },
 ] as const satisfies ReadonlyArray<{ id: number; name: string; icon: CategoryIconKey }>;
+
+/**
+ * 소득을 카테고리 하나처럼 다루기 위한 항목입니다.
+ *
+ * 소득은 서버 카테고리가 아니라 거래 유형이라서 위 CATEGORIES(= 서버 categoryId 1~11)에는 넣지 않고,
+ * 겹치지 않는 예약 id로 따로 둡니다. 이렇게 두면 아이콘·색을 다른 카테고리와 똑같은 방식으로
+ * (getCategoryColorById / Colors.category) 가져갈 수 있고, 소득만 색을 바꾸고 싶을 때
+ * Colors.ts의 category[INCOME_CATEGORY_ID] 한 줄만 고치면 됩니다.
+ *
+ * CATEGORIES에 넣지 않는 이유: 카테고리 선택 목록·필터 칩이 CATEGORIES를 그대로 순회하기 때문에
+ * 넣으면 소비 카테고리 목록에 "소득"이 섞여 나옵니다.
+ */
+export const INCOME_CATEGORY = {
+  id: INCOME_CATEGORY_ID,
+  name: '소득',
+  icon: 'income',
+} as const satisfies { id: number; name: string; icon: CategoryIconKey };
 
 export const CATEGORY_NAMES = CATEGORIES.map((category) => category.name);
 

@@ -1,10 +1,12 @@
 import type { ReactNode } from 'react';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 
+import type { TransactionType } from '@/components/transaction/TransactionItem';
 import {
   getCategoryColorById,
   getCategoryColorByName,
   getCategoryIconKey,
+  INCOME_CATEGORY,
   type CategoryIconKey,
 } from '@/constants/categories';
 
@@ -113,23 +115,45 @@ const ICON_SHAPES: Record<CategoryIconName, (color: string) => ReactNode> = {
       <Circle cx={15.5} cy={15.5} fill={color} r={0.8} stroke="none" />
     </>
   ),
+  // assets/icons/categories/money_bag.svg — 소득 카테고리(INCOME_CATEGORY) 아이콘입니다.
+  income: () => (
+    <>
+      <Path d="M9 7 8 4.5h8L15 7" />
+      <Path d="M8.5 8.5h7" />
+      <Path d="M8.5 9h7c2.2 1.6 3.5 4.3 3.5 7.3 0 .7.5 1.1.5 1.9 0 1.5-1.2 2.8-2.8 2.8H7.3c-1.6 0-2.8-1.3-2.8-2.8 0-.8.5-1.2.5-1.9C5 13.3 6.3 10.6 8.5 9Z" />
+      <Path d="M14.5 12.8a3 3 0 1 0 0 4.4" />
+    </>
+  ),
 };
 
 type CategoryIconProps = {
-  categoryName: string;
+  /** 소득처럼 카테고리가 없는 거래도 있어서 선택 값입니다. */
+  categoryName?: string;
   /** 목록·상세 API가 내려주는 categoryId가 있으면 이름보다 우선해 아이콘·색상을 정합니다. */
   categoryId?: number | string;
+  /**
+   * 거래 유형입니다. `income`이면 서버 카테고리와 상관없이 소득 카테고리(INCOME_CATEGORY)로 그립니다.
+   * 소득은 카테고리가 없거나 `기타`로만 오기 때문에, 서버 카테고리만으로는 소득을 구분할 수 없습니다.
+   */
+  type?: TransactionType;
   size?: number;
   color?: string;
 };
 
 /**
  * 카테고리명에 맞는 SVG 아이콘을 그립니다.
+ * 소득(`type="income"`)은 소득 카테고리로 취급해서, 다른 카테고리와 똑같이 팔레트에서 아이콘과 색을 가져옵니다.
  * color를 따로 전달하지 않으면 공통 카테고리 팔레트 색을 사용하고, 이름을 찾지 못하면 기타 색으로 표시합니다.
  */
-export function CategoryIcon({ categoryName, categoryId, size = 20, color }: CategoryIconProps) {
-  const iconName = getCategoryIconKey(categoryName, categoryId);
-  const iconColor = color ?? (categoryId === undefined ? getCategoryColorByName(categoryName) : getCategoryColorById(categoryId));
+export function CategoryIcon({ categoryName, categoryId, type, size = 20, color }: CategoryIconProps) {
+  // 소득이면 서버 categoryId 대신 소득 카테고리의 id를 써서, 아이콘·색을 찾는 경로를 다른 카테고리와 통일합니다.
+  const resolvedCategoryId = type === 'income' ? INCOME_CATEGORY.id : categoryId;
+  const iconName = type === 'income' ? INCOME_CATEGORY.icon : getCategoryIconKey(categoryName, categoryId);
+  const iconColor =
+    color ??
+    (resolvedCategoryId === undefined
+      ? getCategoryColorByName(categoryName ?? '')
+      : getCategoryColorById(resolvedCategoryId));
 
   return (
     <Svg

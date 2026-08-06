@@ -81,6 +81,7 @@ export default function TransactionDetailScreen() {
                   categoryId={transaction.categoryId}
                   categoryName={transaction.categoryName}
                   size={28}
+                  type={transaction.type}
                 />
               }
               title={transaction.name}

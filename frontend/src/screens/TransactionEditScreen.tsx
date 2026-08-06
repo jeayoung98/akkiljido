@@ -241,6 +241,7 @@ export default function TransactionEditScreen() {
                 categoryId={categoryId ?? undefined}
                 categoryName={selectedCategoryName}
                 size={28}
+                type={type}
               />
             </View>
 
