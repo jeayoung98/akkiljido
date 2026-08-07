@@ -1,18 +1,19 @@
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 
-import { MOCK_NOTIFICATION_PLACES } from '@/mocks/notifications';
 import { useNotificationStore } from '@/store/notificationStore';
 import { presentLocalNotification } from '@/utils/localNotifications';
 import { findTriggeredPlaces } from '@/utils/notificationTrigger';
-import { hasNotifiedToday, markNotifiedToday } from '@/utils/notifiedPlacesStorage';
+import { claimNotificationForToday, releaseNotificationClaimForToday } from '@/utils/notifiedPlacesStorage';
+import { loadNotificationPlaces } from '@/utils/notificationPlaceStorage';
 
 export const BACKGROUND_LOCATION_TASK = 'notification-place-background-location';
 
 const BACKGROUND_LOCATION_OPTIONS: Location.LocationTaskOptions = {
   accuracy: Location.Accuracy.Balanced,
   timeInterval: 60000,
-  distanceInterval: 100,
+  // 시간 조건 진입을 놓치지 않도록, 이동 거리와 무관하게 주기적 위치 업데이트를 요청한다.
+  distanceInterval: 0,
   // Android 8+ 는 백그라운드에서 위치를 계속 추적하려면 항상 보이는 알림(포그라운드 서비스)이 필요하다.
   foregroundService: {
     notificationTitle: '아낄지도가 위치를 확인하고 있어요',
@@ -31,21 +32,36 @@ TaskManager.defineTask(BACKGROUND_LOCATION_TASK, async ({ data, error }) => {
   if (!position) return;
 
   const now = new Date();
+  const places = await loadNotificationPlaces();
   const triggeredPlaces = findTriggeredPlaces(
     { latitude: position.coords.latitude, longitude: position.coords.longitude },
-    MOCK_NOTIFICATION_PLACES,
+    places,
     now
   );
 
+  if (__DEV__) {
+    console.info('[notification-trigger] background evaluation', {
+      time: now.toTimeString().slice(0, 5),
+      placeCount: places.length,
+      triggeredPlaceIds: triggeredPlaces.map((place) => place.notificationPlaceId),
+    });
+  }
+
   for (const place of triggeredPlaces) {
-    if (await hasNotifiedToday(place.notificationPlaceId)) continue;
-    await markNotifiedToday(place.notificationPlaceId);
+    if (!(await claimNotificationForToday(place.notificationPlaceId))) continue;
 
     const title = `${place.notificationPlaceName} 근처예요`;
     const body = `${place.address} · ${place.reason}`;
-    await presentLocalNotification(title, body);
+    const didPresent = await presentLocalNotification(title, body);
+    if (!didPresent) {
+      await releaseNotificationClaimForToday(place.notificationPlaceId);
+      continue;
+    }
     // 헤드리스 실행은 React 트리 밖이라 훅(useNotificationStore())을 못 쓰지만, zustand는
     // getState()/setState()로 훅 없이도 스토어에 접근할 수 있어 알림함 목록에도 그대로 추가한다.
+    // 헤드리스 실행은 별도 JS 컨텍스트라서, 저장된 알림함을 먼저 복원한 뒤 새 항목을 추가해야
+    // 기존 알림 기록을 빈 store 상태로 덮어쓰지 않습니다.
+    await useNotificationStore.persist.rehydrate();
     useNotificationStore.getState().addNotification({ type: 'LOCATION', title, body });
   }
 });
@@ -58,7 +74,10 @@ export async function startBackgroundLocationTracking() {
   const alreadyStarted = await Location.hasStartedLocationUpdatesAsync(BACKGROUND_LOCATION_TASK).catch(
     () => false
   );
-  if (alreadyStarted) return;
+  // 설정값을 바꾼 뒤에도 기존 OS 작업이 예전 옵션을 유지하지 않도록 최신 옵션으로 다시 등록한다.
+  if (alreadyStarted) {
+    await Location.stopLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
+  }
 
   const { status } = await Location.requestBackgroundPermissionsAsync();
   if (status !== 'granted') return;

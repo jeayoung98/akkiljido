@@ -1,4 +1,4 @@
-import type { NotificationPlace } from '@/mocks/notifications';
+import type { NotificationPlace } from '@/types/notification';
 
 export type LatLng = {
   latitude: number;

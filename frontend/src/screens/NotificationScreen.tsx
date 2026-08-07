@@ -8,8 +8,8 @@ import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withSpring, withTi
 import AppScreen from '@/components/common/AppScreen';
 import { IconButton } from '@/components/common/button/IconButton';
 import Colors from '@/constants/Colors';
-import type { NotificationType } from '@/mocks/notificationFeed';
 import { useNotificationStore } from '@/store/notificationStore';
+import type { NotificationType } from '@/types/notification';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const SWIPE_DISMISS_DISTANCE = 90; // 이만큼(px) 넘게 끌면 놓았을 때 삭제된다

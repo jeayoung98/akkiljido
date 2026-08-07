@@ -1,20 +1,20 @@
 import * as Location from 'expo-location';
 import { useEffect } from 'react';
 
-import { MOCK_NOTIFICATION_PLACES } from '@/mocks/notifications';
 import { useNotificationStore } from '@/store/notificationStore';
 // 이 파일을 import하는 시점에 TaskManager.defineTask가 무조건 등록되어야, OS가 앱 종료 후
 // 헤드리스로 백그라운드 태스크만 다시 실행할 때도 정의가 이미 돼 있다. startBackgroundLocationTracking은
 // 그 등록된 태스크에 실제 위치 업데이트 구독을 붙이는 역할이라 훅 안에서 호출해도 된다.
 import { startBackgroundLocationTracking } from '@/utils/backgroundLocationTask';
 import { ensureNotificationPermission, presentLocalNotification } from '@/utils/localNotifications';
-import { hasNotifiedToday, markNotifiedToday } from '@/utils/notifiedPlacesStorage';
+import { claimNotificationForToday, releaseNotificationClaimForToday } from '@/utils/notifiedPlacesStorage';
+import { loadNotificationPlaces } from '@/utils/notificationPlaceStorage';
 import { findTriggeredPlaces } from '@/utils/notificationTrigger';
 
 const WATCH_OPTIONS: Location.LocationOptions = {
   accuracy: Location.Accuracy.Balanced,
   timeInterval: 30000,
-  distanceInterval: 50,
+  distanceInterval: 0,
 };
 
 /**
@@ -30,9 +30,67 @@ export function useNotificationPlaceTrigger() {
 
   useEffect(() => {
     let subscription: Location.LocationSubscription | null = null;
+    let refreshTimer: ReturnType<typeof setInterval> | null = null;
     let cancelled = false;
+    let isEvaluating = false;
 
     async function start() {
+      const evaluateLocation = async (position: Location.LocationObject) => {
+        const now = new Date();
+        const places = await loadNotificationPlaces();
+        const triggeredPlaces = findTriggeredPlaces(
+          { latitude: position.coords.latitude, longitude: position.coords.longitude },
+          places,
+          now,
+        );
+
+        if (__DEV__) {
+          console.info('[notification-trigger] foreground evaluation', {
+            time: now.toTimeString().slice(0, 5),
+            placeCount: places.length,
+            triggeredPlaceIds: triggeredPlaces.map((place) => place.notificationPlaceId),
+          });
+        }
+
+        for (const place of triggeredPlaces) {
+          if (!(await claimNotificationForToday(place.notificationPlaceId))) continue;
+
+          const title = `${place.notificationPlaceName} 근처예요`;
+          const body = `${place.address} · ${place.reason}`;
+          const didPresent = await presentLocalNotification(title, body);
+          if (!didPresent) {
+            await releaseNotificationClaimForToday(place.notificationPlaceId);
+            continue;
+          }
+          addNotification({ type: 'LOCATION', title, body });
+        }
+      };
+
+      const refreshCurrentLocation = async () => {
+        if (cancelled || isEvaluating) return;
+        isEvaluating = true;
+
+        try {
+          const lastKnownPosition = await Location.getLastKnownPositionAsync();
+          if (lastKnownPosition && !cancelled) {
+            await evaluateLocation(lastKnownPosition);
+          }
+
+          const currentPosition = await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.Balanced,
+          });
+          if (!cancelled) {
+            await evaluateLocation(currentPosition);
+          }
+        } catch (error) {
+          if (__DEV__) {
+            console.warn('[notification-trigger] failed to refresh current location', error);
+          }
+        } finally {
+          isEvaluating = false;
+        }
+      };
+
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== 'granted' || cancelled) return;
@@ -50,26 +108,19 @@ export function useNotificationPlaceTrigger() {
         // 감시는 그대로 동작해야 하므로 실패도 무시한다.
         startBackgroundLocationTracking().catch(() => {});
 
+        // 위치 변화가 없으면 watchPositionAsync 콜백이 바로 오지 않을 수 있으므로,
+        // 감시 시작 직후 현재 위치도 한 번 검사한다.
         subscription = await Location.watchPositionAsync(WATCH_OPTIONS, (position) => {
-          const now = new Date();
-
-          const triggeredPlaces = findTriggeredPlaces(
-            { latitude: position.coords.latitude, longitude: position.coords.longitude },
-            MOCK_NOTIFICATION_PLACES,
-            now
-          );
-
-          triggeredPlaces.forEach(async (place) => {
-            if (await hasNotifiedToday(place.notificationPlaceId)) return;
-            await markNotifiedToday(place.notificationPlaceId);
-
-            const title = `${place.notificationPlaceName} 근처예요`;
-            const body = `${place.address} · ${place.reason}`;
-            presentLocalNotification(title, body);
-            addNotification({ type: 'LOCATION', title, body });
-          });
+          void evaluateLocation(position);
         });
-      } catch {
+        void refreshCurrentLocation();
+        refreshTimer = setInterval(() => {
+          void refreshCurrentLocation();
+        }, 30000);
+      } catch (error) {
+        if (__DEV__) {
+          console.warn('[notification-trigger] 위치 알림 감시를 시작하지 못했습니다.', error);
+        }
         // 권한 거부, 위치 서비스 꺼짐 등으로 실패하면 이 세션에서는 위치 알림 기능만 조용히 꺼진 채로 둔다.
       }
     }
@@ -79,6 +130,7 @@ export function useNotificationPlaceTrigger() {
     return () => {
       cancelled = true;
       subscription?.remove();
+      if (refreshTimer) clearInterval(refreshTimer);
       // 백그라운드 태스크는 여기서 멈추지 않는다 — 이 훅은 (tabs) 레이아웃이 언마운트되면(예: 로그아웃
       // 화면 전환) 같이 정리되는데, 그것과 무관하게 앱이 백그라운드로 가거나 꺼진 뒤에도 위치 추적은
       // 계속돼야 이 기능의 목적(화면 꺼져 있어도 알림)이 성립한다.

@@ -25,6 +25,12 @@ async function loadNotifications(): Promise<NotificationsModule | null> {
           shouldShowList: true,
         }),
       });
+      await Notifications.setNotificationChannelAsync('location-alerts', {
+        name: '위치 알림',
+        importance: Notifications.AndroidImportance.MAX,
+        sound: 'default',
+        vibrationPattern: [0, 250, 200, 250],
+      });
     }
     return Notifications;
   } catch {
@@ -48,16 +54,26 @@ export async function ensureNotificationPermission() {
   }
 }
 
-export async function presentLocalNotification(title: string, body: string) {
+export async function presentLocalNotification(title: string, body: string): Promise<boolean> {
   const Notifications = await loadNotifications();
-  if (!Notifications) return;
+  if (!Notifications) return false;
 
   try {
     await Notifications.scheduleNotificationAsync({
-      content: { title, body },
-      trigger: null,
+      content: {
+        title,
+        body,
+        priority: Notifications.AndroidNotificationPriority.MAX,
+        sound: 'default',
+      },
+      trigger: { channelId: 'location-alerts' },
     });
-  } catch {
+    return true;
+  } catch (error) {
+    if (__DEV__) {
+      console.warn('[notification-trigger] failed to present local notification', error);
+    }
+    return false;
     // Expo Go 등 환경 제약으로 실패해도, 알림함 목록 추가 등 나머지 트리거 로직은 계속 동작해야 한다.
   }
 }

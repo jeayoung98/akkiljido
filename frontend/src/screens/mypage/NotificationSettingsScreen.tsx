@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import AppScreen from '@/components/common/AppScreen';
@@ -11,7 +11,9 @@ import { AddCircleButton } from '@/components/my/AddCircleButton';
 import { KebabMenu } from '@/components/my/KebabMenu';
 import { Switch } from '@/components/my/Switch';
 import Colors from '@/constants/Colors';
-import { MOCK_NOTIFICATION_PLACES, type NotificationPlace } from '@/mocks/notifications';
+import type { NotificationPlace } from '@/types/notification';
+import { loadNotificationPlaces, saveNotificationPlaces } from '@/utils/notificationPlaceStorage';
+import { releaseNotificationClaimForToday } from '@/utils/notifiedPlacesStorage';
 
 // "+" 버튼을 누르면 이 빈 값으로 SaveAlarmModal을 연다. 지도에서 장소를 고르기 전까지는
 // address·좌표가 비어 있어서, 모달의 필수값 검사(address)가 저장을 막아준다.
@@ -41,20 +43,33 @@ function toAlarmFormValue(place: NotificationPlace): AlarmFormValue {
 
 /**
  * 마이페이지 > 알림 설정 화면입니다. 소비 리포트(주간/월간) 알림과, 등록한 위치 알림 목록을 보여줍니다.
- * 위치 알림은 추가·수정 모두 SaveAlarmModal을 사용하며, 저장한 값은 목업 목록에 즉시 반영합니다.
+ * 위치 알림은 추가·수정 모두 SaveAlarmModal을 사용하며, 저장한 값은 로컬 저장소에 즉시 반영합니다.
  */
 export default function NotificationSettingsScreen() {
   const [weeklyReport, setWeeklyReport] = useState(true);
   const [monthlyReport, setMonthlyReport] = useState(true);
-  const [places, setPlaces] = useState<NotificationPlace[]>(MOCK_NOTIFICATION_PLACES);
+  const [places, setPlaces] = useState<NotificationPlace[]>([]);
   const [deleteTarget, setDeleteTarget] = useState<NotificationPlace | null>(null);
   const [addModalVisible, setAddModalVisible] = useState(false);
   const [editTarget, setEditTarget] = useState<NotificationPlace | null>(null);
   // 지도 선택을 위해 모달을 잠시 닫을 때 수정 대상을 기억해 두었다가, 돌아오면 같은 수정 모드로 다시 엽니다.
   const pendingEditTargetRef = useRef<NotificationPlace | null>(null);
 
+  useEffect(() => {
+    void loadNotificationPlaces().then(setPlaces);
+  }, []);
+
+  const updatePlaces = (updater: (current: NotificationPlace[]) => NotificationPlace[]) => {
+    setPlaces((current) => {
+      const next = updater(current);
+      // 화면 반영과 함께 저장해, 백그라운드 위치 태스크도 같은 목록을 판정에 사용합니다.
+      void saveNotificationPlaces(next);
+      return next;
+    });
+  };
+
   const handleTogglePlace = (id: number, next: boolean) => {
-    setPlaces((prev) => prev.map((place) => (place.notificationPlaceId === id ? { ...place, active: next } : place)));
+    updatePlaces((prev) => prev.map((place) => (place.notificationPlaceId === id ? { ...place, active: next } : place)));
   };
 
   const handleAddPlace = () => {
@@ -66,7 +81,7 @@ export default function NotificationSettingsScreen() {
   const handleSavePlace = (value: AlarmFormValue) => {
     if (editTarget) {
       // 수정 시에는 id와 토글 상태는 유지하고, 모달에서 편집한 정보만 같은 항목에 덮어씁니다.
-      setPlaces((prev) =>
+      updatePlaces((prev) =>
         prev.map((place) =>
           place.notificationPlaceId === editTarget.notificationPlaceId
             ? {
@@ -82,14 +97,15 @@ export default function NotificationSettingsScreen() {
             : place,
         ),
       );
+      void releaseNotificationClaimForToday(editTarget.notificationPlaceId);
       setEditTarget(null);
       pendingEditTargetRef.current = null;
       return;
     }
 
     // 추가 시에는 화면에서만 사용할 다음 id를 만들어 목록 마지막에 넣습니다. API 연결 시 POST 요청으로 교체합니다.
-    const nextId = places.reduce((max, place) => Math.max(max, place.notificationPlaceId), 0) + 1;
-    setPlaces((prev) => [
+    const nextId = Date.now();
+    updatePlaces((prev) => [
       ...prev,
       {
         notificationPlaceId: nextId,
@@ -132,7 +148,8 @@ export default function NotificationSettingsScreen() {
 
   const handleConfirmDelete = () => {
     if (!deleteTarget) return;
-    setPlaces((prev) => prev.filter((place) => place.notificationPlaceId !== deleteTarget.notificationPlaceId));
+    updatePlaces((prev) => prev.filter((place) => place.notificationPlaceId !== deleteTarget.notificationPlaceId));
+    void releaseNotificationClaimForToday(deleteTarget.notificationPlaceId);
     setDeleteTarget(null);
   };
 

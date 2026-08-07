@@ -1,6 +1,8 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
+import { createJSONStorage, persist } from 'zustand/middleware';
 
-import { MOCK_NOTIFICATIONS, type NotificationFeedItem, type NotificationType } from '@/mocks/notificationFeed';
+import type { NotificationFeedItem, NotificationType } from '@/types/notification';
 
 // 알림함 화면을 나갔다 다시 들어와도(홈 <-> 알림함 이동) 읽음/삭제 상태가 유지되도록
 // 화면 로컬 state가 아닌 전역 store에 둔다.
@@ -14,8 +16,8 @@ type NotificationStore = {
   addNotification: (input: { type: NotificationType; title: string; body: string }) => void;
 };
 
-export const useNotificationStore = create<NotificationStore>((set) => ({
-  notifications: MOCK_NOTIFICATIONS,
+export const useNotificationStore = create<NotificationStore>()(persist((set) => ({
+  notifications: [],
   markAllRead: () =>
     set((state) => ({
       notifications: state.notifications.map((item) => ({ ...item, read: true })),
@@ -43,4 +45,7 @@ export const useNotificationStore = create<NotificationStore>((set) => ({
       };
       return { notifications: [newItem, ...state.notifications] };
     }),
+}), {
+  name: 'notification:feed',
+  storage: createJSONStorage(() => AsyncStorage),
 }));
