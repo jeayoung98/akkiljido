@@ -15,6 +15,13 @@ export const categoryColors = [
   '#D7B899', // 베이지
 ] as const;
 
+/**
+ * 소득을 카테고리 하나처럼 다루기 위한 예약 categoryId입니다.
+ * 서버 categoryId(1~11)와 겹치지 않아야 하고, categoryId가 없을 때 0으로 정규화되는 값과도
+ * 겹치면 안 되므로 음수를 씁니다. (constants/categories.ts의 INCOME_CATEGORY가 이 id를 씁니다.)
+ */
+export const INCOME_CATEGORY_ID = -1;
+
 export default {
   onboarding: {
     green: "#4A784F",
@@ -29,6 +36,9 @@ export default {
   // 백엔드 categoryId(1~11)와 같은 순서로 관리하는 카테고리 전용 색상입니다.
   // 지도 마커, 카테고리 아이콘, 분석 차트가 동일한 색을 사용합니다.
   category: {
+    // 소득도 카테고리 하나로 취급해 여기서 색을 가져갑니다.
+    // 지금은 기타와 같은 베이지를 쓰고, 소득만 다른 색으로 빼고 싶으면 이 줄만 고치면 됩니다.
+    [INCOME_CATEGORY_ID]: categoryColors[10],
     1: categoryColors[0],
     2: categoryColors[1],
     3: categoryColors[2],

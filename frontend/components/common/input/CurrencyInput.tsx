@@ -19,6 +19,8 @@ export type CurrencyInputProps = {
   unit?: string;
   errorMessage?: string;
   editable?: boolean;
+  /** 입력창에 포커스가 갔을 때 알려줍니다(키보드에 가리지 않도록 화면을 스크롤할 때 사용). */
+  onFocus?: () => void;
   containerStyle?: StyleProp<ViewStyle>;
 };
 
@@ -72,6 +74,7 @@ export function CurrencyInput({
   unit = '원',
   errorMessage,
   editable = true,
+  onFocus,
   containerStyle,
 }: CurrencyInputProps) {
   const [isFocused, setIsFocused] = useState(false);
@@ -120,6 +123,7 @@ export function CurrencyInput({
     // 포커스 시 외부 숫자값을 원시 문자열로 바꿔 사용자가 자연스럽게 수정할 수 있게 합니다.
     setRawValue(getRawValue(value));
     setIsFocused(true);
+    onFocus?.();
   };
 
   const handleBlur = () => setIsFocused(false);
