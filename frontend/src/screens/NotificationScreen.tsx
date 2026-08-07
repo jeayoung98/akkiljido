@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { type ReactNode } from 'react';
+import { type ReactNode, useEffect } from 'react';
 import { Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
@@ -10,6 +10,7 @@ import { IconButton } from '@/components/common/button/IconButton';
 import Colors from '@/constants/Colors';
 import { useNotificationStore } from '@/store/notificationStore';
 import type { NotificationType } from '@/types/notification';
+import { clearPresentedNotifications } from '@/utils/localNotifications';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const SWIPE_DISMISS_DISTANCE = 90; // 이만큼(px) 넘게 끌면 놓았을 때 삭제된다
@@ -126,6 +127,12 @@ export default function NotificationScreen() {
   const markRead = useNotificationStore((state) => state.markRead);
   const dismiss = useNotificationStore((state) => state.dismiss);
   const hasUnread = notifications.some((item) => !item.read);
+
+  useEffect(() => {
+    // 알림함을 열면 인앱 목록은 읽음으로 바꾸고, 홈 화면의 OS 배지도 함께 비운다.
+    markAllRead();
+    void clearPresentedNotifications();
+  }, [markAllRead]);
 
   return (
     <AppScreen backgroundColor={Colors.light.primary}>

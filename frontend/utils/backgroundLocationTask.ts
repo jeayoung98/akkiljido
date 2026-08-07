@@ -2,7 +2,7 @@ import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 
 import { useNotificationStore } from '@/store/notificationStore';
-import { presentLocalNotification } from '@/utils/localNotifications';
+import { configureBackgroundLocationNotificationChannel, presentLocalNotification } from '@/utils/localNotifications';
 import { findTriggeredPlaces } from '@/utils/notificationTrigger';
 import { claimNotificationForToday, releaseNotificationClaimForToday } from '@/utils/notifiedPlacesStorage';
 import { loadNotificationPlaces } from '@/utils/notificationPlaceStorage';
@@ -83,6 +83,7 @@ export async function startBackgroundLocationTracking() {
   if (status !== 'granted') return;
 
   await Location.startLocationUpdatesAsync(BACKGROUND_LOCATION_TASK, BACKGROUND_LOCATION_OPTIONS);
+  await configureBackgroundLocationNotificationChannel();
 }
 
 // 아직 호출하는 곳이 없다 — 로그아웃 처리(src/screens/MyScreen.tsx의 TODO)가 실제로 붙으면 그
