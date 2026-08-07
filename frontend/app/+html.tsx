@@ -21,7 +21,6 @@ export default function Root({ children }: { children: ReactNode }) {
         */}
         <ScrollViewStyleReset />
 
-        {/* Using raw CSS styles as an escape-hatch to ensure the background color never flickers in dark-mode. */}
         <style dangerouslySetInnerHTML={{ __html: responsiveBackground }} />
         {/* Add any additional <head> elements that you want globally available on web... */}
       </head>
@@ -30,13 +29,8 @@ export default function Root({ children }: { children: ReactNode }) {
   );
 }
 
-// 다크모드 시스템 설정에서도 웹 배경색이 깜빡이지 않도록 미리 넣는 raw CSS
+// 초기 렌더링 전에도 배경색이 깜빡이지 않도록 미리 넣는 raw CSS
 const responsiveBackground = `
 body {
   background-color: #fff;
-}
-@media (prefers-color-scheme: dark) {
-  body {
-    background-color: #000;
-  }
 }`;
