@@ -17,6 +17,10 @@ const WATCH_OPTIONS: Location.LocationOptions = {
   distanceInterval: 0,
 };
 
+// refreshCurrentLocation 주기(30초)보다 살짝 짧게 잡아서, 이 시간 안에 받아둔 캐시된 위치가
+// 있으면 그걸로 판정하고 굳이 GPS를 다시 깨우지(getCurrentPositionAsync) 않는다.
+const LAST_KNOWN_FRESHNESS_MS = 25000;
+
 /**
  * 위치 기반 알림 트리거링을 시작한다. 두 경로로 위치를 받는다:
  * - foreground: 앱이 떠 있는 동안 watchPositionAsync로 더 자주(30초/50m) 확인한다.
@@ -32,7 +36,9 @@ export function useNotificationPlaceTrigger() {
     let subscription: Location.LocationSubscription | null = null;
     let refreshTimer: ReturnType<typeof setInterval> | null = null;
     let cancelled = false;
-    let isEvaluating = false;
+    // watchPositionAsync 콜백(distanceInterval:0이라 위치가 조금만 흔들려도 옴)과 30초 인터벌
+    // 갱신이 동시에 들어와도, 평가(저장소 읽기 + GPS 재조회)는 항상 하나만 돌게 하는 공용 가드.
+    let isBusy = false;
 
     async function start() {
       const evaluateLocation = async (position: Location.LocationObject) => {
@@ -66,14 +72,30 @@ export function useNotificationPlaceTrigger() {
         }
       };
 
-      const refreshCurrentLocation = async () => {
-        if (cancelled || isEvaluating) return;
-        isEvaluating = true;
-
+      const withBusyGuard = async (task: () => Promise<void>) => {
+        if (cancelled || isBusy) return;
+        isBusy = true;
         try {
+          await task();
+        } catch (error) {
+          if (__DEV__) {
+            console.warn('[notification-trigger] 위치 평가 중 오류', error);
+          }
+        } finally {
+          isBusy = false;
+        }
+      };
+
+      const refreshCurrentLocation = () =>
+        withBusyGuard(async () => {
+          // 캐시된 최근 위치가 이번 주기(30초) 안에 받아둔 거면 그걸로 판정하고, GPS를 새로 켜는
+          // getCurrentPositionAsync(배터리·시간 둘 다 비싼 호출)는 캐시가 없거나 오래됐을 때만 부른다.
           const lastKnownPosition = await Location.getLastKnownPositionAsync();
-          if (lastKnownPosition && !cancelled) {
+          const isFresh =
+            lastKnownPosition != null && Date.now() - lastKnownPosition.timestamp < LAST_KNOWN_FRESHNESS_MS;
+          if (isFresh) {
             await evaluateLocation(lastKnownPosition);
+            return;
           }
 
           const currentPosition = await Location.getCurrentPositionAsync({
@@ -82,14 +104,7 @@ export function useNotificationPlaceTrigger() {
           if (!cancelled) {
             await evaluateLocation(currentPosition);
           }
-        } catch (error) {
-          if (__DEV__) {
-            console.warn('[notification-trigger] failed to refresh current location', error);
-          }
-        } finally {
-          isEvaluating = false;
-        }
-      };
+        });
 
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
@@ -110,9 +125,17 @@ export function useNotificationPlaceTrigger() {
 
         // 위치 변화가 없으면 watchPositionAsync 콜백이 바로 오지 않을 수 있으므로,
         // 감시 시작 직후 현재 위치도 한 번 검사한다.
-        subscription = await Location.watchPositionAsync(WATCH_OPTIONS, (position) => {
-          void evaluateLocation(position);
+        const newSubscription = await Location.watchPositionAsync(WATCH_OPTIONS, (position) => {
+          void withBusyGuard(() => evaluateLocation(position));
         });
+        if (cancelled) {
+          // await 도중에 이미 언마운트됐으면(Fast Refresh 등) cleanup 함수가 먼저 실행되고 지나가버려서
+          // 이 구독을 아무도 못 지운다 — 여기서 바로 정리하지 않으면 위치 구독이 계속 새서, 나중에
+          // 다른 화면의 getCurrentPositionAsync 호출이 응답을 못 받고 걸리는 문제로 이어질 수 있다.
+          newSubscription.remove();
+          return;
+        }
+        subscription = newSubscription;
         void refreshCurrentLocation();
         refreshTimer = setInterval(() => {
           void refreshCurrentLocation();
