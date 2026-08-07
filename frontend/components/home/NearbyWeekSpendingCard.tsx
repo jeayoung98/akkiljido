@@ -5,10 +5,33 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { KakaoMap, type KakaoMapHandle, type LatLng, type MapMarker } from '@/components/map/KakaoMap';
 import Colors from '@/constants/Colors';
 import type { NearbyExpensePlace } from '@/mocks/home';
+import { getDistanceMeters } from '@/utils/notificationTrigger';
 
 // 카드 안 미니 지도가 첫 화면부터 내 주변 2km 정도로 좁게 보이는 줌 레벨.
 const MAP_LEVEL = 6;
 const DEFAULT_CENTER: LatLng = { lat: 37.4979, lng: 127.0276 };
+// 이 거리(m) 안에 있는 장소들은 이 줌 레벨(2km 반경)에서는 말풍선이 서로 겹쳐 하나만 보이므로,
+// 아예 하나로 묶어서 보여준다. 어차피 미리보기 지도를 탭하면 전체 지도로 이동해 각각 확대해서
+// 볼 수 있어서, 여기서는 넉넉하게 500m 이내를 "같은 자리"로 본다.
+const OVERLAP_DISTANCE_METERS = 500;
+
+/** 가까운 장소끼리 묶는다. 이미 만들어진 그룹 중 하나와 겹치면 그 그룹에 합류시킨다. */
+function groupNearbyPlaces(places: NearbyExpensePlace[]): NearbyExpensePlace[][] {
+  const groups: NearbyExpensePlace[][] = [];
+
+  for (const place of places) {
+    const existingGroup = groups.find(
+      (group) => getDistanceMeters(group[0], place) <= OVERLAP_DISTANCE_METERS,
+    );
+    if (existingGroup) {
+      existingGroup.push(place);
+    } else {
+      groups.push([place]);
+    }
+  }
+
+  return groups;
+}
 
 type NearbyWeekSpendingCardProps = {
   totalAmount: number;
@@ -47,16 +70,23 @@ export function NearbyWeekSpendingCard({
 
   const center = currentLocation ?? DEFAULT_CENTER;
 
-  const markers: MapMarker[] = places.map((place) => ({
-    // place.name은 같은 이름의 다른 지점이 있을 수 있어 고유하지 않다. 좌표 조합을 id로 쓴다
-    // (MapScreen의 일반 가게 마커도 같은 방식을 쓴다).
-    id: `${place.latitude},${place.longitude}`,
-    lat: place.latitude,
-    lng: place.longitude,
-    label: place.name,
-    amount: place.amount,
-    color: Colors.light.primary,
-  }));
+  // 겹치는 장소는 그룹으로 묶어서, 그 안에서 가장 큰 금액 하나만 말풍선에 보여주고 나머지는
+  // "+N"으로 표시한다(전체 지도에서 확대해서 각각 보는 건 미리보기 탭 이동으로 이미 가능하다).
+  const markers: MapMarker[] = groupNearbyPlaces(places).map((group) => {
+    const topPlace = group.reduce((max, place) => (place.amount > max.amount ? place : max));
+    const extraCount = group.length - 1;
+
+    return {
+      // place.name은 같은 이름의 다른 지점이 있을 수 있어 고유하지 않다. 좌표 조합을 id로 쓴다
+      // (MapScreen의 일반 가게 마커도 같은 방식을 쓴다).
+      id: `${topPlace.latitude},${topPlace.longitude}`,
+      lat: topPlace.latitude,
+      lng: topPlace.longitude,
+      label: extraCount > 0 ? `${topPlace.name} +${extraCount}` : topPlace.name,
+      amount: topPlace.amount,
+      color: Colors.light.primary,
+    };
+  });
 
   return (
     <View style={styles.section}>
