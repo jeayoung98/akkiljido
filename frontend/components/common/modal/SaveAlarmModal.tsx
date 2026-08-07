@@ -311,7 +311,6 @@ export function SaveAlarmModal({
                     containerStyle={styles.timeInputContainer}
                     inputStyle={styles.timeInputValue}
                     onChangeText={(value) => updateField('startTime', value)}
-                    placeholder="18:30"
                     value={form.startTime}
                   />
                 </View>
@@ -322,7 +321,6 @@ export function SaveAlarmModal({
                     containerStyle={styles.timeInputContainer}
                     inputStyle={styles.timeInputValue}
                     onChangeText={(value) => updateField('endTime', value)}
-                    placeholder="19:30"
                     value={form.endTime}
                   />
                 </View>
@@ -337,7 +335,6 @@ export function SaveAlarmModal({
               <FieldInput
                 label="알림 추가 이유"
                 onChangeText={(value) => updateField('reason', value)}
-                placeholder="AI 추천 이유"
                 value={form.reason}
               />
             </ScrollView>

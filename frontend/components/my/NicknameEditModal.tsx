@@ -12,10 +12,21 @@ export type NicknameEditModalProps = {
   nickname: string;
   onCancel: () => void;
   onSave: (nickname: string) => void;
+  /** 저장 API 요청 중일 때. 저장 버튼에 로딩 표시를 하고 취소를 막는다. */
+  saving?: boolean;
+  /** 저장 실패 시 입력창 아래에 보여줄 메시지. */
+  errorMessage?: string;
 };
 
 /** 마이페이지에서 닉네임만 간단히 고칠 수 있는 모달입니다. */
-export function NicknameEditModal({ visible, nickname, onCancel, onSave }: NicknameEditModalProps) {
+export function NicknameEditModal({
+  visible,
+  nickname,
+  onCancel,
+  onSave,
+  saving = false,
+  errorMessage,
+}: NicknameEditModalProps) {
   const [value, setValue] = useState(nickname);
 
   // 모달을 열 때마다 현재 닉네임으로 입력값을 다시 맞춘다.
@@ -23,7 +34,7 @@ export function NicknameEditModal({ visible, nickname, onCancel, onSave }: Nickn
     if (visible) setValue(nickname);
   }, [visible, nickname]);
 
-  const isValid = value.trim().length > 0;
+  const isValid = value.trim().length > 0 && !saving;
 
   const handleSave = () => {
     const trimmed = value.trim();
@@ -54,11 +65,13 @@ export function NicknameEditModal({ visible, nickname, onCancel, onSave }: Nickn
           </Text>
         </View>
 
+        {!!errorMessage && <Text style={styles.errorText}>{errorMessage}</Text>}
+
         <View style={styles.actions}>
-          <Button onPress={onCancel} style={styles.actionButton} variant="white">
+          <Button disabled={saving} onPress={onCancel} style={styles.actionButton} variant="white">
             취소
           </Button>
-          <Button disabled={!isValid} onPress={handleSave} style={styles.actionButton} variant="green">
+          <Button disabled={!isValid} loading={saving} onPress={handleSave} style={styles.actionButton} variant="green">
             저장
           </Button>
         </View>
@@ -98,6 +111,12 @@ const styles = StyleSheet.create({
     color: Colors.light.textSecondary,
     fontSize: 12,
     textAlign: 'right',
+  },
+  errorText: {
+    marginTop: 10,
+    color: Colors.light.danger,
+    fontSize: 13,
+    textAlign: 'center',
   },
   actions: {
     marginTop: 22,

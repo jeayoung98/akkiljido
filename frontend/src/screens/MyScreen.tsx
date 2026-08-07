@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import AppScreen from '@/components/common/AppScreen';
@@ -10,26 +10,73 @@ import { ConfirmModal } from '@/components/common/modal/ConfirmModal';
 import { BrandLogo } from '@/components/onboarding/BrandLogo';
 import { NicknameEditModal } from '@/components/my/NicknameEditModal';
 import Colors from '@/constants/Colors';
-
-// TODO: 실제 로그인한 사용자 닉네임으로 교체 (지금은 온보딩 예시값 그대로 사용)
-const INITIAL_NICKNAME = 'Dust';
+import { logoutFromServer } from '@/src/api/authApi';
+import { getMyProfile, registerNickname } from '@/src/api/usersApi';
+import { clearAuthSession, getAuthSession, saveAuthSession } from '@/src/auth/tokenStorage';
 
 /** 마이페이지. 프로필 요약과 내 장소 관리·알림 설정·설정·로그아웃으로 가는 메뉴를 보여준다. */
 export default function MyScreen() {
-  const [nickname, setNickname] = useState(INITIAL_NICKNAME);
+  // 서버 응답이 오기 전에는 빈 문자열로 두고, 조회 실패하면 콘솔에만 남기고 빈 상태로 둔다
+  // (화면이 깨지지는 않되, "닉네임 수정"으로 채울 수 있다).
+  const [nickname, setNickname] = useState('');
   const [nicknameModalVisible, setNicknameModalVisible] = useState(false);
+  const [nicknameSaving, setNicknameSaving] = useState(false);
+  const [nicknameError, setNicknameError] = useState('');
   const [logoutModalVisible, setLogoutModalVisible] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
 
-  const handleSaveNickname = (nextNickname: string) => {
-    // TODO: 실제 닉네임 저장 API 연결
-    setNickname(nextNickname);
-    setNicknameModalVisible(false);
+  useEffect(() => {
+    (async () => {
+      try {
+        const profile = await getMyProfile();
+        console.info('[my] profile success', profile);
+        setNickname(profile.nickname);
+      } catch (error) {
+        console.error('[my] profile failed', error);
+      }
+    })();
+  }, []);
+
+  const handleSaveNickname = async (nextNickname: string) => {
+    try {
+      setNicknameSaving(true);
+      setNicknameError('');
+
+      const result = await registerNickname(nextNickname);
+
+      // 닉네임 변경도 새 access/refresh token을 함께 내려주므로, 세션을 그 값으로 교체해둔다.
+      await saveAuthSession(result);
+
+      setNickname(result.nickname);
+      setNicknameModalVisible(false);
+    } catch (error) {
+      console.error('[my] nickname update failed', error);
+      setNicknameError(error instanceof Error ? error.message : '닉네임 저장에 실패했습니다.');
+    } finally {
+      setNicknameSaving(false);
+    }
   };
 
-  const handleLogout = () => {
-    setLogoutModalVisible(false);
-    // TODO: 토큰 삭제 등 실제 로그아웃 처리 연결
-    router.replace('/login');
+  const handleLogout = async () => {
+    try {
+      setLoggingOut(true);
+
+      const session = await getAuthSession();
+      if (session) {
+        try {
+          await logoutFromServer(session.accessToken);
+        } catch (error) {
+          // 서버 로그아웃(토큰 폐기)이 실패해도, 기기에서는 로그인 화면으로 보내는 게 우선이라 로컬 세션은 계속 지운다.
+          console.error('[my] server logout failed', error);
+        }
+      }
+
+      await clearAuthSession();
+      setLogoutModalVisible(false);
+      router.replace('/login');
+    } finally {
+      setLoggingOut(false);
+    }
   };
 
   return (
@@ -46,7 +93,10 @@ export default function MyScreen() {
             accessibilityLabel="닉네임 수정"
             accessibilityRole="button"
             hitSlop={8}
-            onPress={() => setNicknameModalVisible(true)}
+            onPress={() => {
+              setNicknameError('');
+              setNicknameModalVisible(true);
+            }}
             style={styles.editRow}>
             <Text style={styles.editText}>닉네임 수정</Text>
             <View pointerEvents="none">
@@ -102,14 +152,17 @@ export default function MyScreen() {
       <Text style={styles.version}>v1.0.0 · 아낄지도</Text>
 
       <NicknameEditModal
+        errorMessage={nicknameError}
         nickname={nickname}
         onCancel={() => setNicknameModalVisible(false)}
         onSave={handleSaveNickname}
+        saving={nicknameSaving}
         visible={nicknameModalVisible}
       />
 
       <ConfirmModal
         confirmLabel="로그아웃"
+        confirmLoading={loggingOut}
         destructive
         onCancel={() => setLogoutModalVisible(false)}
         onConfirm={handleLogout}

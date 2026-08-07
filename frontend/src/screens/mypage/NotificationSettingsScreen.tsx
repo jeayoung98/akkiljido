@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useRef, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import AppScreen from '@/components/common/AppScreen';
 import InfoListItem from '@/components/common/card/InfoListItem';
@@ -11,8 +11,14 @@ import { AddCircleButton } from '@/components/my/AddCircleButton';
 import { KebabMenu } from '@/components/my/KebabMenu';
 import { Switch } from '@/components/my/Switch';
 import Colors from '@/constants/Colors';
-import type { NotificationPlace } from '@/types/notification';
-import { loadNotificationPlaces, saveNotificationPlaces } from '@/utils/notificationPlaceStorage';
+import {
+  createNotificationPlace,
+  deleteNotificationPlace,
+  getNotificationPlaces,
+  updateNotificationPlace,
+  type NotificationPlace,
+} from '@/src/api/notificationPlaceApi';
+import { saveNotificationPlaces } from '@/utils/notificationPlaceStorage';
 import { releaseNotificationClaimForToday } from '@/utils/notifiedPlacesStorage';
 
 // "+" 버튼을 누르면 이 빈 값으로 SaveAlarmModal을 연다. 지도에서 장소를 고르기 전까지는
@@ -43,33 +49,48 @@ function toAlarmFormValue(place: NotificationPlace): AlarmFormValue {
 
 /**
  * 마이페이지 > 알림 설정 화면입니다. 소비 리포트(주간/월간) 알림과, 등록한 위치 알림 목록을 보여줍니다.
- * 위치 알림은 추가·수정 모두 SaveAlarmModal을 사용하며, 저장한 값은 로컬 저장소에 즉시 반영합니다.
+ * 위치 알림은 추가·수정 모두 SaveAlarmModal을 사용하며, 저장한 값은 목업 목록에 즉시 반영합니다.
  */
 export default function NotificationSettingsScreen() {
   const [weeklyReport, setWeeklyReport] = useState(true);
   const [monthlyReport, setMonthlyReport] = useState(true);
   const [places, setPlaces] = useState<NotificationPlace[]>([]);
   const [deleteTarget, setDeleteTarget] = useState<NotificationPlace | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [addModalVisible, setAddModalVisible] = useState(false);
   const [editTarget, setEditTarget] = useState<NotificationPlace | null>(null);
+  const [saving, setSaving] = useState(false);
   // 지도 선택을 위해 모달을 잠시 닫을 때 수정 대상을 기억해 두었다가, 돌아오면 같은 수정 모드로 다시 엽니다.
   const pendingEditTargetRef = useRef<NotificationPlace | null>(null);
 
   useEffect(() => {
-    void loadNotificationPlaces().then(setPlaces);
+    (async () => {
+      try {
+        const data = await getNotificationPlaces();
+        console.info('[notification] list success', data);
+        setPlaces(data);
+        // API 목록을 로컬에도 복사해 헤드리스 위치 태스크가 같은 알림 장소를 판정하게 합니다.
+        await saveNotificationPlaces(data);
+      } catch (error) {
+        console.error('[notification] list failed', error);
+      }
+    })();
   }, []);
 
-  const updatePlaces = (updater: (current: NotificationPlace[]) => NotificationPlace[]) => {
-    setPlaces((current) => {
-      const next = updater(current);
-      // 화면 반영과 함께 저장해, 백그라운드 위치 태스크도 같은 목록을 판정에 사용합니다.
-      void saveNotificationPlaces(next);
-      return next;
-    });
-  };
-
-  const handleTogglePlace = (id: number, next: boolean) => {
-    updatePlaces((prev) => prev.map((place) => (place.notificationPlaceId === id ? { ...place, active: next } : place)));
+  const handleTogglePlace = async (id: number, next: boolean) => {
+    setPlaces((prev) => prev.map((place) => (place.notificationPlaceId === id ? { ...place, active: next } : place)));
+    try {
+      await updateNotificationPlace(id, { active: next });
+      // API 저장이 성공한 경우에만 백그라운드 태스크가 읽는 로컬 목록도 맞춥니다.
+      void saveNotificationPlaces(
+        places.map((place) => (place.notificationPlaceId === id ? { ...place, active: next } : place)),
+      );
+    } catch (error) {
+      console.error('[notification] toggle failed', error);
+      // 실패하면 화면에 반영했던 토글을 원래 상태로 되돌립니다.
+      setPlaces((prev) => prev.map((place) => (place.notificationPlaceId === id ? { ...place, active: !next } : place)));
+      Alert.alert('알림 상태 변경에 실패했어요', error instanceof Error ? error.message : undefined);
+    }
   };
 
   const handleAddPlace = () => {
@@ -78,49 +99,44 @@ export default function NotificationSettingsScreen() {
     setAddModalVisible(true);
   };
 
-  const handleSavePlace = (value: AlarmFormValue) => {
-    if (editTarget) {
-      // 수정 시에는 id와 토글 상태는 유지하고, 모달에서 편집한 정보만 같은 항목에 덮어씁니다.
-      updatePlaces((prev) =>
-        prev.map((place) =>
-          place.notificationPlaceId === editTarget.notificationPlaceId
-            ? {
-                ...place,
-                notificationPlaceName: value.name,
-                address: value.address,
-                latitude: value.lat,
-                longitude: value.lng,
-                startTime: value.startTime,
-                endTime: value.endTime,
-                reason: value.reason,
-              }
-            : place,
-        ),
-      );
-      void releaseNotificationClaimForToday(editTarget.notificationPlaceId);
-      setEditTarget(null);
-      pendingEditTargetRef.current = null;
-      return;
-    }
+  const handleSavePlace = async (value: AlarmFormValue) => {
+    const input = {
+      notificationPlaceName: value.name,
+      address: value.address,
+      latitude: value.lat,
+      longitude: value.lng,
+      startTime: value.startTime,
+      endTime: value.endTime,
+      reason: value.reason,
+    };
 
-    // 추가 시에는 화면에서만 사용할 다음 id를 만들어 목록 마지막에 넣습니다. API 연결 시 POST 요청으로 교체합니다.
-    const nextId = Date.now();
-    updatePlaces((prev) => [
-      ...prev,
-      {
-        notificationPlaceId: nextId,
-        notificationPlaceName: value.name,
-        address: value.address,
-        // 지도에서 장소를 골라야만 저장할 수 있어서(address 필수 검사) 이 시점엔 항상 값이 있다.
-        latitude: value.lat,
-        longitude: value.lng,
-        startTime: value.startTime,
-        endTime: value.endTime,
-        reason: value.reason,
-        active: true,
-      },
-    ]);
-    setAddModalVisible(false);
+    try {
+      setSaving(true);
+
+      if (editTarget) {
+        const updated = await updateNotificationPlace(editTarget.notificationPlaceId, input);
+        setPlaces((prev) =>
+          prev.map((place) => (place.notificationPlaceId === editTarget.notificationPlaceId ? updated : place)),
+        );
+        void saveNotificationPlaces(
+          places.map((place) => (place.notificationPlaceId === editTarget.notificationPlaceId ? updated : place)),
+        );
+        void releaseNotificationClaimForToday(editTarget.notificationPlaceId);
+        setEditTarget(null);
+        pendingEditTargetRef.current = null;
+        return;
+      }
+
+      const created = await createNotificationPlace(input);
+      setPlaces((prev) => [...prev, created]);
+      void saveNotificationPlaces([...places, created]);
+      setAddModalVisible(false);
+    } catch (error) {
+      console.error('[notification] save failed', error);
+      Alert.alert('위치 알림 저장에 실패했어요', error instanceof Error ? error.message : undefined);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleEditPlace = (place: NotificationPlace) => {
@@ -146,11 +162,21 @@ export default function NotificationSettingsScreen() {
     setAddModalVisible(true);
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (!deleteTarget) return;
-    updatePlaces((prev) => prev.filter((place) => place.notificationPlaceId !== deleteTarget.notificationPlaceId));
-    void releaseNotificationClaimForToday(deleteTarget.notificationPlaceId);
-    setDeleteTarget(null);
+    try {
+      setDeleting(true);
+      await deleteNotificationPlace(deleteTarget.notificationPlaceId);
+      setPlaces((prev) => prev.filter((place) => place.notificationPlaceId !== deleteTarget.notificationPlaceId));
+      void saveNotificationPlaces(places.filter((place) => place.notificationPlaceId !== deleteTarget.notificationPlaceId));
+      void releaseNotificationClaimForToday(deleteTarget.notificationPlaceId);
+      setDeleteTarget(null);
+    } catch (error) {
+      console.error('[notification] delete failed', error);
+      Alert.alert('위치 알림 삭제에 실패했어요', error instanceof Error ? error.message : undefined);
+    } finally {
+      setDeleting(false);
+    }
   };
 
   return (
@@ -164,7 +190,7 @@ export default function NotificationSettingsScreen() {
 
           <View style={styles.card}>
             <InfoListItem
-              description="월-일 소비 · 매주 일요일 오전 7:00"
+              description="월-일 소비 · 매주 월요일 오전 7:00"
               title="주간 리포트"
               trailing={<Switch onValueChange={setWeeklyReport} value={weeklyReport} />}
             />
@@ -196,6 +222,10 @@ export default function NotificationSettingsScreen() {
                       <Ionicons color={Colors.light.cardAccent} name="time-outline" size={12} />
                       <Text style={styles.timeText}>
                         {place.startTime}-{place.endTime}
+                      </Text>
+                      <Text style={styles.timeSeparator}>|</Text>
+                      <Text numberOfLines={1} style={styles.addressText}>
+                        {place.address}
                       </Text>
                     </View>
                     <Text numberOfLines={1} style={styles.placeTitle}>
@@ -233,6 +263,7 @@ export default function NotificationSettingsScreen() {
 
       <ConfirmModal
         confirmLabel="삭제"
+        confirmLoading={deleting}
         description={deleteTarget ? `"${deleteTarget.notificationPlaceName}" 알림이 삭제됩니다.` : undefined}
         destructive
         onCancel={() => setDeleteTarget(null)}
@@ -247,6 +278,7 @@ export default function NotificationSettingsScreen() {
         onClose={handleCloseSaveModal}
         onReopenAfterLocationPicked={handleReopenAfterLocationPicked}
         onSave={handleSavePlace}
+        saveLoading={saving}
         title={editTarget ? '위치 알림 수정' : '위치 알림 추가'}
         visible={addModalVisible || editTarget != null}
       />
@@ -325,6 +357,16 @@ const styles = StyleSheet.create({
     color: Colors.light.cardAccent,
     fontSize: 12,
     fontWeight: '600',
+  },
+  timeSeparator: {
+    color: Colors.light.border,
+    fontSize: 12,
+  },
+  addressText: {
+    flexShrink: 1,
+    minWidth: 0,
+    color: Colors.light.cardDescription,
+    fontSize: 12,
   },
   placeTitle: {
     marginTop: 4,
