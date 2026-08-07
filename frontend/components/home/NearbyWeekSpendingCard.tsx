@@ -1,5 +1,6 @@
+import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { KakaoMap, type KakaoMapHandle, type LatLng, type MapMarker } from '@/components/map/KakaoMap';
 import Colors from '@/constants/Colors';
@@ -78,6 +79,9 @@ export function NearbyWeekSpendingCard({
           style={styles.map}
           zoomable={false}
         />
+        {/* 미리보기 지도는 자체 터치(드래그/확대)가 막혀 있으니, 탭하면 지도 탭으로 이동시킨다.
+            WebView 위에 얹어서 지도 내부 터치가 아니라 이 Pressable이 먼저 터치를 받게 한다. */}
+        <Pressable onPress={() => router.push('/map')} style={StyleSheet.absoluteFill} />
       </View>
     </View>
   );

@@ -148,7 +148,10 @@ export default function HomeScreen() {
       <View style={styles.header}>
         <View style={styles.profileRow}>
           <Image source={require('@/assets/images/profile-icon.png')} style={styles.profileIcon} />
-          <Text style={styles.greeting}>안녕하세요, {NICKNAME}님</Text>
+          <View>
+            <Text style={styles.greeting}>안녕하세요, {NICKNAME}님</Text>
+            <Text style={styles.greetingSubtitle}>오늘도 함께 알뜰하게!</Text>
+          </View>
         </View>
 
         <View>
@@ -246,14 +249,20 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   profileIcon: {
-    width: 44,
-    height: 44,
+    width: 56,
+    height: 56,
     resizeMode: 'contain',
   },
   greeting: {
     color: '#FFFFFF',
     fontSize: 17,
     fontWeight: '700',
+  },
+  greetingSubtitle: {
+    marginTop: 2,
+    color: Colors.onboarding.lightText,
+    fontSize: 12,
+    fontWeight: '500',
   },
   badge: {
     position: 'absolute',
