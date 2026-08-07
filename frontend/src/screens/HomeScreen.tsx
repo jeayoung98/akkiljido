@@ -86,30 +86,38 @@ export default function HomeScreen() {
 
   // 실패하면(네트워크 오류, 인증 만료 등) 그냥 빈 상태로 두고 콘솔에만 남긴다 — 이번 달 지출이
   // 없을 때 보여주는 빈 상태 문구를 그대로 재사용하는 셈이라 화면이 깨지진 않는다.
-  useEffect(() => {
-    (async () => {
-      try {
-        const summary = await getCategorySummary();
-        console.info('[home] category-summary success', summary);
-        setCategories(summary.categories);
-      } catch (error) {
-        console.error('[home] category-summary failed', error);
-      }
-    })();
-  }, []);
+  // 탭은 전환해도 언마운트되지 않아서 마운트 시 한 번만 불러오면, 거래내역 화면에서 거래를
+  // 추가/수정/삭제하고 돌아와도 반영이 안 된다(그 화면의 react-query 캐시 무효화가 이 값까지는
+  // 안 미침). useFocusEffect로 홈 화면에 다시 포커스될 때마다 새로 불러와서 항상 최신 값이 보이게 한다.
+  useFocusEffect(
+    useCallback(() => {
+      (async () => {
+        try {
+          const summary = await getCategorySummary();
+          console.info('[home] category-summary success', summary);
+          setCategories(summary.categories);
+        } catch (error) {
+          console.error('[home] category-summary failed', error);
+        }
+      })();
+    }, []),
+  );
 
   // 전용 API가 없어서 캘린더 day API(오늘 날짜)를 재사용한다. 자세한 이유는 calendarApi.ts 참고.
-  useEffect(() => {
-    (async () => {
-      try {
-        const amount = await getTodayExpenseAmount();
-        console.info('[home] today-expense success', amount);
-        setTodayExpense(amount);
-      } catch (error) {
-        console.error('[home] today-expense failed', error);
-      }
-    })();
-  }, []);
+  // 위와 같은 이유로 useFocusEffect를 쓴다.
+  useFocusEffect(
+    useCallback(() => {
+      (async () => {
+        try {
+          const amount = await getTodayExpenseAmount();
+          console.info('[home] today-expense success', amount);
+          setTodayExpense(amount);
+        } catch (error) {
+          console.error('[home] today-expense failed', error);
+        }
+      })();
+    }, []),
+  );
 
   useEffect(() => {
     (async () => {

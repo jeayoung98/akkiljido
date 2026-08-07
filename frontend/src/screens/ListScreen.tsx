@@ -351,9 +351,25 @@ export default function ListScreen() {
     setSelectedTypes((current) => current.includes(type) ? current.filter((item) => item !== type) : [...current, type]);
   };
 
-  const toggleCategory = (categoryId: number) => {
+  // 서버가 같은 이름의 카테고리를 id만 다르게 두 벌(예: 음식점 34, 67) 내려줄 때가 있어서, 필터
+  // 칩은 이름 기준으로 묶어서 하나만 보여준다. 칩 하나를 누르면 그 이름에 속한 id를 전부 같이
+  // 켜고/끄기 때문에, 화면엔 12개만 보여도 실제 필터링은 두 id 모두를 대상으로 정확히 걸린다.
+  const categoryGroups = useMemo(() => {
+    const groups = new Map<string, number[]>();
+    categories.forEach((category) => {
+      const ids = groups.get(category.name) ?? [];
+      ids.push(category.id);
+      groups.set(category.name, ids);
+    });
+    return Array.from(groups.entries()).map(([name, ids]) => ({ name, ids }));
+  }, [categories]);
+
+  const toggleCategoryGroup = (ids: number[]) => {
+    const isFullySelected = ids.every((id) => selectedCategoryIds.includes(id));
     setSelectedCategoryIds((current) =>
-      current.includes(categoryId) ? current.filter((item) => item !== categoryId) : [...current, categoryId],
+      isFullySelected
+        ? current.filter((id) => !ids.includes(id))
+        : [...current, ...ids.filter((id) => !current.includes(id))],
     );
   };
 
@@ -492,7 +508,10 @@ export default function ListScreen() {
         </View>
       </AppScreen>
 
-      <BottomSheet initialHeight={0.82} maxHeight={0.92} minHeight={0.62} onClose={() => setIsFilterVisible(false)} visible={isFilterVisible}>
+      {/* 지도 필터(MapScreen.tsx)와 동일하게 min=max로 고정해서, 열자마자 아래 초기화/적용하기
+          버튼까지 항상 다 보이게 한다. 가변 높이로 두면 초기 높이가 내용보다 작을 때 버튼이
+          화면 밖으로 밀려서 시트를 끌어올려야만 보이는 문제가 있었다. */}
+      <BottomSheet maxHeight={0.92} minHeight={0.92} onClose={() => setIsFilterVisible(false)} visible={isFilterVisible}>
         <ScrollView contentContainerStyle={styles.filterContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} style={styles.filterScroll}>
           <View style={styles.filterHeader}>
             <Text style={styles.filterTitle}>내역 필터</Text>
@@ -533,13 +552,13 @@ export default function ListScreen() {
             label="카테고리"
             onAction={() => setSelectedCategoryIds(hasAllCategoriesSelected ? [] : [...allCategoryIds])}>
             <View style={styles.filterGrid}>
-              {categories.map((category) => (
+              {categoryGroups.map((group) => (
                 <Chip
                   indicator="check"
-                  key={category.id}
-                  label={category.name}
-                  onPress={() => toggleCategory(category.id)}
-                  selected={selectedCategoryIds.includes(category.id)}
+                  key={group.name}
+                  label={group.name}
+                  onPress={() => toggleCategoryGroup(group.ids)}
+                  selected={group.ids.every((id) => selectedCategoryIds.includes(id))}
                   style={styles.twoColumnChip}
                 />
               ))}
