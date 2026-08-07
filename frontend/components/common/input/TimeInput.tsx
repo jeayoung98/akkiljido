@@ -42,7 +42,7 @@ function formatTimeText(text: string) {
 export function TimeInput({
   value,
   onChangeText,
-  placeholder = '18:30',
+  placeholder,
   containerStyle,
   inputStyle,
   ...props
