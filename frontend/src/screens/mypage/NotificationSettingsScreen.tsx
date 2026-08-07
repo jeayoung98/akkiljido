@@ -18,6 +18,8 @@ import {
   updateNotificationPlace,
   type NotificationPlace,
 } from '@/src/api/notificationPlaceApi';
+import { saveNotificationPlaces } from '@/utils/notificationPlaceStorage';
+import { releaseNotificationClaimForToday } from '@/utils/notifiedPlacesStorage';
 
 // "+" 버튼을 누르면 이 빈 값으로 SaveAlarmModal을 연다. 지도에서 장소를 고르기 전까지는
 // address·좌표가 비어 있어서, 모달의 필수값 검사(address)가 저장을 막아준다.
@@ -67,6 +69,8 @@ export default function NotificationSettingsScreen() {
         const data = await getNotificationPlaces();
         console.info('[notification] list success', data);
         setPlaces(data);
+        // API 목록을 로컬에도 복사해 헤드리스 위치 태스크가 같은 알림 장소를 판정하게 합니다.
+        await saveNotificationPlaces(data);
       } catch (error) {
         console.error('[notification] list failed', error);
       }
@@ -77,6 +81,10 @@ export default function NotificationSettingsScreen() {
     setPlaces((prev) => prev.map((place) => (place.notificationPlaceId === id ? { ...place, active: next } : place)));
     try {
       await updateNotificationPlace(id, { active: next });
+      // API 저장이 성공한 경우에만 백그라운드 태스크가 읽는 로컬 목록도 맞춥니다.
+      void saveNotificationPlaces(
+        places.map((place) => (place.notificationPlaceId === id ? { ...place, active: next } : place)),
+      );
     } catch (error) {
       console.error('[notification] toggle failed', error);
       // 실패하면 화면에 반영했던 토글을 원래 상태로 되돌립니다.
@@ -110,6 +118,10 @@ export default function NotificationSettingsScreen() {
         setPlaces((prev) =>
           prev.map((place) => (place.notificationPlaceId === editTarget.notificationPlaceId ? updated : place)),
         );
+        void saveNotificationPlaces(
+          places.map((place) => (place.notificationPlaceId === editTarget.notificationPlaceId ? updated : place)),
+        );
+        void releaseNotificationClaimForToday(editTarget.notificationPlaceId);
         setEditTarget(null);
         pendingEditTargetRef.current = null;
         return;
@@ -117,6 +129,7 @@ export default function NotificationSettingsScreen() {
 
       const created = await createNotificationPlace(input);
       setPlaces((prev) => [...prev, created]);
+      void saveNotificationPlaces([...places, created]);
       setAddModalVisible(false);
     } catch (error) {
       console.error('[notification] save failed', error);
@@ -155,6 +168,8 @@ export default function NotificationSettingsScreen() {
       setDeleting(true);
       await deleteNotificationPlace(deleteTarget.notificationPlaceId);
       setPlaces((prev) => prev.filter((place) => place.notificationPlaceId !== deleteTarget.notificationPlaceId));
+      void saveNotificationPlaces(places.filter((place) => place.notificationPlaceId !== deleteTarget.notificationPlaceId));
+      void releaseNotificationClaimForToday(deleteTarget.notificationPlaceId);
       setDeleteTarget(null);
     } catch (error) {
       console.error('[notification] delete failed', error);

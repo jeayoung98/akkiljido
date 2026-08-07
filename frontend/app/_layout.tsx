@@ -5,6 +5,8 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import 'react-native-reanimated';
 
+// 앱이 백그라운드/헤드리스 상태로 시작돼도 위치 태스크가 먼저 등록되도록 루트에서 로드한다.
+import '@/utils/backgroundLocationTask';
 import { queryClient } from '@/src/api/queryClient';
 
 export {

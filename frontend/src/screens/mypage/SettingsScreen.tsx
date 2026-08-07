@@ -1,6 +1,6 @@
 import * as Location from 'expo-location';
 import * as Notifications from 'expo-notifications';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, Alert, Linking, StyleSheet, Text, View } from 'react-native';
 
 import AppScreen from '@/components/common/AppScreen';
@@ -9,6 +9,8 @@ import { AppHeader } from '@/components/common/header/AppHeader';
 import { Switch } from '@/components/my/Switch';
 import Colors from '@/constants/Colors';
 import { useDevModeStore } from '@/store/devModeStore';
+import { startBackgroundLocationTracking, stopBackgroundLocationTracking } from '@/utils/backgroundLocationTask';
+import { clearPresentedNotifications } from '@/utils/localNotifications';
 
 /** 마이페이지 > 설정 화면입니다. 알람·위치 권한 스위치는 실제 OS 권한 상태를 그대로 보여줍니다. */
 export default function SettingsScreen() {
@@ -16,6 +18,8 @@ export default function SettingsScreen() {
   // 이 앱은 foreground 위치 권한만 요청한다(MapScreen 등 전부 requestForegroundPermissionsAsync만 사용,
   // background/always 권한은 요청하는 곳이 없다). 그래서 foreground 권한 상태만 확인하면 충분하다.
   const [locationPermission, setLocationPermission] = useState(false);
+  // 설정 앱을 열어 권한을 바꾼 뒤 돌아왔을 때만 위치 감시를 다시 시작합니다.
+  const shouldResumeTrackingRef = useRef(false);
   const isDevMode = useDevModeStore((state) => state.isDevMode);
   const setDevMode = useDevModeStore((state) => state.setDevMode);
 
@@ -49,6 +53,10 @@ export default function SettingsScreen() {
       if (nextState === 'active') {
         syncAlarmPermission();
         syncLocationPermission();
+        if (shouldResumeTrackingRef.current) {
+          shouldResumeTrackingRef.current = false;
+          void startBackgroundLocationTracking();
+        }
       }
     });
     return () => subscription.remove();
@@ -60,6 +68,7 @@ export default function SettingsScreen() {
         const { status, canAskAgain } = await Notifications.requestPermissionsAsync();
         if (status === 'granted') {
           setAlarmPermission(true);
+          void startBackgroundLocationTracking();
           return;
         }
         // OS가 다시 물어볼 수 없는 상태(한 번 거부됨)면 앱 안에서는 더 할 수 있는 게 없어 설정 앱으로 안내한다.
@@ -75,9 +84,20 @@ export default function SettingsScreen() {
       return;
     }
 
-    // OS 알림 권한은 앱에서 직접 끌 수 없어서, 설정 앱으로 안내하고 스위치는 실제 상태(켜짐)로 되돌린다.
+  // OS 알림 권한은 앱에서 직접 끌 수 없어서, 설정 앱으로 안내하고 스위치는 실제 상태(켜짐)로 되돌린다.
+    // 설정 앱으로 이동하기 전에도 상시 위치 감시는 바로 멈춰, 사용자가 원치 않는 추적이 계속되지 않게 합니다.
+    shouldResumeTrackingRef.current = true;
+    void stopBackgroundLocationTracking();
+    void clearPresentedNotifications();
     Alert.alert('알람 권한 끄기', '알람 권한은 설정 앱에서 꺼야 해요.', [
-      { text: '취소', style: 'cancel' },
+      {
+        text: '취소',
+        style: 'cancel',
+        onPress: () => {
+          shouldResumeTrackingRef.current = false;
+          void startBackgroundLocationTracking();
+        },
+      },
       { text: '설정으로 이동', onPress: () => Linking.openSettings() },
     ]);
     setAlarmPermission(true);
@@ -89,6 +109,7 @@ export default function SettingsScreen() {
         const { status, canAskAgain } = await Location.requestForegroundPermissionsAsync();
         if (status === 'granted') {
           setLocationPermission(true);
+          void startBackgroundLocationTracking();
           return;
         }
         if (!canAskAgain) {
@@ -103,9 +124,19 @@ export default function SettingsScreen() {
       return;
     }
 
-    // OS 위치 권한도 앱에서 직접 끌 수 없어서, 설정 앱으로 안내하고 스위치는 실제 상태(켜짐)로 되돌린다.
+  // OS 위치 권한도 앱에서 직접 끌 수 없어서, 설정 앱으로 안내하고 스위치는 실제 상태(켜짐)로 되돌린다.
+    // 위치 권한을 끄려는 의사를 표시한 시점에 포그라운드 서비스부터 종료합니다.
+    shouldResumeTrackingRef.current = true;
+    void stopBackgroundLocationTracking();
     Alert.alert('위치 권한 끄기', '위치 권한은 설정 앱에서 꺼야 해요.', [
-      { text: '취소', style: 'cancel' },
+      {
+        text: '취소',
+        style: 'cancel',
+        onPress: () => {
+          shouldResumeTrackingRef.current = false;
+          void startBackgroundLocationTracking();
+        },
+      },
       { text: '설정으로 이동', onPress: () => Linking.openSettings() },
     ]);
     setLocationPermission(true);
