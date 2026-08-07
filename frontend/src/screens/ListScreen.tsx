@@ -1,5 +1,5 @@
-import { router, useLocalSearchParams } from 'expo-router';
-import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import AppScreen from '@/components/common/AppScreen';
@@ -104,6 +104,18 @@ export default function ListScreen() {
   const { tab: initialTab } = useLocalSearchParams<{ tab?: TransactionTab }>();
   const [tab, setTab] = useState<TransactionTab>(
     initialTab === 'calendar' || initialTab === 'analysis' ? initialTab : 'list'
+  );
+
+  // 탭 화면은 전환해도 언마운트되지 않아서, useState 초기값은 이 화면에 "처음" 들어올 때만 적용된다.
+  // 그 뒤로는 "더보기" 링크로 다시 들어와도(쿼리는 여전히 붙어 있지만) 이미 마운트돼 있어 무시된다.
+  // useFocusEffect로 포커스가 올 때마다 쿼리의 tab을 다시 반영해서, 홈 화면 더보기를 몇 번을 눌러도
+  // 항상 그 탭으로 이동하게 한다.
+  useFocusEffect(
+    useCallback(() => {
+      if (initialTab === 'calendar' || initialTab === 'analysis') {
+        setTab(initialTab);
+      }
+    }, [initialTab]),
   );
   const [isSearching, setIsSearching] = useState(false);
   const [isFilterVisible, setIsFilterVisible] = useState(false);

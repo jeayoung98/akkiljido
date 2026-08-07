@@ -136,19 +136,23 @@ export default function HomeScreen() {
   }, []);
 
   // recent-expenses는 latitude/longitude가 필수 파라미터라서, 위치를 확보한 뒤에만 호출한다.
-  useEffect(() => {
-    if (!currentLocation) return;
+  // 다른 두 조회와 같은 이유로 useFocusEffect를 쓴다 — 거래내역에서 위치 포함 거래를 추가하고
+  // 돌아오면 지도 마커도 바로 반영돼야 한다.
+  useFocusEffect(
+    useCallback(() => {
+      if (!currentLocation) return;
 
-    (async () => {
-      try {
-        const recentExpenses = await getRecentExpenses(currentLocation.lat, currentLocation.lng);
-        console.info('[home] recent-expenses success', recentExpenses);
-        setNearbyExpenses(recentExpenses);
-      } catch (error) {
-        console.error('[home] recent-expenses failed', error);
-      }
-    })();
-  }, [currentLocation]);
+      (async () => {
+        try {
+          const recentExpenses = await getRecentExpenses(currentLocation.lat, currentLocation.lng);
+          console.info('[home] recent-expenses success', recentExpenses);
+          setNearbyExpenses(recentExpenses);
+        } catch (error) {
+          console.error('[home] recent-expenses failed', error);
+        }
+      })();
+    }, [currentLocation]),
+  );
 
   return (
     <AppScreen backgroundColor={Colors.light.primary}>
