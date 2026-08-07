@@ -39,6 +39,9 @@ public class SecurityConfig {
 
 					.requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
 
+					// TODO: 시연용 무인증 엔드포인트. 운영 배포 전 ReportDemoController 와 함께 제거한다.
+					.requestMatchers("/api/v1/report/demo/**").permitAll()
+
 					.requestMatchers(HttpMethod.PATCH, "/api/v1/users/me/nickname").hasAnyRole("GUEST", "USER")
 
 					.requestMatchers(HttpMethod.POST, "/api/v1/auth/logout").hasAnyRole("GUEST", "USER")
