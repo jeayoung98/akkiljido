@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Modal, Pressable, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
+import { KeyboardAvoidingView, Modal, Platform, Pressable, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 
 import Colors from '@/constants/Colors';
 
@@ -39,7 +39,9 @@ export function CentralModal({
       statusBarTranslucent
       transparent
       visible={visible}>
-      <View style={styles.overlay}>
+      {/* 닉네임 수정처럼 안에 TextInput이 있으면, 가운데 고정된 카드가 키보드에 가려질 수 있어서
+          감싼다. 키보드가 없는 화면(리포트 모달 등)에서는 아무 효과가 없어 안전하다. */}
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.overlay}>
         {/* 카드 바깥 영역만 닫기 동작을 받도록 배경 터치 영역을 분리합니다. */}
         <Pressable
           accessibilityLabel="모달 닫기"
@@ -55,7 +57,7 @@ export function CentralModal({
             {children}
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

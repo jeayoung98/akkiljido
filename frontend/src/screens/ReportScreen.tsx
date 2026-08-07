@@ -10,6 +10,7 @@ import {
 
 import AppScreen from '@/components/common/AppScreen';
 import AccordionCard from '@/components/common/card/AccordionCard';
+import { AppHeader } from '@/components/common/header/AppHeader';
 import SegmentedControl from '@/components/common/segmented-control/SegmentedControl';
 import Colors from '@/constants/Colors';
 import {
@@ -348,14 +349,8 @@ export default function ReportScreen() {
       : '월간 리포트';
 
   return (
-    <AppScreen scrollable>
-      <View style={styles.header}>
-        <Text style={styles.title}>과거 리포트</Text>
-
-        <Text style={styles.subtitle}>
-          주간·월간 소비 리포트를 모아볼 수 있어요
-        </Text>
-      </View>
+    <AppScreen backgroundColor={Colors.light.cardBackground} scrollable>
+      <AppHeader subtitle="주간·월간 소비 리포트를 모아볼 수 있어요" title="과거 리포트" />
 
       <View style={styles.body}>
         <SegmentedControl
@@ -446,23 +441,6 @@ export default function ReportScreen() {
 }
 
 const styles = StyleSheet.create({
-  header: {
-    minHeight: 84,
-    justifyContent: 'center',
-    gap: 4,
-    paddingTop: 12,
-    paddingHorizontal: 20,
-    backgroundColor: '#FFFFFF',
-  },
-  title: {
-    color: Colors.light.cardTitle,
-    fontSize: 24,
-    fontWeight: '800',
-  },
-  subtitle: {
-    color: Colors.light.cardDescription,
-    fontSize: 13,
-  },
   body: {
     flexGrow: 1,
     gap: 16,

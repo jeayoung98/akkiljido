@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import AppScreen from '@/components/common/AppScreen';
 import BottomSheet from '@/components/common/BottomSheet';
@@ -13,6 +13,7 @@ import { MapInput } from '@/components/common/input/MapInput';
 import { TextInput } from '@/components/common/input/TextInput';
 import { ConfirmModal } from '@/components/common/modal/ConfirmModal';
 import Colors from '@/constants/Colors';
+import { useKeyboardHeight } from '@/hooks/useKeyboardHeight';
 import { createMyPlace, deleteMyPlace, getMyPlaces, updateMyPlace, type MyPlace } from '@/src/api/myPlaceApi';
 import { useMapPickerStore } from '@/store/mapPickerStore';
 
@@ -38,6 +39,7 @@ export default function MyPlacesScreen() {
   const [newPlaceAddress, setNewPlaceAddress] = useState('');
   const [newPlaceCoords, setNewPlaceCoords] = useState<{ latitude: number; longitude: number } | null>(null);
   const [saving, setSaving] = useState(false);
+  const keyboardHeight = useKeyboardHeight();
   const pickedLocation = useMapPickerStore((state) => state.pickedLocation);
   const clearPickedLocation = useMapPickerStore((state) => state.clearPickedLocation);
   const isReturningFromMapRef = useRef(false);
@@ -205,7 +207,12 @@ export default function MyPlacesScreen() {
         minHeight={0.48}
         onClose={handleCloseSheet}
         visible={isAddVisible || editTarget !== null}>
-        <View style={styles.addContent}>
+        {/* 높이 고정 시트라 키보드가 떠도 스스로 줄어들지 않아서, 아래쪽 버튼이 가려질 수 있다.
+            키보드 높이만큼 스크롤 여백을 더해서, 가려진 만큼 위로 스크롤해 버튼까지 볼 수 있게 한다
+            (useKeyboardHeight 문서 참고 — ListScreen.tsx의 "내역 추가" 시트와 같은 방식). */}
+        <ScrollView
+          contentContainerStyle={[styles.addContent, { paddingBottom: 20 + keyboardHeight }]}
+          keyboardShouldPersistTaps="handled">
           <View style={styles.dragHandle} />
           <Text style={styles.addTitle}>{editTarget ? '장소 수정' : '새 장소 설정'}</Text>
           <Text style={styles.addDescription}>소비를 보아볼 장소를 직접 설정해주세요</Text>
@@ -226,7 +233,7 @@ export default function MyPlacesScreen() {
             style={styles.addSubmitButton}>
             {editTarget ? '저장' : '장소 추가'}
           </Button>
-        </View>
+        </ScrollView>
       </BottomSheet>
     </AppScreen>
   );
