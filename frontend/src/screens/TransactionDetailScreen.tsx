@@ -1,8 +1,9 @@
-import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useState } from 'react';
+import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 
 import AppScreen from '@/components/common/AppScreen';
+import { AsyncStateView } from '@/components/common/AsyncStateView';
 import { Button } from '@/components/common/button/Button';
 import { AppHeader } from '@/components/common/header/AppHeader';
 import { ConfirmModal } from '@/components/common/modal/ConfirmModal';
@@ -10,9 +11,9 @@ import { CategoryIcon } from '@/components/transaction/CategoryIcon';
 import { InfoRow } from '@/components/transaction/InfoRow';
 import { TransactionDetailCard } from '@/components/transaction/TransactionDetailCard';
 import Colors from '@/constants/Colors';
-import { MOCK_TRANSACTIONS } from '@/mocks/transactionViewData';
+import { useDeleteTransaction, useTransactionDetail } from '@/hooks/useTransactions';
 
-// "2026-07-17 09:12:00+09" → "2026.07.17"로 보여준다. 실제 API가 붙으면 여기만 바꾸면 된다.
+// "2026-07-17 09:12:00" 또는 "2026-07-17 09:12:00+09" → "2026.07.17"
 function formatDate(datetime: string) {
   return datetime.slice(0, 10).replaceAll('-', '.');
 }
@@ -23,80 +24,103 @@ function formatPlace(address: string) {
   return address.match(/[가-힣]+구/)?.[0] ?? address;
 }
 
+/** 값이 비어 있는 항목은 빈칸 대신 하이픈으로 표시합니다. */
+function orDash(value: string) {
+  return value.trim() ? value : '-';
+}
+
 /**
- * 거래 상세 화면입니다. 지금은 백엔드 연결 전이라 GET /transactions/{id} 대신
- * 목업 배열에서 같은 모양으로 찾아서 보여줍니다. 수정/삭제도 실제 API 없이 화면 동작만 확인합니다.
+ * 거래 상세 화면입니다.
+ * GET /api/v1/transaction/{transactionId}로 상세를 조회하고, 삭제는 DELETE로 처리합니다.
  */
 export default function TransactionDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { transaction, isLoading, error, refetch } = useTransactionDetail(id);
+
   // 삭제 버튼을 누른 뒤 사용자 확인을 받을 때만 공통 모달을 표시합니다.
   const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
 
-  // TODO(API): 목업 배열을 직접 수정하는 현재 단계에서만 필요한 임시 리렌더링입니다.
-  // 실제 API 연동 후에는 수정·삭제 성공 시 React Query query invalidation으로 데이터를 갱신합니다.
-  const [, forceRefresh] = useState(0);
-  useFocusEffect(
-    useCallback(() => {
-      forceRefresh((tick) => tick + 1);
-    }, []),
-  );
-
-  const transaction = MOCK_TRANSACTIONS.find((record) => String(record.transactionId) === id);
-
-  if (!transaction) {
-    return (
-      <AppScreen backgroundColor={Colors.light.background}>
-        <AppHeader showBackButton title="거래 상세" />
-        <View style={styles.notFound}>
-          <Text style={styles.notFoundText}>거래 내역을 찾을 수 없어요.</Text>
-        </View>
-      </AppScreen>
-    );
-  }
+  // 수정 화면에서 저장하면 그 훅이 이 거래의 캐시를 무효화하므로, 돌아오면 최신 값을 자동으로 다시 받아옵니다.
+  const deleteMutation = useDeleteTransaction();
+  const isDeleting = deleteMutation.isPending;
 
   const handleEdit = () => {
     router.push({ pathname: '/transaction/[id]/edit', params: { id } });
   };
 
-  const handleDelete = () => {
-    setIsDeleteModalVisible(true);
-  };
+  /** DELETE /api/v1/transaction/{transactionId} 성공한 경우에만 목록으로 돌아갑니다. */
+  const handleConfirmDelete = async () => {
+    if (isDeleting) return;
 
-  const handleConfirmDelete = () => {
-    setIsDeleteModalVisible(false);
-    // TODO: DELETE 거래 API 연동 후 성공한 경우에만 목록 화면으로 돌아갑니다.
-    router.back();
+    try {
+      await deleteMutation.mutateAsync(id);
+      setIsDeleteModalVisible(false);
+      router.back();
+    } catch (caught) {
+      setIsDeleteModalVisible(false);
+      Alert.alert('삭제 실패', caught instanceof Error ? caught.message : '거래를 삭제하지 못했어요.');
+    }
   };
 
   return (
     <AppScreen backgroundColor={Colors.light.background}>
       <AppHeader showBackButton title="거래 상세" />
 
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <TransactionDetailCard
-          amount={transaction.amount}
-          leading={<CategoryIcon categoryName={transaction.categoryName} size={28} />}
-          title={transaction.name}
-          type={transaction.type}
-        />
+      <AsyncStateView
+        emptyMessage="거래 내역을 찾을 수 없어요."
+        error={error}
+        isEmpty={!transaction}
+        isLoading={isLoading}
+        onRetry={refetch}>
+        {transaction ? (
+          <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+            <TransactionDetailCard
+              amount={transaction.amount}
+              leading={
+                <CategoryIcon
+                  categoryId={transaction.categoryId}
+                  categoryName={transaction.categoryName}
+                  size={28}
+                  type={transaction.type}
+                />
+              }
+              title={transaction.name}
+              type={transaction.type}
+            />
 
-        <View style={styles.infoCard}>
-          <InfoRow label="일자" value={formatDate(transaction.datetime)} />
-          <InfoRow label="장소" value={formatPlace(transaction.address)} />
-          <InfoRow label="카테고리" value={transaction.categoryName} />
-          <InfoRow label="결제 수단" value={transaction.paymentMethod} />
-          <InfoRow label="메모" showDivider={false} value={transaction.memo} />
-        </View>
+            <View style={styles.infoCard}>
+              <InfoRow label="일자" value={formatDate(transaction.datetime)} />
+              {/*
+                장소·카테고리·결제 수단은 소비에만 있는 정보입니다. 등록 화면도 소득이면 이 값들을 받지 않고,
+                수정 화면에서도 잠깁니다. 다만 소비였다가 소득으로 바뀐 거래는 서버에 예전 값이 남아 있을 수
+                있어서(결제 수단·카테고리는 "수정 결과가 소득이면 보낼 수 없다"는 스펙 때문에 앱에서 지울 수
+                없습니다), 소득 거래에서는 이 항목들을 아예 표시하지 않습니다.
+              */}
+              {transaction.type === 'expense' ? (
+                <>
+                  <InfoRow label="장소" value={orDash(formatPlace(transaction.address))} />
+                  <InfoRow label="카테고리" value={orDash(transaction.categoryName)} />
+                  <InfoRow label="결제 수단" value={orDash(transaction.paymentMethod)} />
+                </>
+              ) : null}
+              <InfoRow label="메모" showDivider={false} value={orDash(transaction.memo)} />
+            </View>
 
-        <View style={styles.actions}>
-          <Button onPress={handleEdit} style={styles.actionButton} variant="white">
-            수정
-          </Button>
-          <Button onPress={handleDelete} style={styles.actionButton} variant="red">
-            삭제
-          </Button>
-        </View>
-      </ScrollView>
+            <View style={styles.actions}>
+              <Button onPress={handleEdit} style={styles.actionButton} variant="white">
+                수정
+              </Button>
+              <Button
+                loading={isDeleting}
+                onPress={() => setIsDeleteModalVisible(true)}
+                style={styles.actionButton}
+                variant="red">
+                삭제
+              </Button>
+            </View>
+          </ScrollView>
+        ) : null}
+      </AsyncStateView>
 
       <ConfirmModal
         cancelLabel="취소"
@@ -130,15 +154,5 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     flex: 1,
-  },
-  notFound: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
-  },
-  notFoundText: {
-    color: Colors.light.textSecondary,
-    fontSize: 14,
   },
 });
