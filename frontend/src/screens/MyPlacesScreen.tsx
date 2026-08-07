@@ -13,7 +13,7 @@ import { MapInput } from '@/components/common/input/MapInput';
 import { TextInput } from '@/components/common/input/TextInput';
 import { ConfirmModal } from '@/components/common/modal/ConfirmModal';
 import Colors from '@/constants/Colors';
-import { createMyPlace, deleteMyPlace, getMyPlaces, type MyPlace } from '@/src/api/myPlaceApi';
+import { createMyPlace, deleteMyPlace, getMyPlaces, updateMyPlace, type MyPlace } from '@/src/api/myPlaceApi';
 import { useMapPickerStore } from '@/store/mapPickerStore';
 
 // 이름에 "집"이 들어가면 집 아이콘, 그 외(직장/클라이언트사 등)는 건물 아이콘을 쓴다.
@@ -33,13 +33,16 @@ export default function MyPlacesScreen() {
   const [deleting, setDeleting] = useState(false);
 
   const [isAddVisible, setIsAddVisible] = useState(false);
+  const [editTarget, setEditTarget] = useState<MyPlace | null>(null);
   const [newPlaceName, setNewPlaceName] = useState('');
   const [newPlaceAddress, setNewPlaceAddress] = useState('');
   const [newPlaceCoords, setNewPlaceCoords] = useState<{ latitude: number; longitude: number } | null>(null);
-  const [adding, setAdding] = useState(false);
+  const [saving, setSaving] = useState(false);
   const pickedLocation = useMapPickerStore((state) => state.pickedLocation);
   const clearPickedLocation = useMapPickerStore((state) => state.clearPickedLocation);
   const isReturningFromMapRef = useRef(false);
+  // 지도 선택을 위해 시트를 잠시 닫을 때 수정 대상을 기억해 두었다가, 돌아오면 같은 수정 모드로 다시 연다.
+  const pendingEditTargetRef = useRef<MyPlace | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -53,7 +56,7 @@ export default function MyPlacesScreen() {
     })();
   }, []);
 
-  // 지도에서 위치를 고르고 돌아온 경우에만 선택값을 폼 상태로 옮기고, 장소 추가 시트를 다시 띄운다.
+  // 지도에서 위치를 고르고 돌아온 경우에만 선택값을 폼 상태로 옮기고, 시트를 다시 띄운다.
   // (pickedLocation은 다른 화면의 지도 선택 흐름과 공유하는 전역 store라, 이 화면에서 연 게 아니면 건드리지 않는다.)
   useEffect(() => {
     if (!pickedLocation || !isReturningFromMapRef.current) return;
@@ -62,6 +65,12 @@ export default function MyPlacesScreen() {
     setNewPlaceCoords({ latitude: pickedLocation.lat, longitude: pickedLocation.lng });
     clearPickedLocation();
     isReturningFromMapRef.current = false;
+
+    if (pendingEditTargetRef.current) {
+      setEditTarget(pendingEditTargetRef.current);
+      pendingEditTargetRef.current = null;
+      return;
+    }
     setIsAddVisible(true);
   }, [clearPickedLocation, pickedLocation]);
 
@@ -69,39 +78,61 @@ export default function MyPlacesScreen() {
 
   const handleOpenMapPicker = () => {
     isReturningFromMapRef.current = true;
+    pendingEditTargetRef.current = editTarget;
     setIsAddVisible(false);
+    setEditTarget(null);
     router.push('/map-picker');
   };
 
-  const handleCloseAddSheet = () => {
+  const handleOpenEdit = (place: MyPlace) => {
+    pendingEditTargetRef.current = null;
+    setNewPlaceName(place.myPlaceName);
+    setNewPlaceAddress(place.address);
+    setNewPlaceCoords({ latitude: place.latitude, longitude: place.longitude });
+    setEditTarget(place);
+  };
+
+  const handleCloseSheet = () => {
     setIsAddVisible(false);
+    setEditTarget(null);
     setNewPlaceName('');
     setNewPlaceAddress('');
     setNewPlaceCoords(null);
   };
 
-  const handleAddPlace = async () => {
+  const handleSavePlace = async () => {
     if (!isAddFormValid || !newPlaceCoords) {
       return;
     }
+
+    const input = {
+      myPlaceName: newPlaceName.trim(),
+      address: newPlaceAddress,
+      latitude: newPlaceCoords.latitude,
+      longitude: newPlaceCoords.longitude,
+    };
+
     try {
-      setAdding(true);
-      const created = await createMyPlace({
-        myPlaceName: newPlaceName.trim(),
-        address: newPlaceAddress,
-        latitude: newPlaceCoords.latitude,
-        longitude: newPlaceCoords.longitude,
-      });
+      setSaving(true);
+
+      if (editTarget) {
+        const updated = await updateMyPlace(editTarget.placeId, input);
+        setPlaces((prev) => prev.map((place) => (place.placeId === editTarget.placeId ? updated : place)));
+        handleCloseSheet();
+        return;
+      }
+
+      const created = await createMyPlace(input);
       setPlaces((prev) => [...prev, created]);
-      setNewPlaceName('');
-      setNewPlaceAddress('');
-      setNewPlaceCoords(null);
-      setIsAddVisible(false);
+      handleCloseSheet();
     } catch (error) {
-      console.error('[my-places] add failed', error);
-      Alert.alert('장소 추가에 실패했어요', error instanceof Error ? error.message : undefined);
+      console.error(editTarget ? '[my-places] update failed' : '[my-places] add failed', error);
+      Alert.alert(
+        editTarget ? '장소 수정에 실패했어요' : '장소 추가에 실패했어요',
+        error instanceof Error ? error.message : undefined,
+      );
     } finally {
-      setAdding(false);
+      setSaving(false);
     }
   };
 
@@ -132,7 +163,9 @@ export default function MyPlacesScreen() {
         {places.map((place, index) => (
           <View key={place.placeId}>
             <InfoListItem
+              accessibilityLabel={`${place.myPlaceName} 수정`}
               leading={<PlaceIcon name={place.myPlaceName} />}
+              onPress={() => handleOpenEdit(place)}
               title={place.myPlaceName}
               description={place.address}
               trailing={
@@ -144,7 +177,13 @@ export default function MyPlacesScreen() {
         ))}
       </View>
 
-      <Button style={styles.addButton} variant="dashed" onPress={() => setIsAddVisible(true)}>
+      <Button
+        style={styles.addButton}
+        variant="dashed"
+        onPress={() => {
+          setEditTarget(null);
+          setIsAddVisible(true);
+        }}>
         + 장소 추가
       </Button>
 
@@ -164,11 +203,11 @@ export default function MyPlacesScreen() {
         initialHeight={0.48}
         maxHeight={0.48}
         minHeight={0.48}
-        onClose={handleCloseAddSheet}
-        visible={isAddVisible}>
+        onClose={handleCloseSheet}
+        visible={isAddVisible || editTarget !== null}>
         <View style={styles.addContent}>
           <View style={styles.dragHandle} />
-          <Text style={styles.addTitle}>새 장소 설정</Text>
+          <Text style={styles.addTitle}>{editTarget ? '장소 수정' : '새 장소 설정'}</Text>
           <Text style={styles.addDescription}>소비를 보아볼 장소를 직접 설정해주세요</Text>
 
           <TextInput
@@ -182,10 +221,10 @@ export default function MyPlacesScreen() {
 
           <Button
             disabled={!isAddFormValid}
-            loading={adding}
-            onPress={handleAddPlace}
+            loading={saving}
+            onPress={handleSavePlace}
             style={styles.addSubmitButton}>
-            장소 추가
+            {editTarget ? '저장' : '장소 추가'}
           </Button>
         </View>
       </BottomSheet>

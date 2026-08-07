@@ -175,7 +175,7 @@ export default function NotificationSettingsScreen() {
 
           <View style={styles.card}>
             <InfoListItem
-              description="월-일 소비 · 매주 일요일 오전 7:00"
+              description="월-일 소비 · 매주 월요일 오전 7:00"
               title="주간 리포트"
               trailing={<Switch onValueChange={setWeeklyReport} value={weeklyReport} />}
             />
@@ -207,6 +207,10 @@ export default function NotificationSettingsScreen() {
                       <Ionicons color={Colors.light.cardAccent} name="time-outline" size={12} />
                       <Text style={styles.timeText}>
                         {place.startTime}-{place.endTime}
+                      </Text>
+                      <Text style={styles.timeSeparator}>|</Text>
+                      <Text numberOfLines={1} style={styles.addressText}>
+                        {place.address}
                       </Text>
                     </View>
                     <Text numberOfLines={1} style={styles.placeTitle}>
@@ -338,6 +342,16 @@ const styles = StyleSheet.create({
     color: Colors.light.cardAccent,
     fontSize: 12,
     fontWeight: '600',
+  },
+  timeSeparator: {
+    color: Colors.light.border,
+    fontSize: 12,
+  },
+  addressText: {
+    flexShrink: 1,
+    minWidth: 0,
+    color: Colors.light.cardDescription,
+    fontSize: 12,
   },
   placeTitle: {
     marginTop: 4,
