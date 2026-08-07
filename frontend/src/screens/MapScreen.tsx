@@ -16,6 +16,7 @@ import { KakaoMap, type KakaoMapHandle, type LatLng, type MapMarker } from '@/co
 import { Scroll } from '@/components/common/Scroll';
 import { MapZoom } from '@/components/map/MapZoom';
 import Colors from '@/constants/Colors';
+import { getCategoryColorById, getCategoryIconKey } from '@/constants/categories';
 import { getCategories, type Category } from '@/src/api/categoryApi';
 import {
   getTransactionMyPlaceDetail,
@@ -161,9 +162,25 @@ export default function MapScreen() {
     customEndDate: undefined as Date | undefined,
   });
 
-  const toggleCategory = (id: number) => {
-    setSelectedCategoryIds((prev) =>
-      prev.includes(id) ? prev.filter((categoryId) => categoryId !== id) : [...prev, id]
+  // 서버가 같은 이름의 카테고리를 id만 다르게 두 벌 내려줄 때가 있어서, 필터 칩은 이름 기준으로
+  // 묶어서 하나만 보여준다. 칩 하나를 누르면 그 이름에 속한 id를 전부 같이 켜고/끄기 때문에,
+  // 실제 필터링은 두 id 모두를 대상으로 정확히 걸린다(ListScreen.tsx 거래내역 필터와 동일한 방식).
+  const categoryGroups = useMemo(() => {
+    const groups = new Map<string, number[]>();
+    categoryOptions.forEach((category) => {
+      const ids = groups.get(category.name) ?? [];
+      ids.push(category.id);
+      groups.set(category.name, ids);
+    });
+    return Array.from(groups.entries()).map(([name, ids]) => ({ name, ids }));
+  }, [categoryOptions]);
+
+  const toggleCategoryGroup = (ids: number[]) => {
+    const isFullySelected = ids.every((id) => selectedCategoryIds.includes(id));
+    setSelectedCategoryIds((current) =>
+      isFullySelected
+        ? current.filter((id) => !ids.includes(id))
+        : [...current, ...ids.filter((id) => !current.includes(id))],
     );
   };
 
@@ -334,15 +351,6 @@ export default function MapScreen() {
     }),
     [appliedFilter, categoryOptions.length]
   );
-
-  const categoryColorsById = useMemo(() => {
-    return new Map(
-      categoryOptions.map((category, index) => [
-        category.id,
-        Colors.category[(index % 11) + 1],
-      ]),
-    );
-  }, [categoryOptions]);
 
   const selectedPlace = myPlaces.find((place) => place.placeId === selectedPlaceId) ?? null;
   const placeMerchants = placeDetail?.transactionList ?? [];
@@ -641,7 +649,8 @@ export default function MapScreen() {
         lng: merchant.longitude!,
         label: merchant.name,
         amount: merchant.amount,
-        color: categoryColorsById.get(merchant.categoryId) ?? Colors.light.primary,
+        color: getCategoryColorById(merchant.categoryId, merchant.categoryName),
+        iconKey: getCategoryIconKey(merchant.categoryName, merchant.categoryId),
         selected: merchant.name === highlightedMerchant,
       }));
     }
@@ -649,20 +658,25 @@ export default function MapScreen() {
     if (currentStage === 4) {
       return placeListData.map((place) => {
         const id = `${place.latitude},${place.longitude}`;
+        const topMerchant = place.transactionList[0];
         return {
           id,
           lat: place.latitude!,
           lng: place.longitude!,
           label: place.name,
           amount: place.amount,
-          color:
-            categoryColorsById.get(place.transactionList[0]?.categoryId) ??
-            Colors.light.primary,
+          color: topMerchant
+            ? getCategoryColorById(topMerchant.categoryId, topMerchant.categoryName)
+            : Colors.light.primary,
+          iconKey: topMerchant
+            ? getCategoryIconKey(topMerchant.categoryName, topMerchant.categoryId)
+            : undefined,
           selected: selectedGeneralPlace != null && id === `${selectedGeneralPlace.lat},${selectedGeneralPlace.lng}`,
         };
       });
     }
 
+    // 1~3단계(구역 클러스터)는 여러 가게·카테고리가 섞인 합계라 카테고리 아이콘을 하나로 못 정해서 생략한다.
     return depthData.map((region) => ({
       id: region.depthName,
       lat: region.latitude,
@@ -681,7 +695,6 @@ export default function MapScreen() {
     highlightedMerchant,
     selectedGeneralPlace,
     selectedRegionName,
-    categoryColorsById,
   ]);
 
   return (
@@ -1216,13 +1229,13 @@ export default function MapScreen() {
               </Text>
             </View>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-              {categoryOptions.map((category) => (
+              {categoryGroups.map((group) => (
                 <Chip
-                  key={category.id}
-                  label={category.name}
+                  key={group.name}
+                  label={group.name}
                   indicator="check"
-                  selected={selectedCategoryIds.includes(category.id)}
-                  onPress={() => toggleCategory(category.id)}
+                  selected={group.ids.every((id) => selectedCategoryIds.includes(id))}
+                  onPress={() => toggleCategoryGroup(group.ids)}
                   style={{ width: '47%' }}
                 />
               ))}

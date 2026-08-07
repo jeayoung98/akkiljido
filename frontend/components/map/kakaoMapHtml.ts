@@ -6,6 +6,8 @@
 // (마커처럼 자주 바뀌는 값을 매번 HTML을 새로 만들어 WebView에 넘기면, WebView가 통째로 리로드되면서
 //  지도 중심/줌 레벨 같은 상태가 초기값으로 되돌아가는 문제가 있었다.)
 
+import type { CategoryIconKey } from '@/constants/categories';
+
 const KAKAO_JS_KEY = process.env.EXPO_PUBLIC_KAKAO_JS_KEY;
 
 export type LatLng = {
@@ -22,6 +24,8 @@ export type MapMarker = {
   amount: number; // 누적 금액
   color: string; // 테두리 색 (개별=카테고리 지정색, 클러스터=브랜드 그린 등 호출부에서 결정)
   selected?: boolean; // true면 다른 마커보다 테두리를 더 두껍게 그려서 강조한다.
+  // 가게 이름 앞에 보여줄 카테고리 아이콘. 구역(클러스터) 마커처럼 카테고리 하나로 특정할 수 없으면 생략한다.
+  iconKey?: CategoryIconKey;
 };
 
 export type BuildMapHtmlParams = {
@@ -196,16 +200,65 @@ export function buildMapHtml({ initialCenter, initialLevel = 3, draggable = true
       });
     }
 
+    // ── 카테고리 아이콘 ────────────────────────────────────────────────
+    // components/transaction/CategoryIcon.tsx(react-native-svg 버전)와 같은 모양을 그린 것.
+    // 이 파일은 WebView 안에서 실행되는 순수 문자열이라 그 컴포넌트를 그대로 가져다 쓸 수 없어서
+    // path/원 좌표만 옮겨왔다 — 아이콘 모양을 바꾸면 두 파일을 같이 고쳐야 한다.
+    const CATEGORY_ICON_PATHS = {
+      restaurant: ['M7 3v8', 'M4.5 3v4.5A2.5 2.5 0 0 0 7 10', 'M9.5 3v4.5A2.5 2.5 0 0 1 7 10', 'M7 10v11', 'M16 3v18', 'M16 3c3 2 4 5 4 8h-4'],
+      cafe: ['M5 9h11v5.2A4.8 4.8 0 0 1 11.2 19H9.8A4.8 4.8 0 0 1 5 14.2V9Z', 'M16 10h1.2a2.8 2.8 0 0 1 0 5.6H16', 'M4 20h14', 'M8 6.5c-1-1-.8-2 .2-3', 'M12 6.5c-1-1-.8-2 .2-3', 'M8.2 12.2c.7-.8 1.8-.7 2.3.2.5-.9 1.6-1 2.3-.2.8.9.3 2-2.3 3.4-2.6-1.4-3.1-2.5-2.3-3.4Z'],
+      mart: ['M4 9h16l-1.5 10h-13L4 9Z', 'M8 9l2-4', 'M16 9l-2-4', 'M8 13v3', 'M12 13v3', 'M16 13v3'],
+      shopping: ['M5 8h14l-1 12H6L5 8Z', 'M9 8V6a3 3 0 0 1 6 0v2'],
+      leisure: ['M8.5 13.5L12 21l3.5-7.5Z', 'M9.6 15.8h4.8', 'M12 10V5.5', 'M9.2 10.8L6.4 7.8', 'M14.8 10.8l2.8-3', 'M8 12H4.5', 'M16 12h3.5', 'M7.3 5.2l-.6-1.4', 'M16.7 5.2l.6-1.4'],
+      transport: ['M3 11l9-7 9 7', 'M5 10v10h14V10', 'M9 20v-6h6v6'],
+      health: ['M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10Z', 'M7.5 12h2l1.2-2.5 2.2 5 1.2-2.5h2.4'],
+      living: ['M8 7V5h8v2'],
+      beauty: ['M9 8.5V5.8l3.8-2.3 2.2 1.3v3.7', 'M9 8.5h6', 'M8.5 8.5h7l.7 5h-8.4l.7-5Z', 'M9 16.5h6'],
+      education: ['M4 5.5A4.5 4.5 0 0 1 8.5 5H12v14H8.5A4.5 4.5 0 0 0 4 19.5v-14Z', 'M20 5.5A4.5 4.5 0 0 0 15.5 5H12v14h3.5a4.5 4.5 0 0 1 4.5.5v-14Z'],
+      other: ['M7 8h10', 'M8 12h8', 'M8 18v2', 'M16 18v2'],
+      income: ['M9 7 8 4.5h8L15 7', 'M8.5 8.5h7', 'M8.5 9h7c2.2 1.6 3.5 4.3 3.5 7.3 0 .7.5 1.1.5 1.9 0 1.5-1.2 2.8-2.8 2.8H7.3c-1.6 0-2.8-1.3-2.8-2.8 0-.8.5-1.2.5-1.9C5 13.3 6.3 10.6 8.5 9Z', 'M14.5 12.8a3 3 0 1 0 0 4.4'],
+    };
+    const CATEGORY_ICON_RECTS = {
+      living: { x: 5, y: 7, width: 14, height: 12, rx: 2 },
+      beauty: { x: 7.5, y: 13.5, width: 9, height: 7, rx: 1.5 },
+      other: { x: 5, y: 3, width: 14, height: 15, rx: 3 },
+    };
+    // fill=색, stroke 없음으로 그리는 작은 점(장식용)들.
+    const CATEGORY_ICON_DOTS = {
+      leisure: [[4.5, 7, 0.7], [19.5, 7, 0.7], [12, 3.5, 0.7]],
+      living: [[9, 13, 1], [12, 13, 1], [15, 13, 1]],
+      other: [[8.5, 15.5, 0.8], [15.5, 15.5, 0.8]],
+    };
+
+    function categoryIconSvg(iconKey, color) {
+      const paths = CATEGORY_ICON_PATHS[iconKey] || CATEGORY_ICON_PATHS.other;
+      const rect = CATEGORY_ICON_RECTS[iconKey];
+      const dots = CATEGORY_ICON_DOTS[iconKey] || [];
+      let inner = '';
+      if (rect) {
+        inner += '<rect x="' + rect.x + '" y="' + rect.y + '" width="' + rect.width + '" height="' + rect.height + '" rx="' + rect.rx + '"/>';
+      }
+      inner += paths.map(function (d) { return '<path d="' + d + '"/>'; }).join('');
+      inner += dots.map(function (dot) {
+        return '<circle cx="' + dot[0] + '" cy="' + dot[1] + '" r="' + dot[2] + '" fill="' + color + '" stroke="none"/>';
+      }).join('');
+      return '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="' + color + '" stroke-width="2.4" ' +
+        'stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;">' + inner + '</svg>';
+    }
+
     // ── 이름+금액 말풍선 마커 ──────────────────────────────────────────
     // 테두리 색과 같은 색 삼각형 꼬리 위에 살짝 작은 흰 삼각형을 겹쳐서
     // "흰 배경 + 테두리 색" 말풍선처럼 보이게 하는 흔한 CSS 트릭이다.
     function markerBubbleHtml(marker) {
       const amountText = marker.amount.toLocaleString('ko-KR') + '원';
       const borderWidth = marker.selected ? 4 : 2;
+      const icon = marker.iconKey ? categoryIconSvg(marker.iconKey, marker.color) : '';
       return '<div style="position: relative; display: inline-block;">' +
         '<div style="background:#fff;border:' + borderWidth + 'px solid ' + marker.color + ';border-radius:10px;padding:5px 10px;' +
           'text-align:center;white-space:nowrap;box-shadow:0 2px 4px rgba(0,0,0,0.15);">' +
-          '<div style="font-size:12px;font-weight:700;color:#18251E;line-height:15px;">' + marker.label + '</div>' +
+          '<div style="display:flex;align-items:center;justify-content:center;gap:4px;">' + icon +
+            '<span style="font-size:12px;font-weight:700;color:#18251E;line-height:15px;">' + marker.label + '</span>' +
+          '</div>' +
           '<div style="font-size:11px;color:#789080;line-height:14px;">' + amountText + '</div>' +
         '</div>' +
         '<div style="position:absolute;bottom:-7px;left:50%;transform:translateX(-50%);width:0;height:0;' +
