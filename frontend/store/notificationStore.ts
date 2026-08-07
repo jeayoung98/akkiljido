@@ -11,6 +11,7 @@ type NotificationStore = {
   markAllRead: () => void;
   markRead: (id: number) => void;
   dismiss: (id: number) => void;
+  clearAll: () => void;
   // 위치 알림 트리거(hooks/useNotificationPlaceTrigger.ts)가 실제로 알림을 쏠 때,
   // OS 알림과 별개로 알림함 목록에도 새 항목을 추가하기 위해 쓴다.
   addNotification: (input: { type: NotificationType; title: string; body: string }) => void;
@@ -32,6 +33,7 @@ export const useNotificationStore = create<NotificationStore>()(persist((set) =>
     set((state) => ({
       notifications: state.notifications.filter((item) => item.notificationId !== id),
     })),
+  clearAll: () => set({ notifications: [] }),
   addNotification: ({ type, title, body }) =>
     set((state) => {
       const nextId = state.notifications.reduce((max, item) => Math.max(max, item.notificationId), 0) + 1;

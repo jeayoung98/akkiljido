@@ -27,3 +27,12 @@ export async function saveNotificationPlaces(places: NotificationPlace[]) {
     // 저장 공간 부족 등으로 실패해도 설정 화면이 중단되지는 않게 둡니다.
   }
 }
+
+/** 로그아웃 뒤 다른 사용자의 장소 알림이 남지 않도록 기기에 동기화한 목록을 비웁니다. */
+export async function clearNotificationPlaces() {
+  try {
+    await AsyncStorage.removeItem(STORAGE_KEY);
+  } catch {
+    // 로그아웃 자체는 로컬 저장소 정리 실패로 막지 않습니다.
+  }
+}
