@@ -10,9 +10,13 @@ import { ConfirmModal } from '@/components/common/modal/ConfirmModal';
 import { BrandLogo } from '@/components/onboarding/BrandLogo';
 import { NicknameEditModal } from '@/components/my/NicknameEditModal';
 import Colors from '@/constants/Colors';
+import { useNotificationStore } from '@/store/notificationStore';
 import { logoutFromServer } from '@/src/api/authApi';
 import { getMyProfile, registerNickname } from '@/src/api/usersApi';
 import { clearAuthSession, getAuthSession, saveAuthSession } from '@/src/auth/tokenStorage';
+import { stopBackgroundLocationTracking } from '@/utils/backgroundLocationTask';
+import { clearPresentedNotifications } from '@/utils/localNotifications';
+import { clearNotificationPlaces } from '@/utils/notificationPlaceStorage';
 
 /** 마이페이지. 프로필 요약과 내 장소 관리·알림 설정·설정·로그아웃으로 가는 메뉴를 보여준다. */
 export default function MyScreen() {
@@ -24,6 +28,7 @@ export default function MyScreen() {
   const [nicknameError, setNicknameError] = useState('');
   const [logoutModalVisible, setLogoutModalVisible] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const clearNotifications = useNotificationStore((state) => state.clearAll);
 
   useEffect(() => {
     (async () => {
@@ -69,6 +74,17 @@ export default function MyScreen() {
           // 서버 로그아웃(토큰 폐기)이 실패해도, 기기에서는 로그인 화면으로 보내는 게 우선이라 로컬 세션은 계속 지운다.
           console.error('[my] server logout failed', error);
         }
+      }
+
+      // 위치 알림은 로그인 사용자별 데이터이므로, 로그아웃과 함께 감시·기기 캐시·알림함을 모두 정리합니다.
+      try {
+        await stopBackgroundLocationTracking();
+        await clearNotificationPlaces();
+        clearNotifications();
+        await clearPresentedNotifications();
+      } catch (error) {
+        // 이 정리가 실패해도 로그아웃과 토큰 삭제는 반드시 계속 진행합니다.
+        console.error('[my] notification cleanup on logout failed', error);
       }
 
       await clearAuthSession();

@@ -6,6 +6,7 @@ import { Image, Platform, Pressable, StyleSheet, View, type GestureResponderEven
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import Colors from '@/constants/Colors';
+import { useNotificationPlaceTrigger } from '@/hooks/useNotificationPlaceTrigger';
 
 // react-native-web의 Pressable은 href를 지원하지만(링크 렌더링용) RN 기본 타입엔 없어서 여기서 확장한다.
 type TabBarButtonProps = ComponentProps<typeof Pressable> & { href?: string | null };
@@ -81,6 +82,8 @@ function TabIcon({ name, focused }: { name: keyof typeof icons; focused: boolean
 // 탭 네비게이터 등록. 헤더/라벨은 숨기고, 탭 5개(홈/내역/지도/리포트/마이)를 순서대로 배치한다.
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
+  // 탭 화면들이 떠 있는 동안(=앱을 실제로 쓰는 동안) 위치 알림 조건을 계속 확인한다.
+  useNotificationPlaceTrigger();
 
   return (
     <Tabs
