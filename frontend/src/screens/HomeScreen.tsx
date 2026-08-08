@@ -381,7 +381,7 @@ export default function HomeScreen() {
             places={nearbyExpenses.placeList}
             totalAmount={nearbyExpenses.totalAmount}
           />
-          <CategorySummaryCard categories={categories} onPressMore={() => router.push('/list?tab=analysis')} />
+          <CategorySummaryCard categories={categories} onPress={() => router.push('/list?tab=analysis')} />
         </View>
       </ScrollView>
 
