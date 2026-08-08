@@ -242,8 +242,23 @@ export default function MapScreen() {
   const [myPlaces, setMyPlaces] = useState<MyPlaceMap[]>([]);
   const [placeDetail, setPlaceDetail] = useState<MyPlaceTransactionList | null>(null);
   const [mapDataLoading, setMapDataLoading] = useState(false);
+  // 화면 진입 시 handleLocate가 lastKnown 위치 → 정확한 위치 순으로 지도 중심을 두 번 옮기는데,
+  // 그때마다 bounds가 바뀌어 데이터를 다시 불러오면서 "지도 내역 불러오는 중" 표시가 껐다 켜졌다
+  // 짧게 두 번 깜빡였다. mapDataLoading이 꺼지고 나서 잠깐(200ms) 동안 다시 켜지지 않을 때만
+  // 실제로 숨기도록 지연시켜서, 연달아 일어나는 로딩은 하나로 이어져 보이게 한다.
+  const [mapDataLoadingDisplay, setMapDataLoadingDisplay] = useState(false);
   const [mapDataError, setMapDataError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+
+  useEffect(() => {
+    if (mapDataLoading) {
+      setMapDataLoadingDisplay(true);
+      return;
+    }
+
+    const timer = setTimeout(() => setMapDataLoadingDisplay(false), 200);
+    return () => clearTimeout(timer);
+  }, [mapDataLoading]);
 
   // 세 상세 모드(내 장소/일반 가게/지역)는 동시에 하나만 열려야 한다. 하나를 열 때 나머지 둘은 닫는다.
   const closeAllDetails = () => {
@@ -724,7 +739,7 @@ export default function MapScreen() {
         style={{ flex: 1 }}
       />
 
-      {mapDataLoading ? (
+      {mapDataLoadingDisplay ? (
         <View
           pointerEvents="none"
           style={{
