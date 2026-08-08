@@ -1,4 +1,5 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { Text } from '@/components/common/typography/Text';
 
 import { CentralModal } from '@/components/common/modal/CentralModal';
 import { Button } from '@/components/common/button/Button';

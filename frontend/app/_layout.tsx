@@ -1,12 +1,16 @@
 // 앱 전체의 루트 레이아웃. 온보딩과 메인 탭 화면을 최상위 Stack에 등록한다.
+import { useFonts } from 'expo-font';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { DefaultTheme, Stack, ThemeProvider } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
+import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import 'react-native-reanimated';
 
 // 앱이 백그라운드/헤드리스 상태로 시작돼도 위치 태스크가 먼저 등록되도록 루트에서 로드한다.
 import '@/utils/backgroundLocationTask';
+import { A2G_FONT_ASSETS } from '@/constants/fonts';
 import { queryClient } from '@/src/api/queryClient';
 
 export {
@@ -19,8 +23,24 @@ export const unstable_settings = {
   initialRouteName: 'landing',
 };
 
+// 폰트 로딩이 끝나기 전에는 스플래시 화면을 유지해, 시스템 기본 폰트로 잠깐 그려졌다가
+// 에이투지체로 바뀌는 깜빡임(FOUT)이 보이지 않게 한다.
+SplashScreen.preventAutoHideAsync();
+
 // 다크모드를 지원하지 않으므로 DefaultTheme로 고정한다.
 export default function RootLayout() {
+  const [fontsLoaded, fontError] = useFonts(A2G_FONT_ASSETS);
+
+  useEffect(() => {
+    if (fontsLoaded || fontError) {
+      SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded, fontError]);
+
+  if (!fontsLoaded && !fontError) {
+    return null;
+  }
+
   return (
     // react-native-gesture-handler를 쓰려면 앱 최상단이 이걸로 감싸져 있어야 한다(특히 안드로이드에서 필수).
     <GestureHandlerRootView style={{ flex: 1 }}>

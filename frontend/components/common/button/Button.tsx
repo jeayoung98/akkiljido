@@ -1,4 +1,5 @@
-import { ActivityIndicator, Pressable, StyleProp, StyleSheet, Text, ViewStyle } from 'react-native';
+import { ActivityIndicator, Pressable, StyleProp, StyleSheet, ViewStyle } from 'react-native';
+import { Text } from '@/components/common/typography/Text';
 
 import Colors from '@/constants/Colors';
 

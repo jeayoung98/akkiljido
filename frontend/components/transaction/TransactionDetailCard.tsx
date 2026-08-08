@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
-import { StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
+import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
+import { Text } from '@/components/common/typography/Text';
 
 import BaseCard from '@/components/common/card/BaseCard';
 import type { TransactionType } from '@/components/transaction/TransactionItem';

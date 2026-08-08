@@ -2,8 +2,6 @@ import { useState } from 'react';
 import {
   StyleProp,
   StyleSheet,
-  Text,
-  TextInput as NativeTextInput,
   TextInputProps as NativeTextInputProps,
   TextStyle,
   View,
@@ -11,6 +9,8 @@ import {
 } from 'react-native';
 
 import Colors from '@/constants/Colors';
+import { Text } from '@/components/common/typography/Text';
+import { TextInput as NativeTextInput } from '@/components/common/typography/TextInput';
 
 type TextInputVariant = 'filled' | 'underline';
 

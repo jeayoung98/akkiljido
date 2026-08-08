@@ -1,16 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import {
-  Alert,
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput as NativeTextInput,
-  View,
-} from 'react-native';
+import { Alert, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Text } from '@/components/common/typography/Text';
+import { TextInput as NativeTextInput } from '@/components/common/typography/TextInput';
 import { Calendar, type DateData, LocaleConfig } from 'react-native-calendars';
 
 import AppScreen from '@/components/common/AppScreen';

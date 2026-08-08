@@ -1,5 +1,6 @@
 import { router } from 'expo-router';
-import { StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
+import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
+import { Text } from '@/components/common/typography/Text';
 
 import { IconButton } from '@/components/common/button/IconButton';
 import Colors from '@/constants/Colors';

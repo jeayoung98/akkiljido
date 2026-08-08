@@ -1,7 +1,8 @@
 import * as Location from 'expo-location';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, ScrollView, StyleSheet, View } from 'react-native';
+import { Text } from '@/components/common/typography/Text';
 
 import AppScreen from '@/components/common/AppScreen';
 import { SaveAlarmModal, type AlarmFormValue } from '@/components/common/modal/SaveAlarmModal';

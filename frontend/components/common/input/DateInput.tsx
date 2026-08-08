@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Modal, Pressable, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
+import { Modal, Pressable, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
+import { Text } from '@/components/common/typography/Text';
 import { Calendar, DateData, LocaleConfig } from 'react-native-calendars';
 
 import { TextButton } from '@/components/common/button/TextButton';

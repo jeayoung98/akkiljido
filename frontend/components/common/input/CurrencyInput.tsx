@@ -1,12 +1,7 @@
 import { useEffect, useState } from 'react';
-import {
-  StyleProp,
-  StyleSheet,
-  Text,
-  TextInput as NativeTextInput,
-  View,
-  ViewStyle,
-} from 'react-native';
+import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
+import { Text } from '@/components/common/typography/Text';
+import { TextInput as NativeTextInput } from '@/components/common/typography/TextInput';
 
 import Colors from '@/constants/Colors';
 
