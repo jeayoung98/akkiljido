@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleProp, StyleSheet, TextInputProps as NativeTextInputProps, TextStyle, View, ViewStyle } from 'react-native';
-import { TextInput as NativeTextInput } from '@/components/common/typography/TextInput';
+import { NativeTextInput } from '@/components/common/typography/TextInput';
 
 import Colors from '@/constants/Colors';
 

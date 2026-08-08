@@ -10,7 +10,7 @@ import {
 
 import Colors from '@/constants/Colors';
 import { Text } from '@/components/common/typography/Text';
-import { TextInput as NativeTextInput } from '@/components/common/typography/TextInput';
+import { NativeTextInput } from '@/components/common/typography/TextInput';
 
 type TextInputVariant = 'filled' | 'underline';
 

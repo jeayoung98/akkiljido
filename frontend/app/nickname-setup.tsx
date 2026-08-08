@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { Text } from '@/components/common/typography/Text';
-import { TextInput } from '@/components/common/typography/TextInput';
+import { NativeTextInput } from '@/components/common/typography/TextInput';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -131,7 +131,7 @@ export default function NicknameSetupScreen() {
           </Text>
 
           <View style={styles.inputArea}>
-            <TextInput
+            <NativeTextInput
               accessibilityLabel="닉네임"
               autoCapitalize="none"
               autoCorrect={false}
