@@ -20,14 +20,13 @@ import { MOCK_WEEKLY_REPORT, MOCK_WEEKLY_REPORT_RECOMMENDATIONS } from '@/mocks/
 import { getTodayExpenseAmount } from '@/src/api/calendarApi';
 import { getCategorySummary, getRecentExpenses } from '@/src/api/homeApi';
 import { createNotificationPlace } from '@/src/api/notificationPlaceApi';
+import { getMyProfile } from '@/src/api/usersApi';
 import { useDevModeStore } from '@/store/devModeStore';
 import { useNotificationStore } from '@/store/notificationStore';
 import { loadNotificationPlaces, saveNotificationPlaces } from '@/utils/notificationPlaceStorage';
 import { getWeekIdentifier } from '@/utils/reportSchedule';
 
 const LAST_SHOWN_WEEK_STORAGE_KEY = 'report:lastShownWeek';
-
-const NICKNAME = 'Dust';
 
 /**
  * 홈 탭 화면입니다. 상단(인사말+알림)과 오늘 지출액 카드는 초록 배경 안에, 그 아래 두 카드
@@ -37,6 +36,8 @@ const NICKNAME = 'Dust';
  * 알림 뱃지 개수는 store/notificationStore.ts의 안 읽은 알림 수를 그대로 씁니다.
  */
 export default function HomeScreen() {
+  // 서버 응답이 오기 전에는 빈 문자열로 두고, 조회 실패하면 콘솔에만 남기고 빈 상태로 둔다(MyScreen과 동일한 방식).
+  const [nickname, setNickname] = useState('');
   const [categories, setCategories] = useState<CategorySummaryItem[]>([]);
   const [todayExpense, setTodayExpense] = useState(0);
   const [nearbyExpenses, setNearbyExpenses] = useState<{ totalAmount: number; placeList: NearbyExpensePlace[] }>({
@@ -82,6 +83,20 @@ export default function HomeScreen() {
         setReportVisible(true);
       }
     }, [isDevMode]),
+  );
+
+  // 마이페이지에서 닉네임을 바꾸고 돌아와도 바로 반영되도록, 다른 데이터들과 같이 focus마다 새로 불러온다.
+  useFocusEffect(
+    useCallback(() => {
+      (async () => {
+        try {
+          const profile = await getMyProfile();
+          setNickname(profile.nickname);
+        } catch (error) {
+          console.error('[home] profile failed', error);
+        }
+      })();
+    }, []),
   );
 
   const unreadNotificationCount = useNotificationStore(
@@ -190,7 +205,7 @@ export default function HomeScreen() {
         <View style={styles.profileRow}>
           <Image source={require('@/assets/images/profile-icon.png')} style={styles.profileIcon} />
           <View>
-            <Text style={styles.greeting}>안녕하세요 {NICKNAME}</Text>
+            <Text style={styles.greeting}>안녕하세요 {nickname}</Text>
             <Text style={styles.greetingSubtitle}>오늘도 함께 알뜰하게!</Text>
           </View>
         </View>
