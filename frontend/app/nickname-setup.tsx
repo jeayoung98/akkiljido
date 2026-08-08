@@ -63,7 +63,7 @@ export default function NicknameSetupScreen() {
         },
       );
 
-      router.replace('/(tabs)');
+      router.replace('/place-setup');
     } catch (error) {
       console.error(
         '[auth] nickname registration failed',
