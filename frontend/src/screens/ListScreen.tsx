@@ -1,6 +1,7 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Text } from '@/components/common/typography/Text';
 
 import AppScreen from '@/components/common/AppScreen';
 import { AsyncStateView } from '@/components/common/AsyncStateView';
@@ -55,6 +56,17 @@ const ADD_TRANSACTION_TYPE_OPTIONS = [
 
 const startOfMonth = (date: Date) => new Date(date.getFullYear(), date.getMonth(), 1);
 const endOfMonth = (date: Date) => new Date(date.getFullYear(), date.getMonth() + 1, 0);
+
+// 필터 칩을 한 줄에 2개씩 배치할 때 쓴다. width:'48.5%' + flexWrap 조합은 화면 폭에 따라
+// 계산이 아슬아슬해서(패딩·gap을 조금만 더 먹어도) 기기별로 한 줄에 1개씩 떨어지는 문제가 있었다.
+// 그래서 퍼센트 대신, 두 개씩 묶어 각 줄을 별도의 flex:1 행으로 직접 그려 폭 계산 위험을 없앤다.
+function chunkPairs<T>(items: T[]): T[][] {
+  const pairs: T[][] = [];
+  for (let index = 0; index < items.length; index += 2) {
+    pairs.push(items.slice(index, index + 2));
+  }
+  return pairs;
+}
 
 /**
  * 화면의 기간 선택을 목록·검색 API의 startDate/endDate로 바꿉니다.
@@ -531,16 +543,16 @@ export default function ListScreen() {
           </View>
 
           <FilterSection label="정렬">
-            <View style={styles.filterGrid}>
-              <Chip align="center" indicator="radio" label="최신순" onPress={() => setSortOrder('latest')} selected={sortOrder === 'latest'} style={styles.twoColumnChip} />
-              <Chip align="center" indicator="radio" label="과거순" onPress={() => setSortOrder('oldest')} selected={sortOrder === 'oldest'} style={styles.twoColumnChip} />
+            <View style={styles.twoColumnRow}>
+              <Chip align="center" indicator="radio" label="최신순" onPress={() => setSortOrder('latest')} selected={sortOrder === 'latest'} style={styles.flexChip} />
+              <Chip align="center" indicator="radio" label="과거순" onPress={() => setSortOrder('oldest')} selected={sortOrder === 'oldest'} style={styles.flexChip} />
             </View>
           </FilterSection>
 
           <FilterSection label="소비/소득">
-            <View style={styles.filterGrid}>
-              <Chip align="center" indicator="radio" label="소비" onPress={() => toggleTransactionType('expense')} selected={selectedTypes.includes('expense')} style={styles.twoColumnChip} />
-              <Chip align="center" indicator="radio" label="소득" onPress={() => toggleTransactionType('income')} selected={selectedTypes.includes('income')} style={styles.twoColumnChip} />
+            <View style={styles.twoColumnRow}>
+              <Chip align="center" indicator="radio" label="소비" onPress={() => toggleTransactionType('expense')} selected={selectedTypes.includes('expense')} style={styles.flexChip} />
+              <Chip align="center" indicator="radio" label="소득" onPress={() => toggleTransactionType('income')} selected={selectedTypes.includes('income')} style={styles.flexChip} />
             </View>
           </FilterSection>
 
@@ -563,16 +575,24 @@ export default function ListScreen() {
             actionLabel={hasAllCategoriesSelected ? '전체 해제' : '전체 선택'}
             label="카테고리"
             onAction={() => setSelectedCategoryIds(hasAllCategoriesSelected ? [] : [...allCategoryIds])}>
-            <View style={styles.filterGrid}>
-              {categoryGroups.map((group) => (
-                <Chip
-                  indicator="check"
-                  key={group.name}
-                  label={group.name}
-                  onPress={() => toggleCategoryGroup(group.ids)}
-                  selected={group.ids.every((id) => selectedCategoryIds.includes(id))}
-                  style={styles.twoColumnChip}
-                />
+            <View style={styles.twoColumnGrid}>
+              {chunkPairs(categoryGroups).map((pair) => (
+                <View key={pair[0].name} style={styles.twoColumnRow}>
+                  {pair.map((group) => (
+                    <Chip
+                      indicator="check"
+                      key={group.name}
+                      label={group.name}
+                      onPress={() => toggleCategoryGroup(group.ids)}
+                      selected={group.ids.every((id) => selectedCategoryIds.includes(id))}
+                      style={styles.flexChip}
+                    />
+                  ))}
+                  {/* 카테고리 개수가 홀수면 마지막 줄에 하나만 남는데, 그 하나가 flex:1이라
+                      혼자 줄 전체로 늘어나 버린다. 안 보이는 자리 채우개를 옆에 둬서
+                      다른 칩과 같은 폭을 유지하고 나머지 공간은 그냥 비워 둔다. */}
+                  {pair.length === 1 ? <View style={styles.flexChip} /> : null}
+                </View>
               ))}
             </View>
           </FilterSection>
@@ -685,8 +705,10 @@ const styles = StyleSheet.create({
   dateRange: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   dateRangeInput: { flex: 1, alignItems: 'center', minHeight: 48, justifyContent: 'center', gap: 0, paddingHorizontal: 14, paddingVertical: 0, borderRadius: 18 },
   dateRangeSeparator: { color: Colors.light.textSecondary, fontSize: 16 },
-  twoColumnChip: { width: '48.5%', minHeight: 40, borderRadius: 14, paddingHorizontal: 12 },
-  threeColumnChip: { flex: 1, minWidth: 0, minHeight: 40, borderRadius: 14, paddingHorizontal: 8 },
+  twoColumnGrid: { gap: 10 },
+  twoColumnRow: { flexDirection: 'row', gap: 10 },
+  flexChip: { flex: 1, minWidth: 0, minHeight: 40, borderRadius: 14, paddingHorizontal: 12 },
+  threeColumnChip: { flex: 1, minWidth: 0, minHeight: 40, borderRadius: 14, paddingHorizontal: 4, gap: 4 },
   resetText: { color: Colors.light.primary, fontSize: 13, fontWeight: '700' },
   addContent: { gap: 14, paddingHorizontal: 20, paddingBottom: 36 },
   addTitle: { marginBottom: 2, color: Colors.light.cardTitle, fontSize: 18, fontWeight: '800', textAlign: 'center' },

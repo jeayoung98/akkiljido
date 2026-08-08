@@ -3,6 +3,7 @@ import { Link, Stack } from 'expo-router';
 import { StyleSheet } from 'react-native';
 
 import { Text, View } from '@/components/common/Themed';
+import Colors from '@/constants/Colors';
 
 // 404 화면 컴포넌트. 안내 텍스트와 홈으로 돌아가는 링크만 보여준다.
 export default function NotFoundScreen() {
@@ -38,6 +39,6 @@ const styles = StyleSheet.create({
   },
   linkText: {
     fontSize: 14,
-    color: '#2e78b7',
+    color: Colors.light.primary,
   },
 });

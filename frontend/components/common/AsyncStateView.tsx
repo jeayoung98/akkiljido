@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { Text } from '@/components/common/typography/Text';
 
 import { Button } from '@/components/common/button/Button';
 import { EmptyState } from '@/components/transaction/EmptyState';

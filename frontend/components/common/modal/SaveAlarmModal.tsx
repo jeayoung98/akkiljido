@@ -1,20 +1,8 @@
 import { useIsFocused, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import {
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleProp,
-  StyleSheet,
-  Text,
-  TextInput,
-  TextInputProps,
-  TextStyle,
-  View,
-  ViewStyle,
-} from 'react-native';
+import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleProp, StyleSheet, TextInputProps, TextStyle, View, ViewStyle } from 'react-native';
+import { Text } from '@/components/common/typography/Text';
+import { NativeTextInput } from '@/components/common/typography/TextInput';
 
 import { Button } from '@/components/common/button/Button';
 import { IconButton } from '@/components/common/button/IconButton';
@@ -65,7 +53,7 @@ function FieldInput({
     <View style={containerStyle}>
       <View style={[styles.fieldBox, hasError && styles.fieldBoxError]}>
         <Text style={styles.fieldLabel}>{label}</Text>
-        <TextInput
+        <NativeTextInput
           {...inputProps}
           onChangeText={onChangeText}
           placeholder={placeholder}

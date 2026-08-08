@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
-import { StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
+import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
+import { Text } from '@/components/common/typography/Text';
 
 import { getAnalysisColor } from '@/components/transaction/analysisColors';
 import Colors from '@/constants/Colors';

@@ -1,12 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '@/components/common/typography/Text';
 
 import AppScreen from '@/components/common/AppScreen';
 import AccordionCard from '@/components/common/card/AccordionCard';
@@ -561,7 +556,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.light.primary,
   },
   recNumberText: {
-    color: '#FFFFFF',
+    color: Colors.onboarding.inverseText,
     fontSize: 11,
     fontWeight: '800',
   },
@@ -635,7 +630,7 @@ const styles = StyleSheet.create({
     opacity: 0.65,
   },
   retryButtonText: {
-    color: '#FFFFFF',
+    color: Colors.onboarding.inverseText,
     fontSize: 13,
     fontWeight: '700',
   },

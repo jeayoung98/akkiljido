@@ -1,14 +1,6 @@
 import { useRef, useState } from 'react';
-import {
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleProp,
-  StyleSheet,
-  Text,
-  View,
-  ViewStyle,
-} from 'react-native';
+import { Modal, Pressable, ScrollView, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
+import { Text } from '@/components/common/typography/Text';
 
 import Colors from '@/constants/Colors';
 

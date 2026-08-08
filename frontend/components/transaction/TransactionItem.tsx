@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { Text } from '@/components/common/typography/Text';
 
 import InfoListItem from '@/components/common/card/InfoListItem';
 import Colors from '@/constants/Colors';
@@ -65,7 +66,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 14,
-    backgroundColor: '#EEF7F0',
+    backgroundColor: Colors.light.inputBackground,
   },
   amount: {
     color: Colors.light.cardTitle,

@@ -231,7 +231,7 @@ export default function BottomSheet(props: BottomSheetProps) {
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.35)",
+    backgroundColor: Colors.light.overlay,
     justifyContent: "flex-end",
   },
   nonModalOverlay: {

@@ -1,4 +1,5 @@
-import { Pressable, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
+import { Pressable, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
+import { Text } from '@/components/common/typography/Text';
 
 import Colors from '@/constants/Colors';
 
@@ -108,7 +109,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   daySelected: {
-    color: '#fff',
+    color: Colors.onboarding.inverseText,
     fontWeight: '800',
   },
   dayDisabled: {

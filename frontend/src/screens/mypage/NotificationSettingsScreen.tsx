@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useRef, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, View } from 'react-native';
+import { Text } from '@/components/common/typography/Text';
 
 import AppScreen from '@/components/common/AppScreen';
 import InfoListItem from '@/components/common/card/InfoListItem';

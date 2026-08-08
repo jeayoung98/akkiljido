@@ -1,5 +1,6 @@
 import type { StyleProp, ViewStyle } from 'react-native';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { Text } from '@/components/common/typography/Text';
 
 import BaseCard from '@/components/common/card/BaseCard';
 import Colors from '@/constants/Colors';
