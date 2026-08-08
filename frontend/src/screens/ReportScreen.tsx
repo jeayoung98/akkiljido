@@ -1,12 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Text } from '@/components/common/typography/Text';
 
 import AppScreen from '@/components/common/AppScreen';
 import AccordionCard from '@/components/common/card/AccordionCard';
-import { AppHeader } from '@/components/common/header/AppHeader';
 import SegmentedControl from '@/components/common/segmented-control/SegmentedControl';
+import { BrandLogo } from '@/components/onboarding/BrandLogo';
 import Colors from '@/constants/Colors';
 import {
   getReportDetail,
@@ -344,10 +344,20 @@ export default function ReportScreen() {
       : '월간 리포트';
 
   return (
-    <AppScreen backgroundColor={Colors.light.cardBackground} scrollable>
-      <AppHeader subtitle="주간·월간 소비 리포트를 모아볼 수 있어요" title="과거 리포트" />
+    // 헤더를 ReportModal·RecommendModal(홈 화면 리포트 팝업)과 같은 딥그린 브랜드 헤더로 맞춰서,
+    // 팝업과 이 목록 화면이 "같은 리포트 기능"으로 보이게 한다. 배경도 헤더와 같은 색을 줘서
+    // 카메라 영역(상단 안전 영역)까지 자연스럽게 이어지고, 목록 영역은 별도 ScrollView에서
+    // 원래의 밝은 배경으로 되돌린다.
+    <AppScreen backgroundColor={Colors.light.reportHeaderBackground}>
+      <View style={styles.header}>
+        <View style={styles.badge}>
+          <BrandLogo size={40} />
+        </View>
+        <Text style={styles.headerTitle}>과거 리포트</Text>
+        <Text style={styles.headerSubtitle}>주간·월간 소비 리포트를 모아볼 수 있어요</Text>
+      </View>
 
-      <View style={styles.body}>
+      <ScrollView contentContainerStyle={styles.body} style={styles.bodyScroll}>
         <SegmentedControl
           onChange={setTab}
           options={REPORT_TABS}
@@ -430,12 +440,44 @@ export default function ReportScreen() {
             ))}
           </View>
         )}
-      </View>
+      </ScrollView>
     </AppScreen>
   );
 }
 
 const styles = StyleSheet.create({
+  header: {
+    alignItems: 'center',
+    paddingTop: 12,
+    paddingBottom: 20,
+    paddingHorizontal: 20,
+    backgroundColor: Colors.light.reportHeaderBackground,
+  },
+  badge: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.light.reportHeaderBadge,
+  },
+  headerTitle: {
+    marginTop: 10,
+    fontSize: 20,
+    fontWeight: '800',
+    color: Colors.onboarding.inverseText,
+    textAlign: 'center',
+  },
+  headerSubtitle: {
+    marginTop: 4,
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.light.reportHeaderSubtitle,
+    textAlign: 'center',
+  },
+  bodyScroll: {
+    backgroundColor: Colors.light.cardBackground,
+  },
   body: {
     flexGrow: 1,
     gap: 16,
