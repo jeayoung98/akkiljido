@@ -58,6 +58,13 @@ const ADD_TRANSACTION_TYPE_OPTIONS = [
 const startOfMonth = (date: Date) => new Date(date.getFullYear(), date.getMonth(), 1);
 const endOfMonth = (date: Date) => new Date(date.getFullYear(), date.getMonth() + 1, 0);
 
+// "2026-08-05" -> "8월 5일". 검색 결과는 여러 날짜가 섞여 나오는데 카테고리만 보여서 언제 결제했는지
+// 안 보인다는 피드백이 있어, 카테고리 앞에 날짜를 붙여 보여준다.
+const formatSearchResultDate = (dateString: string) => {
+  const [, month, day] = dateString.split('-');
+  return `${Number(month)}월 ${Number(day)}일`;
+};
+
 // 필터 칩을 한 줄에 2개씩 배치할 때 쓴다. width:'48.5%' + flexWrap 조합은 화면 폭에 따라
 // 계산이 아슬아슬해서(패딩·gap을 조금만 더 먹어도) 기기별로 한 줄에 1개씩 떨어지는 문제가 있었다.
 // 그래서 퍼센트 대신, 두 개씩 묶어 각 줄을 별도의 flex:1 행으로 직접 그려 폭 계산 위험을 없앤다.
@@ -538,8 +545,8 @@ export default function ListScreen() {
                           amount={record.amount}
                           description={
                             record.transactionCount > 1
-                              ? `${record.categoryName} · ${record.transactionCount}건`
-                              : record.categoryName
+                              ? `${formatSearchResultDate(record.transactionDate)} · ${record.categoryName} · ${record.transactionCount}건`
+                              : `${formatSearchResultDate(record.transactionDate)} · ${record.categoryName}`
                           }
                           leading={<CategoryIcon categoryId={record.categoryId} categoryName={record.categoryName} size={20} type={record.type} />}
                           onPress={() => handleOpenDetail(String(record.transactionId))}
