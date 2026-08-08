@@ -46,6 +46,11 @@ export function TransactionAnalysisTab({
   const { year, month: monthNumber } = toCalendarParams(month);
   const isCategoryMode = mode === 'category';
 
+  // 먼 미래까지 무한정 넘겨볼 수 있으면 의미가 없어서, 오늘로부터 3년 뒤 달까지만 이동을 허용한다.
+  const today = new Date();
+  const maxMonth = new Date(today.getFullYear() + 3, today.getMonth(), 1);
+  const isAtMaxMonth = month.getFullYear() === maxMonth.getFullYear() && month.getMonth() === maxMonth.getMonth();
+
   const categoryQuery = useCategoryAnalysis(year, monthNumber, isCategoryMode);
   const placeQuery = useMyPlaceAnalysis(year, monthNumber, !isCategoryMode);
   const activeQuery = isCategoryMode ? categoryQuery : placeQuery;
@@ -84,7 +89,7 @@ export function TransactionAnalysisTab({
 
   return (
     <View style={styles.container}>
-      <MonthPicker month={month} onNext={onNextMonth} onPrev={onPreviousMonth} />
+      <MonthPicker disableNext={isAtMaxMonth} month={month} onNext={onNextMonth} onPrev={onPreviousMonth} />
       <SegmentedControl onChange={onChangeMode} options={MODE_OPTIONS} value={mode} />
 
       <AnalysisCard
