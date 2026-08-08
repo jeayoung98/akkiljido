@@ -24,6 +24,7 @@ import {
   getTransactionMyPlaces,
   getTransactionPlaceMap,
   getTransactionRegionMap,
+  groupMapTransactionsByDate,
   groupMapTransactionsByName,
   type MapPlace,
   type MapRegion,
@@ -116,11 +117,9 @@ function formatManwon(amount: number) {
 }
 
 // "2026-07-17 09:20:00+09" -> "7월 17일 · 09:20"
-function formatDateShort(datetime: string) {
-  const [datePart, timePart] = datetime.split(' ');
-  const [, month, day] = datePart.split('-');
-  const [hour, minute] = timePart.split(':');
-  return `${Number(month)}월 ${Number(day)}일 · ${hour}:${minute}`;
+function formatDateOnly(date: string) {
+  const [, month, day] = date.split('-');
+  return `${Number(month)}월 ${Number(day)}일`;
 }
 
 // 지도 탭 화면. 검색·필터·내 위치·내 장소 목록을 잡아두고,
@@ -964,14 +963,14 @@ export default function MapScreen() {
                     <Text style={{ fontSize: 12, color: Colors.light.cardAccent, fontWeight: '600' }}>
                       이 가게에서 사용한 내역
                     </Text>
-                    {merchant.dateList.map((tx) => (
-                      <View key={tx.transactionId} style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                    {groupMapTransactionsByDate(merchant.dateList).map((tx) => (
+                      <View key={tx.transactionIds[0]} style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                         <View>
                           <Text style={{ fontSize: 14, color: Colors.light.cardBodyText }}>
-                            {merchant.categoryName} 결제
+                            {tx.transactionCount > 1 ? `거래 ${tx.transactionCount}건` : '거래'}
                           </Text>
                           <Text style={{ fontSize: 12, color: Colors.light.cardDescription }}>
-                            {formatDateShort(tx.datetime)}
+                            {formatDateOnly(tx.date)}
                           </Text>
                         </View>
                         <Text style={{ fontSize: 14, fontWeight: '700', color: Colors.light.cardTitle }}>
@@ -1029,14 +1028,14 @@ export default function MapScreen() {
                   <Text style={{ fontSize: 12, color: Colors.light.cardAccent, fontWeight: '600' }}>
                     이 가게에서 사용한 내역
                   </Text>
-                  {generalPlaceDetail.transactionList.map((tx) => (
-                    <View key={tx.transactionId} style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                  {groupMapTransactionsByDate(generalPlaceDetail.transactionList).map((tx) => (
+                    <View key={tx.transactionIds[0]} style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                       <View>
                         <Text style={{ fontSize: 14, color: Colors.light.cardBodyText }}>
-                          {tx.categoryName} 결제
+                        {tx.transactionCount > 1 ? `거래 ${tx.transactionCount}건` : '거래'}
                         </Text>
                         <Text style={{ fontSize: 12, color: Colors.light.cardDescription }}>
-                          {formatDateShort(tx.datetime)}
+                          {formatDateOnly(tx.date)}
                         </Text>
                       </View>
                       <Text style={{ fontSize: 14, fontWeight: '700', color: Colors.light.cardTitle }}>
@@ -1094,16 +1093,16 @@ export default function MapScreen() {
                       <Text style={{ fontSize: 12, color: Colors.light.cardAccent, fontWeight: '600' }}>
                         이 가게에서 사용한 내역
                       </Text>
-                      {merchant.dateList.map((tx) => (
+                      {groupMapTransactionsByDate(merchant.dateList).map((tx) => (
                         <View
-                          key={tx.transactionId}
+                          key={tx.transactionIds[0]}
                           style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                           <View>
                             <Text style={{ fontSize: 14, color: Colors.light.cardBodyText }}>
-                              {merchant.categoryName} 결제
+                              {tx.transactionCount > 1 ? `거래 ${tx.transactionCount}건` : '거래'}
                             </Text>
                             <Text style={{ fontSize: 12, color: Colors.light.cardDescription }}>
-                              {formatDateShort(tx.datetime)}
+                              {formatDateOnly(tx.date)}
                             </Text>
                           </View>
                           <Text style={{ fontSize: 14, fontWeight: '700', color: Colors.light.cardTitle }}>

@@ -3,6 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import { CategoryIcon } from '@/components/transaction/CategoryIcon';
 import TransactionGroup, { type TransactionGroupItem } from '@/components/transaction/TransactionGroup';
 import type { TransactionDateGroup, TransactionListItem } from '@/src/api/transactionsApi';
+import { groupTransactions } from '@/src/utils/groupTransactions';
 
 type TransactionListTabProps = {
   /** GET /api/v1/transaction/list의 dateList를 그대로 받습니다. */
@@ -14,10 +15,13 @@ const formatDateLabel = (dateKey: string) => dateKey.replaceAll('-', '.');
 
 /** 목록 API의 거래 항목을 TransactionGroup이 쓰는 형태로 바꿉니다. */
 function toGroupItems(transactions: TransactionListItem[]): TransactionGroupItem[] {
-  return transactions.map((transaction) => ({
+  return groupTransactions(transactions).map((transaction) => ({
     id: String(transaction.transactionId),
     title: transaction.name,
-    description: transaction.categoryName,
+    description:
+      transaction.transactionCount > 1
+        ? `${transaction.categoryName} · ${transaction.transactionCount}건`
+        : transaction.categoryName,
     leading: (
       <CategoryIcon
         categoryId={transaction.categoryId}

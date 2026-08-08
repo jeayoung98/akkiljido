@@ -16,6 +16,23 @@ const DEFAULT_CENTER: LatLng = { lat: 37.4979, lng: 127.0276 };
 // 볼 수 있어서, 여기서는 넉넉하게 500m 이내를 "같은 자리"로 본다.
 const OVERLAP_DISTANCE_METERS = 500;
 
+/** API가 같은 장소의 거래를 여러 건으로 내려줘도, 지도에서는 장소별 누적 금액 한 건으로 정리합니다. */
+function groupSamePlaces(places: NearbyExpensePlace[]): NearbyExpensePlace[] {
+  const placesByKey = new Map<string, NearbyExpensePlace>();
+
+  places.forEach((place) => {
+    const key = `${place.name}:${place.address}`;
+    const existing = placesByKey.get(key);
+
+    placesByKey.set(
+      key,
+      existing ? { ...existing, amount: existing.amount + place.amount } : place,
+    );
+  });
+
+  return Array.from(placesByKey.values());
+}
+
 /** 가까운 장소끼리 묶는다. 이미 만들어진 그룹 중 하나와 겹치면 그 그룹에 합류시킨다. */
 function groupNearbyPlaces(places: NearbyExpensePlace[]): NearbyExpensePlace[][] {
   const groups: NearbyExpensePlace[][] = [];
@@ -71,11 +88,12 @@ export function NearbyWeekSpendingCard({
 
   const center = currentLocation ?? DEFAULT_CENTER;
 
-  // 겹치는 장소는 그룹으로 묶어서, 그 안에서 가장 큰 금액 하나만 말풍선에 보여주고 나머지는
-  // "+N"으로 표시한다(전체 지도에서 확대해서 각각 보는 건 미리보기 탭 이동으로 이미 가능하다).
-  const markers: MapMarker[] = groupNearbyPlaces(places).map((group) => {
+  // 먼저 동일 장소의 거래를 누적하고, 그 다음 겹치는 장소만 한 말풍선으로 압축한다.
+  // 미리보기에서 한 장소가 거래 건수만큼 중복으로 보이거나, 겹친 장소 일부 금액만 보이는 일을 막는다.
+  const markers: MapMarker[] = groupNearbyPlaces(groupSamePlaces(places)).map((group) => {
     const topPlace = group.reduce((max, place) => (place.amount > max.amount ? place : max));
     const extraCount = group.length - 1;
+    const totalAmount = group.reduce((sum, place) => sum + place.amount, 0);
 
     return {
       // place.name은 같은 이름의 다른 지점이 있을 수 있어 고유하지 않다. 좌표 조합을 id로 쓴다
@@ -84,7 +102,7 @@ export function NearbyWeekSpendingCard({
       lat: topPlace.latitude,
       lng: topPlace.longitude,
       label: extraCount > 0 ? `${topPlace.name} +${extraCount}` : topPlace.name,
-      amount: topPlace.amount,
+      amount: totalAmount,
       color: Colors.light.primary,
     };
   });
