@@ -58,6 +58,10 @@ type ReportListResponse = {
 
 /**
  * GET /api/v1/report/{reportId} 상세 응답.
+ *
+ * 리포트 푸시 알림의 data.report에도 이 스키마 그대로 실려 온다(백엔드
+ * ReportNotificationService가 상세 응답을 그대로 직렬화한다). 그래서 푸시로 받은 전문과
+ * 조회로 받은 전문이 같은 타입이고, 화면은 둘을 구분하지 않아도 된다.
  */
 export type ReportDetail = {
   reportId: number;
@@ -94,4 +98,22 @@ export async function getReportDetail(
   return apiRequest<ReportDetail>(
     `/api/v1/report/${reportId}`,
   );
+}
+
+/**
+ * 가장 최근 리포트의 상세를 가져온다. 아직 생성된 리포트가 없으면 null.
+ *
+ * 홈 화면의 "기간당 1회 자동 팝업"이 쓴다. 목록 API가 최신순으로 내려주므로 첫 항목이 곧 최신이다.
+ */
+export async function getLatestReportDetail(
+  type: ReportQueryType,
+): Promise<ReportDetail | null> {
+  const reports = await getReportList(type);
+  const latest = reports[0];
+
+  if (!latest) {
+    return null;
+  }
+
+  return getReportDetail(latest.reportId);
 }

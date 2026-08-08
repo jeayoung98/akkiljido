@@ -7,6 +7,7 @@ import 'react-native-reanimated';
 
 // 앱이 백그라운드/헤드리스 상태로 시작돼도 위치 태스크가 먼저 등록되도록 루트에서 로드한다.
 import '@/utils/backgroundLocationTask';
+import { useReportPushHandler } from '@/hooks/useReportPushHandler';
 import { queryClient } from '@/src/api/queryClient';
 
 export {
@@ -21,6 +22,10 @@ export const unstable_settings = {
 
 // 다크모드를 지원하지 않으므로 DefaultTheme로 고정한다.
 export default function RootLayout() {
+  // 리포트 푸시 알림 수신/탭 처리는 어느 화면에 있든 동작해야 하므로 루트에서 딱 한 번 등록한다.
+  // (앱이 죽은 상태에서 알림을 눌러 실행된 경우도 여기서 함께 처리한다.)
+  useReportPushHandler();
+
   return (
     // react-native-gesture-handler를 쓰려면 앱 최상단이 이걸로 감싸져 있어야 한다(특히 안드로이드에서 필수).
     <GestureHandlerRootView style={{ flex: 1 }}>

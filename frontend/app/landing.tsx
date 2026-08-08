@@ -10,6 +10,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { BrandLockup } from '@/components/onboarding/BrandLockup';
 import Colors from '@/constants/Colors';
 import { getAuthSession } from '@/src/auth/tokenStorage';
+import { syncPushTokenRegistration } from '@/utils/pushNotifications';
 
 const SPLASH_DURATION_MS = 1200;
 
@@ -72,6 +73,9 @@ export default function LandingScreen() {
         }
 
         if (session.role === 'USER') {
+          // FCM 토큰은 OS가 재발급할 수 있어서, 자동 로그인으로 들어올 때도 매번 다시 등록한다.
+          void syncPushTokenRegistration();
+
           router.replace('/(tabs)');
           return;
         }

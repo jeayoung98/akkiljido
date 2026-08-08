@@ -11,7 +11,18 @@ let notificationsPromise: Promise<NotificationsModule> | null = null;
 let handlerConfigured = false;
 const BACKGROUND_LOCATION_TASK = 'notification-place-background-location';
 
-async function loadNotifications(): Promise<NotificationsModule | null> {
+/**
+ * 리포트 푸시가 쓰는 Android 채널 ID.
+ * 백엔드 FcmClient가 AndroidNotification.setChannelId("report")로 보내기 때문에,
+ * 앱이 같은 ID로 채널을 만들어두지 않으면 Android 8+ 에서 알림이 조용히 사라진다.
+ */
+export const REPORT_NOTIFICATION_CHANNEL_ID = 'report';
+
+/**
+ * expo-notifications 모듈을 지연 로드한다. 최초 1회에 알림 핸들러와 채널까지 함께 준비한다.
+ * Expo Go처럼 모듈을 못 쓰는 환경에서는 null을 돌려주고, 호출부는 그 기능만 조용히 건너뛴다.
+ */
+export async function loadNotifications(): Promise<NotificationsModule | null> {
   if (!notificationsPromise) {
     notificationsPromise = import('expo-notifications');
   }
@@ -33,6 +44,12 @@ async function loadNotifications(): Promise<NotificationsModule | null> {
         importance: Notifications.AndroidImportance.MAX,
         sound: 'default',
         vibrationPattern: [0, 250, 200, 250],
+      });
+      // 주간·월간 리포트 푸시용 채널. 백엔드가 지정하는 channelId와 반드시 같아야 한다.
+      await Notifications.setNotificationChannelAsync(REPORT_NOTIFICATION_CHANNEL_ID, {
+        name: '리포트 알림',
+        importance: Notifications.AndroidImportance.HIGH,
+        sound: 'default',
       });
     }
     return Notifications;

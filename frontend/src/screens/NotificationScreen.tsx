@@ -9,6 +9,7 @@ import AppScreen from '@/components/common/AppScreen';
 import { IconButton } from '@/components/common/button/IconButton';
 import Colors from '@/constants/Colors';
 import { useNotificationStore } from '@/store/notificationStore';
+import { useReportPopupStore } from '@/store/reportPopupStore';
 import type { NotificationType } from '@/types/notification';
 import { clearPresentedNotifications } from '@/utils/localNotifications';
 
@@ -126,7 +127,32 @@ export default function NotificationScreen() {
   const markAllRead = useNotificationStore((state) => state.markAllRead);
   const markRead = useNotificationStore((state) => state.markRead);
   const dismiss = useNotificationStore((state) => state.dismiss);
+  const openReport = useReportPopupStore((state) => state.openReport);
   const hasUnread = notifications.some((item) => !item.read);
+
+  // 리포트 알림을 누르면 홈으로 돌아가면서 그 리포트 팝업을 띄운다. 알림함에는 reportId만 남아 있어서
+  // 전문은 홈 화면이 다시 조회한다(푸시를 탭한 경우와 같은 경로).
+  const handlePressNotification = (item: (typeof notifications)[number]) => {
+    markRead(item.notificationId);
+
+    if (item.reportId === undefined) {
+      return;
+    }
+
+    openReport({
+      reportId: item.reportId,
+      reportType: item.reportType ?? 'WEEKLY',
+      detail: null,
+      source: 'push',
+    });
+
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+
+    router.replace('/(tabs)');
+  };
 
   useEffect(() => {
     // 알림함을 열면 인앱 목록은 읽음으로 바꾸고, 홈 화면의 OS 배지도 함께 비운다.
@@ -156,7 +182,7 @@ export default function NotificationScreen() {
               return (
                 <SwipeToDismissRow key={item.notificationId} onDismiss={() => dismiss(item.notificationId)}>
                   <Pressable
-                    onPress={() => markRead(item.notificationId)}
+                    onPress={() => handlePressNotification(item)}
                     style={[styles.card, { backgroundColor: item.read ? Colors.light.cardBackground : config.unreadBackground }]}>
                     <View style={[styles.iconBox, { backgroundColor: config.iconBackground }]}>
                       <Ionicons color={config.iconColor} name={config.icon} size={18} />
