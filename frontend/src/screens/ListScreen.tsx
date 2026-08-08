@@ -175,8 +175,6 @@ export default function ListScreen() {
   const [addCategoryId, setAddCategoryId] = useState<string | null>(null);
   const [addPaymentMethod, setAddPaymentMethod] = useState('');
   const [addDate, setAddDate] = useState(() => new Date());
-  const pickedLocation = useMapPickerStore((state) => state.pickedLocation);
-  const clearPickedLocation = useMapPickerStore((state) => state.clearPickedLocation);
 
   // 추가 시트는 화면 아래에 고정돼 있어서, 키보드가 올라오면 아래쪽 입력창(결제 수단 등)이 그대로 가립니다.
   // 키보드 높이만큼 스크롤 아래 여백을 늘려 두고, 포커스된 입력창을 그 위로 스크롤해서 보이게 합니다.
@@ -252,12 +250,17 @@ export default function ListScreen() {
   // useFocusEffect로 포커스가 올 때마다 쿼리의 tab을 다시 반영해서, 홈 화면 더보기를 몇 번을 눌러도
   // 항상 그 탭으로 이동하게 한다.
   //
-  // 지도 선택에서 돌아오는 것도 이 화면 입장에서는 똑같은 "포커스 복귀"라서, 예전에는 그 처리를
-  // 별도의 pickedLocation useEffect로 나눠뒀었다. 그런데 그 effect가 store 값이 바뀌는 순간 먼저
-  // 반응해 isReturningFromMapRef를 리셋해버리면, 뒤이어 실행되는 이 focus effect는 "지도에서
-  // 돌아온 게 아니다"로 오판하고 방금 다시 연 추가 시트를 곧장 닫아버렸다(실행 순서를 보장할 수
-  // 없어 두 effect가 같은 플래그를 두고 경쟁하는 셈이었다). 그래서 지도 선택 반영까지 이 effect
-  // 하나로 합쳐서, 같은 신호를 두 곳에서 다투지 않게 한다.
+  // 지도 선택에서 돌아오는 것도 이 화면 입장에서는 똑같은 "포커스 복귀"라서, 그 처리도 이 effect
+  // 안에서 같이 한다. 처음에는 pickedLocation을 useMapPickerStore(selector)로 구독해서 deps에
+  // 넣었는데, expo-router의 useFocusEffect(useCallback(...))는 콜백 참조가 바뀔 때마다(=deps 중
+  // 하나라도 바뀔 때마다) 실제 focus 이벤트를 기다리지 않고 즉시 한 번 더 실행되는 구현이라
+  // (SaveAlarmModal.tsx에서 같은 이유로 이미 한 번 겪은 문제), map-picker 화면에서
+  // setPickedLocation이 호출되는 순간(아직 이 화면으로 돌아오기도 전) 이 effect가 먼저 실행돼
+  // isReturningFromMapRef를 리셋해버렸다. 그러면 뒤이어 실제 focus가 돌아왔을 때 다시 실행되는
+  // effect는 "지도에서 돌아온 게 아니다"로 오판하고 방금 조용히 열어둔 추가 시트를 곧장 닫아버렸다.
+  // 그래서 pickedLocation을 deps로 구독하지 않고, 실제 focus 시점에 store에서 직접 한 번만
+  // 읽어(getState) 그때그때의 최신값을 쓰도록 바꿨다 — 이러면 이 effect는 store 값 변화와 무관하게
+  // 오직 진짜 focus 이벤트에서만 실행된다.
   useFocusEffect(
     useCallback(() => {
       const requestedTab =
@@ -278,10 +281,11 @@ export default function ListScreen() {
       // 지도 선택 화면에서 돌아오는 경우에는 작성 중이던 거래를 이어서 입력한다.
       if (isReturningFromMapRef.current) {
         isReturningFromMapRef.current = false;
-        if (pickedLocation) {
-          setAddAddress(pickedLocation.address);
-          setAddCoords({ latitude: pickedLocation.lat, longitude: pickedLocation.lng });
-          clearPickedLocation();
+        const picked = useMapPickerStore.getState().pickedLocation;
+        if (picked) {
+          setAddAddress(picked.address);
+          setAddCoords({ latitude: picked.lat, longitude: picked.lng });
+          useMapPickerStore.getState().clearPickedLocation();
         }
         setIsAddVisible(true);
         return;
@@ -290,7 +294,7 @@ export default function ListScreen() {
       // 그 외 하단 탭 이동 뒤에는 다음 거래 추가를 빈 양식으로 시작한다.
       setIsAddVisible(false);
       shouldResetAddFormOnOpenRef.current = true;
-    }, [clearPickedLocation, initialTab, pickedLocation]),
+    }, [initialTab]),
   );
 
   const handleOpenMapPicker = () => {
