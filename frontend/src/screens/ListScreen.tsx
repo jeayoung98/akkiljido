@@ -278,16 +278,16 @@ export default function ListScreen() {
   };
 
   // 지도 선택 뒤에는 선택 주소·좌표를 폼 상태로 옮긴 후 거래 추가 시트를 다시 표시합니다.
+  // (pickedLocation은 다른 화면의 지도 선택 흐름과 공유하는 전역 store라, 이 화면에서 연 게 아니면 건드리지 않는다.
+  // 그러지 않으면 알림 설정 등 다른 화면이 지도에서 고른 값을 이 탭이 백그라운드에서 먼저 가로채 지워버린다.)
   useEffect(() => {
-    if (!pickedLocation) return;
+    if (!pickedLocation || !isReturningFromMapRef.current) return;
 
     setAddAddress(pickedLocation.address);
     setAddCoords({ latitude: pickedLocation.lat, longitude: pickedLocation.lng });
     clearPickedLocation();
-    if (isReturningFromMapRef.current) {
-      setIsAddVisible(true);
-      isReturningFromMapRef.current = false;
-    }
+    isReturningFromMapRef.current = false;
+    setIsAddVisible(true);
   }, [clearPickedLocation, pickedLocation]);
 
   const handleOpenMapPicker = () => {
