@@ -965,14 +965,9 @@ export default function MapScreen() {
                     </Text>
                     {groupMapTransactionsByDate(merchant.dateList).map((tx) => (
                       <View key={tx.transactionIds[0]} style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                        <View>
-                          <Text style={{ fontSize: 14, color: Colors.light.cardBodyText }}>
-                            {tx.transactionCount > 1 ? `거래 ${tx.transactionCount}건` : '거래'}
-                          </Text>
-                          <Text style={{ fontSize: 12, color: Colors.light.cardDescription }}>
-                            {formatDateOnly(tx.date)}
-                          </Text>
-                        </View>
+                        <Text style={{ fontSize: 14, color: Colors.light.cardBodyText }}>
+                          {formatDateOnly(tx.date)}
+                        </Text>
                         <Text style={{ fontSize: 14, fontWeight: '700', color: Colors.light.cardTitle }}>
                           -{formatWon(tx.amount)}원
                         </Text>
@@ -1030,14 +1025,9 @@ export default function MapScreen() {
                   </Text>
                   {groupMapTransactionsByDate(generalPlaceDetail.transactionList).map((tx) => (
                     <View key={tx.transactionIds[0]} style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                      <View>
-                        <Text style={{ fontSize: 14, color: Colors.light.cardBodyText }}>
-                        {tx.transactionCount > 1 ? `거래 ${tx.transactionCount}건` : '거래'}
-                        </Text>
-                        <Text style={{ fontSize: 12, color: Colors.light.cardDescription }}>
-                          {formatDateOnly(tx.date)}
-                        </Text>
-                      </View>
+                      <Text style={{ fontSize: 14, color: Colors.light.cardBodyText }}>
+                        {formatDateOnly(tx.date)}
+                      </Text>
                       <Text style={{ fontSize: 14, fontWeight: '700', color: Colors.light.cardTitle }}>
                         -{formatWon(tx.amount)}원
                       </Text>
@@ -1097,14 +1087,9 @@ export default function MapScreen() {
                         <View
                           key={tx.transactionIds[0]}
                           style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                          <View>
-                            <Text style={{ fontSize: 14, color: Colors.light.cardBodyText }}>
-                              {tx.transactionCount > 1 ? `거래 ${tx.transactionCount}건` : '거래'}
-                            </Text>
-                            <Text style={{ fontSize: 12, color: Colors.light.cardDescription }}>
-                              {formatDateOnly(tx.date)}
-                            </Text>
-                          </View>
+                          <Text style={{ fontSize: 14, color: Colors.light.cardBodyText }}>
+                            {formatDateOnly(tx.date)}
+                          </Text>
                           <Text style={{ fontSize: 14, fontWeight: '700', color: Colors.light.cardTitle }}>
                             -{formatWon(tx.amount)}원
                           </Text>
