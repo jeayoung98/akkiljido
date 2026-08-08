@@ -65,9 +65,15 @@ public class CategoryService {
 
 	/**
 	 * 회원가입 시 해당 회원에게 기본 카테고리 목록을 생성한다.
+	 * <p>
+	 * 최초 가입 1회만 호출되는 것이 정상이지만, 호출부의 가드가 뚫리거나(예: 닉네임 변경 API 재호출)
+	 * 재시도로 두 번 들어와도 기본 카테고리가 배로 늘지 않도록 여기서도 한 번 더 막는다.
 	 */
 	@Transactional
 	public void createDefaultCategories(User user) {
+		if (categoryRepository.existsByUser_Id(user.getId())) {
+			return;
+		}
 		List<Category> defaults = Arrays.stream(DefaultCategory.values())
 			.map(defaultCategory -> Category.builder()
 				.user(user)

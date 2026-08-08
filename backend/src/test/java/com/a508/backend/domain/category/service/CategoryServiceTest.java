@@ -11,11 +11,14 @@ import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import com.a508.backend.domain.category.entity.Category;
+import com.a508.backend.domain.category.entity.DefaultCategory;
 import com.a508.backend.domain.category.repository.CategoryRepository;
 import com.a508.backend.domain.user.domain.User;
 import com.a508.backend.global.exception.BusinessException;
@@ -136,5 +139,37 @@ class CategoryServiceTest {
 			.isInstanceOf(BusinessException.class)
 			.extracting(e -> ((BusinessException)e).getExceptionType())
 			.isEqualTo(ExceptionType.CATEGORY_NOT_FOUND);
+	}
+
+	@Test
+	@DisplayName("카테고리가 없는 회원에게는 기본 카테고리를 전부 생성한다")
+	@SuppressWarnings({"rawtypes", "unchecked"})
+	void createsDefaultCategoriesWhenUserHasNone() {
+		User user = savedUser();
+		when(categoryRepository.existsByUser_Id(USER_ID)).thenReturn(false);
+
+		categoryService.createDefaultCategories(user);
+
+		ArgumentCaptor<Iterable> captor = ArgumentCaptor.forClass(Iterable.class);
+		verify(categoryRepository).saveAll(captor.capture());
+
+		assertThat(captor.getValue()).hasSize(DefaultCategory.values().length);
+	}
+
+	@Test
+	@DisplayName("이미 카테고리를 가진 회원에게는 기본 카테고리를 다시 생성하지 않는다")
+	void skipsDefaultCategoryCreationWhenUserAlreadyHasCategories() {
+		User user = savedUser();
+		when(categoryRepository.existsByUser_Id(USER_ID)).thenReturn(true);
+
+		categoryService.createDefaultCategories(user);
+
+		verify(categoryRepository, never()).saveAll(any());
+	}
+
+	private User savedUser() {
+		User user = User.createGoogleGuest("sub");
+		ReflectionTestUtils.setField(user, "id", USER_ID);
+		return user;
 	}
 }

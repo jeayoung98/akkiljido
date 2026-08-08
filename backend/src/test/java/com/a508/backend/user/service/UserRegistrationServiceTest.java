@@ -117,4 +117,71 @@ class UserRegistrationServiceTest {
 		return new AuthTokens("test-user-access-token", "test-user-refresh-token", 1800L,
 			Instant.parse("2026-08-07T00:00:00Z"));
 	}
+
+	@Test
+	@DisplayName("GUEST 의 최초 가입 시에만 기본 카테고리를 생성한다")
+	void createsDefaultCategoriesOnFirstRegistration() {
+		// given
+		Long userId = 1L;
+
+		User guest = createSavedGuest(userId);
+
+		given(userRepository.findById(userId)).willReturn(Optional.of(guest));
+
+		given(tokenIssuer.issue(guest)).willReturn(createAuthTokens());
+
+		// when
+		userRegistrationService.completeRegistration(userId, "홍길동");
+
+		// then
+		verify(categoryService).createDefaultCategories(guest);
+	}
+
+	@Test
+	@DisplayName("이미 가입을 마친 USER 가 닉네임을 변경해도 기본 카테고리를 다시 생성하지 않는다")
+	void doesNotRecreateDefaultCategoriesForRegisteredUser() {
+		// given
+		Long userId = 1L;
+
+		User registered = createSavedGuest(userId);
+
+		registered.completeRegistration("홍길동");
+
+		given(userRepository.findById(userId)).willReturn(Optional.of(registered));
+
+		given(tokenIssuer.issue(registered)).willReturn(createAuthTokens());
+
+		// when
+		NicknameRegistrationResult result = userRegistrationService.completeRegistration(userId, "  김철수  ");
+
+		// then
+		assertThat(registered.getNickname()).isEqualTo("김철수");
+
+		assertThat(registered.getRole()).isEqualTo(UserRole.USER);
+
+		assertThat(result.nickname()).isEqualTo("김철수");
+
+		verify(categoryService, never()).createDefaultCategories(any(User.class));
+	}
+
+	@Test
+	@DisplayName("닉네임 설정 API 를 두 번 호출해도 기본 카테고리는 한 번만 생성된다")
+	void createsDefaultCategoriesOnlyOnceAcrossRepeatedCalls() {
+		// given
+		Long userId = 1L;
+
+		User user = createSavedGuest(userId);
+
+		given(userRepository.findById(userId)).willReturn(Optional.of(user));
+
+		given(tokenIssuer.issue(user)).willReturn(createAuthTokens());
+
+		// when
+		userRegistrationService.completeRegistration(userId, "홍길동");
+
+		userRegistrationService.completeRegistration(userId, "김철수");
+
+		// then
+		verify(categoryService, times(1)).createDefaultCategories(user);
+	}
 }
