@@ -14,6 +14,7 @@ import { Scroll } from '@/components/common/Scroll';
 import { KakaoMap, type KakaoMapHandle, type MapBounds } from '@/components/map/KakaoMap';
 import { MapZoom } from '@/components/map/MapZoom';
 import Colors from '@/constants/Colors';
+import { useKeyboardHeight } from '@/hooks/useKeyboardHeight';
 import { useMapPickerStore } from '@/store/mapPickerStore';
 import { reverseGeocode } from '@/utils/kakaoGeocode';
 import { searchPlaces, type PlaceResult } from '@/utils/kakaoSearch';
@@ -55,6 +56,10 @@ export default function MapPickerScreen() {
   const [roadviewMode, setRoadviewMode] = useState(false);
   // 로드뷰(거리 사진)가 실제로 떠 있는지. WebView 쪽에서 열리고 닫힐 때 알려준다.
   const [roadviewOpen, setRoadviewOpen] = useState(false);
+
+  // 검색 결과·선택 카드가 화면 아래에 고정돼 있어서, 검색창에 포커스가 남은 채로 키보드가 뜨면
+  // 그 카드들을 그대로 가린다. 키보드 높이만큼 아래 여백(bottom)을 더 띄워서 가리지 않게 한다.
+  const keyboardHeight = useKeyboardHeight();
 
   const mapRef = useRef<KakaoMapHandle>(null);
   const scrollViewRef = useRef<ScrollView>(null);
@@ -321,7 +326,7 @@ export default function MapPickerScreen() {
           <View
             style={{
               position: 'absolute',
-              bottom: 16,
+              bottom: 16 + keyboardHeight,
               left: 16,
               right: 16,
               backgroundColor: Colors.light.cardMutedBackground,
@@ -378,14 +383,23 @@ export default function MapPickerScreen() {
             </Scroll>
           </View>
         ) : (
-          <BaseCard style={{ position: 'absolute', bottom: 16, left: 16, right: 16 }}>
+          <BaseCard style={{ position: 'absolute', bottom: 16 + keyboardHeight, left: 16, right: 16 }}>
             <Text>검색 결과가 없습니다</Text>
           </BaseCard>
         )
       )}
 
       {selected && (
-        <BaseCard style={{ position: 'absolute', bottom: 16, left: 16, right: 16, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <BaseCard
+          style={{
+            position: 'absolute',
+            bottom: 16 + keyboardHeight,
+            left: 16,
+            right: 16,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 8,
+          }}>
           <Text style={{ flex: 1 }}>{selected.address}</Text>
           <Button
             variant="green"

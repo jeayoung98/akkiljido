@@ -202,13 +202,9 @@ export default function MapScreen() {
   };
 
   // "적용하기"를 눌렀을 때만 초안을 실제 값으로 반영하고 닫는다.
-  // 카테고리를 하나도 안 골랐으면 "아무것도 안 보기"가 아니라 전체 선택으로 간주한다.
+  // 카테고리를 하나도 안 골랐으면("전체 해제") 말 그대로 표시할 카테고리가 없는 상태로 적용한다.
   const handleApplyFilter = () => {
-    const categoryIds =
-      selectedCategoryIds.length > 0
-        ? selectedCategoryIds
-        : categoryOptions.map((category) => category.id);
-    setAppliedFilter({ period, categoryIds, customStartDate, customEndDate });
+    setAppliedFilter({ period, categoryIds: selectedCategoryIds, customStartDate, customEndDate });
     setFilterVisible(false);
   };
 
@@ -266,6 +262,7 @@ export default function MapScreen() {
   // 이 레벨은 원래 3단계(읍면동) 구간이지만, 내 장소 상세 모드에서는 아래 markers 계산에서
   // 클러스터 대신 이 장소 주변 가맹점 개별 마커를 보여주므로 단계 규칙과 충돌하지 않는다.
   const handleSelectPlace = (place: MyPlaceMap) => {
+    userMovedMapRef.current = true;
     closeAllDetails();
     setSelectedPlaceId(place.placeId);
     mapRef.current?.setCenter({ lat: place.latitude, lng: place.longitude });
@@ -284,6 +281,7 @@ export default function MapScreen() {
 
   // 지도 마커를 누르면 모드에 따라 다르게 동작한다.
   const handleMarkerPress = (id: string) => {
+    userMovedMapRef.current = true;
     // 1) 내 장소 상세: 가맹점 마커. 그 카드로 스크롤 + 테두리 강조 + 펼치거나(닫혀 있었다면) 접는다(펼쳐져 있었다면).
     if (selectedPlaceId != null) {
       const merchant = placeMerchants.find((m) => m.name === id);
@@ -357,9 +355,14 @@ export default function MapScreen() {
   const placeMerchants = placeDetail?.transactionList ?? [];
   const placeTotal = placeMerchants.reduce((sum, merchant) => sum + merchant.amount, 0);
 
+  // 마운트 시 자동으로 위치를 잡는 동안(특히 정확한 GPS 조회는 몇 초 걸릴 수 있다) 사용자가 이미
+  // 검색·내 장소 선택·마커 탭으로 지도를 다른 곳으로 옮겼다면, 뒤늦게 도착한 GPS 결과로 지도를
+  // 도로 내 위치로 튕기지 않도록 막는 플래그. "내 위치" 버튼을 직접 누른 경우는 항상 이동시킨다.
+  const userMovedMapRef = useRef(false);
+
   // MapPickerScreen과 같은 방식: 권한 허용 시 마지막 알려진 위치를 먼저 빠르게 보여주고, 정확한 위치로 뒤이어 갱신한다.
-  // "내 위치" 버튼을 눌렀을 때도 이 함수를 다시 호출한다.
-  const handleLocate = async () => {
+  // "내 위치" 버튼을 눌렀을 때도 이 함수를 다시 호출한다(이때는 silent가 아니므로 항상 이동시킨다).
+  const handleLocate = async (options?: { silent?: boolean }) => {
     const { status } = await Location.requestForegroundPermissionsAsync();
     if (status !== 'granted') {
       return;
@@ -370,7 +373,10 @@ export default function MapScreen() {
       return;
     }
 
-    setSearchedPlace(null);
+    if (!options?.silent) {
+      userMovedMapRef.current = false;
+      setSearchedPlace(null);
+    }
 
     const lastKnown = await Location.getLastKnownPositionAsync();
     if (lastKnown) {
@@ -378,21 +384,25 @@ export default function MapScreen() {
       setCurrentLocation(coords);
       // 좌표값이 이전과 같으면 initialCenter가 안 바뀌어서 지도가 재로딩 안 될 수 있으니,
       // 명령형으로 직접 지도 중심을 옮겨서 항상 확실히 이동시킨다.
-      mapRef.current?.setCenter(coords);
+      if (!options?.silent || !userMovedMapRef.current) {
+        mapRef.current?.setCenter(coords);
+      }
     }
 
     try {
       const position = await Location.getCurrentPositionAsync({});
       const coords = { lat: position.coords.latitude, lng: position.coords.longitude };
       setCurrentLocation(coords);
-      mapRef.current?.setCenter(coords);
+      if (!options?.silent || !userMovedMapRef.current) {
+        mapRef.current?.setCenter(coords);
+      }
     } catch {
       // 실패해도 lastKnown으로 이미 떴다면 그대로 두고, 둘 다 없으면 DEFAULT_CENTER로 대체된다.
     }
   };
 
   useEffect(() => {
-    handleLocate();
+    handleLocate({ silent: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -409,6 +419,7 @@ export default function MapScreen() {
       return;
     }
     if (results.length > 0) {
+      userMovedMapRef.current = true;
       setSearchedPlace(results[0]);
       // 좌표값이 이전과 같으면 initialCenter가 안 바뀌어 지도가 안 움직일 수 있으니,
       // 명령형으로 직접 지도 중심을 옮겨서 항상 확실히 이동시킨다("내 위치" 버튼과 같은 방식).
@@ -437,6 +448,16 @@ export default function MapScreen() {
   // 연속된 WebView 이벤트가 API 요청을 과도하게 만들지 않도록 짧게 debounce한다.
   useEffect(() => {
     if (!mapBounds) {
+      return;
+    }
+
+    // 카테고리를 전부 해제한 상태는 "필터 없음"이 아니라 "보여줄 카테고리가 없음"이다.
+    // categoryId를 아예 안 보내면 서버가 전체 결과를 돌려주므로, 요청하지 않고 바로 빈 목록으로 둔다.
+    if (mapFilter.categoryIds && mapFilter.categoryIds.length === 0) {
+      setPlaceListData([]);
+      setDepthData([]);
+      setMapDataLoading(false);
+      setMapDataError(null);
       return;
     }
 
@@ -925,6 +946,7 @@ export default function MapScreen() {
                   defaultOpen={openMerchants.has(merchant.name)}
                   // 카드를 직접 눌러서 열고 닫을 때도 지도 중심 이동 + 마커/카드 강조가 마커를 눌렀을 때와 똑같이 동작하게 한다.
                   onPress={(open) => {
+                    userMovedMapRef.current = true;
                     if (merchant.latitude != null) {
                       mapRef.current?.setCenter({ lat: merchant.latitude, lng: merchant.longitude! });
                     }
