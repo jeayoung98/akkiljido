@@ -193,6 +193,8 @@ export const KakaoMap = forwardRef<KakaoMapHandle, KakaoMapProps>(function Kakao
       onRoadviewChange?.(message.open);
     } else if (message.type === 'roadviewUnavailable') {
       onRoadviewUnavailable?.();
+    } else if (message.type === 'error') {
+      console.error('[KakaoMap] WebView JS error:', message.message);
     }
   };
 
@@ -201,9 +203,22 @@ export const KakaoMap = forwardRef<KakaoMapHandle, KakaoMapProps>(function Kakao
       <WebView
         ref={webViewRef}
         originWhitelist={['*']}
-        source={{ html }}
+        // baseUrl 없이 raw HTML을 그리면 origin이 about:blank가 되는데, 카카오맵 JS SDK는
+        // 카카오 디벨로퍼스 콘솔에 등록된 도메인에서만 지도를 그린다. 그래서 origin을 고정된
+        // 도메인으로 만들어주고, 그 도메인을 콘솔의 Web 플랫폼에도 등록해야 지도가 뜬다.
+        // 반드시 https여야 한다 — 카카오 SDK가 내부적으로 하위 리소스(지도 모듈, 타일 이미지)를
+        // location.protocol과 같은 스킴으로 요청하는데, http로 두면 그 요청들이 Android의
+        // cleartext(평문 HTTP) 차단 정책에 막혀서(ERR_CLEARTEXT_NOT_PERMITTED) 지도가 안 뜬다.
+        source={{ html, baseUrl: 'https://localhost' }}
         onMessage={handleMessage}
+        onError={(event) => console.error('[KakaoMap] WebView onError:', event.nativeEvent)}
+        onHttpError={(event) => console.error('[KakaoMap] WebView onHttpError:', event.nativeEvent)}
         javaScriptEnabled
+        domStorageEnabled
+        // release/preview 빌드는 기본적으로 WebView 원격 디버깅(chrome://inspect)이 꺼져 있다
+        // (react-native-webview가 BuildConfig.DEBUG일 때만 자동으로 켠다). 지금은 "Script error."로
+        // 뭉개진 실제 에러를 chrome://inspect 콘솔에서 그대로 보기 위해 강제로 켜둔다.
+        webviewDebuggingEnabled
       />
     </View>
   );

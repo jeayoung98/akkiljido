@@ -9,6 +9,7 @@
 import type { CategoryIconKey } from '@/constants/categories';
 
 const KAKAO_JS_KEY = process.env.EXPO_PUBLIC_KAKAO_JS_KEY;
+console.log('[KakaoMap] key exists:', !!KAKAO_JS_KEY, 'length:', KAKAO_JS_KEY?.length);
 
 export type LatLng = {
   lat: number;
@@ -85,24 +86,34 @@ export function buildMapHtml({ initialCenter, initialLevel = 3, draggable = true
 <body>
   <div id="map"></div>
   <div id="roadview"></div>
-  <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=${KAKAO_JS_KEY}"></script>
   <script>
-    const map = new kakao.maps.Map(document.getElementById('map'), {
-      center: new kakao.maps.LatLng(${initialCenter.lat}, ${initialCenter.lng}),
-      level: ${initialLevel},
-      draggable: ${draggable},
-      zoomable: ${zoomable},
-    });
+    // 이 페이지 안에서 무슨 에러가 나든(SDK 로드 실패, 초기화 실패, 런타임 에러) RN이 알 수 있도록
+    // 여기서 잡아서 postMessage로 던진다. 안 그러면 흰 화면만 뜨고 RN·logcat 어디에도 아무 흔적이 안 남는다.
+    window.onerror = function (message, source, lineno, colno, error) {
+      window.ReactNativeWebView.postMessage(JSON.stringify({
+        type: 'error',
+        message: String(message) + ' (' + source + ':' + lineno + ':' + colno + ')' + (error && error.stack ? '\\n' + error.stack : ''),
+      }));
+      return true;
+    };
+  </script>
+  <script
+    src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=${KAKAO_JS_KEY}&autoload=false"
+    onerror="window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'error', message: 'Kakao Maps SDK 스크립트 로드 실패 (키/네트워크/도메인 확인 필요)' }))"
+  ></script>
+  <script>
+    // autoload=false를 쓰면 이 시점엔 kakao.maps.Map/LatLng 등 실제 지도 모듈이 아직 없고,
+    // kakao.maps.load(callback)로 등록해야 로드가 시작되고 콜백이 불린다. (autoload=false 없이
+    // 바로 new kakao.maps.LatLng(...)을 부르면 SDK가 내부적으로 document.write로 모듈을 비동기
+    // 로드하는 도중이라 "kakao.maps.LatLng is not a constructor" 에러가 난다 — 실제로 겪은 에러.)
+    var map, pinImage, selectedPinImage, pinImageSize;
 
-    const pinImageSize = new kakao.maps.Size(24, 34);
     function makePinImage(color) {
       const svg = '<svg width="24" height="34" viewBox="0 0 24 34" xmlns="http://www.w3.org/2000/svg">' +
         '<path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 22 12 22s12-13 12-22c0-6.6-5.4-12-12-12z" fill="' + color + '"/>' +
         '<circle cx="12" cy="12" r="5" fill="#fff"/></svg>';
       return new kakao.maps.MarkerImage('data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg), pinImageSize);
     }
-    const pinImage = makePinImage('${PIN_COLOR}');
-    const selectedPinImage = makePinImage('${SELECTED_PIN_COLOR}');
 
     // ── 내 위치(연두색 점) ────────────────────────────────────────────
     let myLocationOverlay = null;
@@ -365,23 +376,6 @@ export function buildMapHtml({ initialCenter, initialLevel = 3, draggable = true
       window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'roadview', open: false }));
     }
 
-    kakao.maps.event.addListener(map, 'click', function (mouseEvent) {
-      const latlng = mouseEvent.latLng;
-      // 로드뷰 모드 중에는 지도 탭이 "위치 선택"이 아니라 "이 지점 로드뷰 열기"로 동작한다.
-      if (roadviewMode) {
-        openRoadviewAt(latlng.getLat(), latlng.getLng());
-        return;
-      }
-      window.ReactNativeWebView.postMessage(
-        JSON.stringify({ type: 'tap', lat: latlng.getLat(), lng: latlng.getLng() })
-      );
-    });
-
-    // 줌 버튼으로 바꾼 경우, 핀치줌한 경우 둘 다 여기로 들어와서 RN에 현재 레벨을 알려준다.
-    kakao.maps.event.addListener(map, 'zoom_changed', function () {
-      window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'level', level: map.getLevel() }));
-    });
-
     function notifyBounds() {
       const bounds = map.getBounds();
       const southWest = bounds.getSouthWest();
@@ -398,13 +392,61 @@ export function buildMapHtml({ initialCenter, initialLevel = 3, draggable = true
       );
     }
 
-    // 드래그·확대·축소가 끝난 뒤 최신 화면 영역을 RN에 전달한다.
-    kakao.maps.event.addListener(map, 'idle', notifyBounds);
+    try {
+      if (typeof kakao === 'undefined' || !kakao.maps) {
+        throw new Error('Kakao Maps SDK가 로드되지 않았습니다 (kakao 전역 객체 없음)');
+      }
+      // 실제 지도 모듈(Map/LatLng/Marker/...)이 다 로드된 뒤에야 이 콜백이 불린다.
+      kakao.maps.load(function () {
+        try {
+          map = new kakao.maps.Map(document.getElementById('map'), {
+            center: new kakao.maps.LatLng(${initialCenter.lat}, ${initialCenter.lng}),
+            level: ${initialLevel},
+            draggable: ${draggable},
+            zoomable: ${zoomable},
+          });
 
-    // 지도(+ 위 함수들)가 준비됐다고 RN에 알린다. RN은 이 신호를 받은 뒤부터 injectJavaScript로
-    // setMapMarkers/setMapPins/setSelectedPin/setMyLocation을 호출한다.
-    window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
-    notifyBounds();
+          pinImageSize = new kakao.maps.Size(24, 34);
+          pinImage = makePinImage('${PIN_COLOR}');
+          selectedPinImage = makePinImage('${SELECTED_PIN_COLOR}');
+
+          kakao.maps.event.addListener(map, 'click', function (mouseEvent) {
+            const latlng = mouseEvent.latLng;
+            // 로드뷰 모드 중에는 지도 탭이 "위치 선택"이 아니라 "이 지점 로드뷰 열기"로 동작한다.
+            if (roadviewMode) {
+              openRoadviewAt(latlng.getLat(), latlng.getLng());
+              return;
+            }
+            window.ReactNativeWebView.postMessage(
+              JSON.stringify({ type: 'tap', lat: latlng.getLat(), lng: latlng.getLng() })
+            );
+          });
+
+          // 줌 버튼으로 바꾼 경우, 핀치줌한 경우 둘 다 여기로 들어와서 RN에 현재 레벨을 알려준다.
+          kakao.maps.event.addListener(map, 'zoom_changed', function () {
+            window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'level', level: map.getLevel() }));
+          });
+
+          // 드래그·확대·축소가 끝난 뒤 최신 화면 영역을 RN에 전달한다.
+          kakao.maps.event.addListener(map, 'idle', notifyBounds);
+
+          // 지도(+ 위 함수들)가 준비됐다고 RN에 알린다. RN은 이 신호를 받은 뒤부터 injectJavaScript로
+          // setMapMarkers/setMapPins/setSelectedPin/setMyLocation을 호출한다.
+          window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
+          notifyBounds();
+        } catch (e) {
+          window.ReactNativeWebView.postMessage(JSON.stringify({
+            type: 'error',
+            message: (e && e.message ? e.message : String(e)) + (e && e.stack ? '\\n' + e.stack : ''),
+          }));
+        }
+      });
+    } catch (e) {
+      window.ReactNativeWebView.postMessage(JSON.stringify({
+        type: 'error',
+        message: (e && e.message ? e.message : String(e)) + (e && e.stack ? '\\n' + e.stack : ''),
+      }));
+    }
   </script>
 </body>
 </html>
