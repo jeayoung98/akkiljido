@@ -23,7 +23,9 @@ export function groupTransactions<T extends GroupableTransaction>(
   const groups = new Map<string, T[]>();
 
   transactions.forEach((transaction) => {
-    const key = [getScopeKey(transaction), transaction.type, transaction.categoryId, transaction.name.trim()].join(':');
+    // join(':')은 name이나 getScopeKey() 결과에 ':'가 들어있으면 서로 다른 값이 같은 key로
+    // 뭉쳐질 수 있어서, 값 경계가 명확한 JSON.stringify로 key를 만듭니다.
+    const key = JSON.stringify([getScopeKey(transaction), transaction.type, transaction.categoryId, transaction.name.trim()]);
     const group = groups.get(key) ?? [];
     group.push(transaction);
     groups.set(key, group);
