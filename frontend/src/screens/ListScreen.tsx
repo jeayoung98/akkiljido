@@ -126,36 +126,6 @@ export default function ListScreen() {
   const isReturningFromMapRef = useRef(false);
   const shouldResetAddFormOnOpenRef = useRef(false);
 
-  // 탭 화면은 전환해도 언마운트되지 않아서, useState 초기값은 이 화면에 "처음" 들어올 때만 적용된다.
-  // 그 뒤로는 "더보기" 링크로 다시 들어와도(쿼리는 여전히 붙어 있지만) 이미 마운트돼 있어 무시된다.
-  // useFocusEffect로 포커스가 올 때마다 쿼리의 tab을 다시 반영해서, 홈 화면 더보기를 몇 번을 눌러도
-  // 항상 그 탭으로 이동하게 한다.
-  useFocusEffect(
-    useCallback(() => {
-      const requestedTab =
-        initialTab === 'calendar' || initialTab === 'analysis' ? initialTab : null;
-
-      // 외부 화면에서 전달한 캘린더·분석 탭은 첫 진입에만 적용한다.
-      if (requestedTab && handledInitialTabRef.current !== requestedTab) {
-        setTab(requestedTab);
-        handledInitialTabRef.current = requestedTab;
-        return;
-      }
-
-      // 다른 하단 탭을 다녀온 뒤에는 거래의 기본 화면으로 복귀한다.
-      setTab('list');
-      setIsSearching(false);
-      setSearchQuery('');
-
-      // 지도 선택 화면에서 돌아오는 경우에는 작성 중이던 거래를 이어서 입력한다.
-      // 그 외 하단 탭 이동 뒤에는 다음 거래 추가를 빈 양식으로 시작한다.
-      if (!isReturningFromMapRef.current) {
-        setIsAddVisible(false);
-        shouldResetAddFormOnOpenRef.current = true;
-      }
-    }, [initialTab]),
-  );
-
   const {
     categories,
     selectOptions: categorySelectOptions,
@@ -277,18 +247,51 @@ export default function ListScreen() {
     router.push({ pathname: '/transaction/[id]', params: { id: transactionId } });
   };
 
-  // 지도 선택 뒤에는 선택 주소·좌표를 폼 상태로 옮긴 후 거래 추가 시트를 다시 표시합니다.
-  // (pickedLocation은 다른 화면의 지도 선택 흐름과 공유하는 전역 store라, 이 화면에서 연 게 아니면 건드리지 않는다.
-  // 그러지 않으면 알림 설정 등 다른 화면이 지도에서 고른 값을 이 탭이 백그라운드에서 먼저 가로채 지워버린다.)
-  useEffect(() => {
-    if (!pickedLocation || !isReturningFromMapRef.current) return;
+  // 탭 화면은 전환해도 언마운트되지 않아서, useState 초기값은 이 화면에 "처음" 들어올 때만 적용된다.
+  // 그 뒤로는 "더보기" 링크로 다시 들어와도(쿼리는 여전히 붙어 있지만) 이미 마운트돼 있어 무시된다.
+  // useFocusEffect로 포커스가 올 때마다 쿼리의 tab을 다시 반영해서, 홈 화면 더보기를 몇 번을 눌러도
+  // 항상 그 탭으로 이동하게 한다.
+  //
+  // 지도 선택에서 돌아오는 것도 이 화면 입장에서는 똑같은 "포커스 복귀"라서, 예전에는 그 처리를
+  // 별도의 pickedLocation useEffect로 나눠뒀었다. 그런데 그 effect가 store 값이 바뀌는 순간 먼저
+  // 반응해 isReturningFromMapRef를 리셋해버리면, 뒤이어 실행되는 이 focus effect는 "지도에서
+  // 돌아온 게 아니다"로 오판하고 방금 다시 연 추가 시트를 곧장 닫아버렸다(실행 순서를 보장할 수
+  // 없어 두 effect가 같은 플래그를 두고 경쟁하는 셈이었다). 그래서 지도 선택 반영까지 이 effect
+  // 하나로 합쳐서, 같은 신호를 두 곳에서 다투지 않게 한다.
+  useFocusEffect(
+    useCallback(() => {
+      const requestedTab =
+        initialTab === 'calendar' || initialTab === 'analysis' ? initialTab : null;
 
-    setAddAddress(pickedLocation.address);
-    setAddCoords({ latitude: pickedLocation.lat, longitude: pickedLocation.lng });
-    clearPickedLocation();
-    isReturningFromMapRef.current = false;
-    setIsAddVisible(true);
-  }, [clearPickedLocation, pickedLocation]);
+      // 외부 화면에서 전달한 캘린더·분석 탭은 첫 진입에만 적용한다.
+      if (requestedTab && handledInitialTabRef.current !== requestedTab) {
+        setTab(requestedTab);
+        handledInitialTabRef.current = requestedTab;
+        return;
+      }
+
+      // 다른 하단 탭을 다녀온 뒤에는 거래의 기본 화면으로 복귀한다.
+      setTab('list');
+      setIsSearching(false);
+      setSearchQuery('');
+
+      // 지도 선택 화면에서 돌아오는 경우에는 작성 중이던 거래를 이어서 입력한다.
+      if (isReturningFromMapRef.current) {
+        isReturningFromMapRef.current = false;
+        if (pickedLocation) {
+          setAddAddress(pickedLocation.address);
+          setAddCoords({ latitude: pickedLocation.lat, longitude: pickedLocation.lng });
+          clearPickedLocation();
+        }
+        setIsAddVisible(true);
+        return;
+      }
+
+      // 그 외 하단 탭 이동 뒤에는 다음 거래 추가를 빈 양식으로 시작한다.
+      setIsAddVisible(false);
+      shouldResetAddFormOnOpenRef.current = true;
+    }, [clearPickedLocation, initialTab, pickedLocation]),
+  );
 
   const handleOpenMapPicker = () => {
     isReturningFromMapRef.current = true;
