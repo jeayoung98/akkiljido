@@ -45,9 +45,10 @@ const LOCATE_BUTTON_HEIGHT = 44;
 const ZOOM_CONTROL_HEIGHT = 89;
 // 내 장소 상세 모드에서 이동할 줌 레벨. 반경 2km 원(지름 4km)이 폰 화면에 통째로 들어오는 최소 축소 레벨이다.
 const PLACE_DETAIL_LEVEL = 6;
-// 내 장소 시트에서 목록 위에 고정으로 자리 차지하는 영역(드래그 핸들 + "내 장소 N개" 제목)의 대략적인 높이.
+// 내 장소 시트에서 목록 위에 고정으로 자리 차지하는 영역(드래그 핸들 + "내 장소 N개" 제목 +
+// "설정 페이지에서 가능해요" 안내 문구)의 대략적인 높이.
 // 시트의 보이는 높이에서 이만큼을 빼면 목록(Scroll)에 줄 수 있는 높이가 나온다.
-const SHEET_HEADER_HEIGHT = 56;
+const SHEET_HEADER_HEIGHT = 80;
 // 내 장소 상세에서 아코디언 목록 위 영역(드래그 핸들 + 뒤로가기·장소명·누적 금액 헤더)의 대략적인 높이.
 const DETAIL_HEADER_HEIGHT = 72;
 
@@ -907,7 +908,7 @@ export default function MapScreen() {
               </Text>
             </View>
 
-            <Scroll ref={merchantScrollRef} height={merchantListHeight} style={{ paddingHorizontal: 16 }}>
+            <Scroll ref={merchantScrollRef} contentContainerStyle={{ paddingBottom: 16 }} height={merchantListHeight} style={{ paddingHorizontal: 16 }}>
               {/* Scroll은 contentContainerStyle을 안 받아서, 카드 사이 간격(gap)은 View로 한 번 감싸서 준다. */}
               <View style={{ gap: 12 }}>
               {placeMerchants.map((merchant) => (
@@ -1006,7 +1007,7 @@ export default function MapScreen() {
               </Text>
             </View>
 
-            <Scroll height={merchantListHeight} style={{ paddingHorizontal: 16 }}>
+            <Scroll contentContainerStyle={{ paddingBottom: 16 }} height={merchantListHeight} style={{ paddingHorizontal: 16 }}>
               <AccordionCard
                 defaultOpen
                 header={
@@ -1059,7 +1060,7 @@ export default function MapScreen() {
               </Text>
             </View>
 
-            <Scroll height={merchantListHeight} style={{ paddingHorizontal: 16 }}>
+            <Scroll contentContainerStyle={{ paddingBottom: 16 }} height={merchantListHeight} style={{ paddingHorizontal: 16 }}>
               <View style={{ gap: 12 }}>
                 {regionMerchants.map((merchant) => (
                   <AccordionCard
@@ -1103,7 +1104,19 @@ export default function MapScreen() {
           </>
         ) : (
           <>
-            <Scroll height={placeListHeight} style={{ paddingHorizontal: 16 }}>
+            {/* 장소 추가·수정·삭제는 이 목록에서 바로 할 수 없고 마이페이지 > 설정에서만 가능해서,
+                여기서 시도하다 헷갈리지 않도록 안내를 먼저 보여준다. */}
+            <Text
+              style={{
+                paddingHorizontal: 16,
+                paddingBottom: 8,
+                color: Colors.light.cardDescription,
+                fontSize: 12,
+                textAlign: 'center',
+              }}>
+              내 장소 추가, 수정, 삭제는 설정 페이지에서 가능해요!
+            </Text>
+            <Scroll contentContainerStyle={{ paddingBottom: 16 }} height={placeListHeight} style={{ paddingHorizontal: 16 }}>
               {myPlaces.map((place) => {
                 return (
                   <InfoListItem
