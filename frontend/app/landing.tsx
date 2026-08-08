@@ -19,6 +19,12 @@ function wait(milliseconds: number): Promise<void> {
   });
 }
 
+// 모듈 스코프 플래그입니다. 앱이 켜져 있는 동안(콜드 스타트 ~ 프로세스 종료) 딱 한 번만
+// 스플래시 연출(1.2초 대기)을 보여주기 위한 값이라, 컴포넌트 상태로 두면 안 됩니다.
+// 뒤로가기로 이 화면에 다시 들어오면 컴포넌트는 리마운트되지 않을 수도, 될 수도 있지만
+// 어느 쪽이든 모듈 스코프 값은 그대로 유지되어 "이미 한 번 보여줬다"는 사실이 안 사라집니다.
+let hasShownSplashOnce = false;
+
 export default function LandingScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
@@ -35,16 +41,21 @@ export default function LandingScreen() {
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
+      // 최초 진입일 때만 1.2초 연출을 넣는다. 뒤로가기/재진입으로 다시 포커스를 받은
+      // 경우에는 스플래시가 다시 "보이면" 안 되므로, 인위적인 대기 없이 세션만 빠르게
+      // 다시 확인하고 바로 리다이렉트한다.
+      const isFirstRun = !hasShownSplashOnce;
+      hasShownSplashOnce = true;
 
       const restoreSession = async () => {
         try {
           /*
-           * 스플래시 화면을 최소 1.2초 동안 보여주는 동시에
+           * 최초 진입일 때만 스플래시 화면을 최소 1.2초 동안 보여주는 동시에
            * SecureStore에서 인증 세션을 읽는다.
            */
           const [session] = await Promise.all([
             getAuthSession(),
-            wait(SPLASH_DURATION_MS),
+            isFirstRun ? wait(SPLASH_DURATION_MS) : Promise.resolve(),
           ]);
 
           if (cancelled) {
