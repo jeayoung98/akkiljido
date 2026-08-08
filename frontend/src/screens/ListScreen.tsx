@@ -659,7 +659,7 @@ export default function ListScreen() {
         </View>
       </BottomSheet>
 
-      <BottomSheet initialHeight={0.82} maxHeight={0.92} minHeight={0.62} onClose={() => setIsAddVisible(false)} visible={isAddVisible}>
+      <BottomSheet maxHeight={0.92} minHeight={0.92} onClose={() => setIsAddVisible(false)} visible={isAddVisible}>
         <ScrollView
           ref={addScrollRef}
           // 키보드가 덮는 만큼 아래 여백을 더해, 가려진 입력창을 키보드 위로 스크롤할 수 있게 합니다.
