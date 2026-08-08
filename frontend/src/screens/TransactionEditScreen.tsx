@@ -488,7 +488,10 @@ export default function TransactionEditScreen() {
               <Calendar
                 current={toDateString(date)}
                 markedDates={{ [toDateString(date)]: { selected: true, selectedColor: Colors.light.primary } }}
+                maxDate={toDateString(new Date())}
                 monthFormat="yyyy년 MMMM"
+                // 미래 날짜(회색 처리)는 눌러도 onDayPress가 호출되지 않게 한다.
+                disableAllTouchEventsForDisabledDays
                 onDayPress={handleSelectDay}
                 theme={{
                   arrowColor: Colors.light.text,
@@ -496,6 +499,7 @@ export default function TransactionEditScreen() {
                   selectedDayTextColor: Colors.onboarding.inverseText,
                   textDayFontSize: 15,
                   textDayHeaderFontSize: 13,
+                  textDisabledColor: Colors.light.disabled,
                   textMonthFontSize: 18,
                   textMonthFontWeight: '700',
                   textSectionTitleColor: Colors.light.textSecondary,

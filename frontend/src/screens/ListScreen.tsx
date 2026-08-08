@@ -655,7 +655,7 @@ export default function ListScreen() {
                   placeholder={isCategoriesLoading ? '불러오는 중' : hasCategories ? '선택' : '불러오기 실패'}
                   value={addCategoryId}
                 />
-                <DateInput label="날짜" onChange={handleDateChange(setAddDate)} style={styles.addHalfField} value={addDate} />
+                <DateInput label="날짜" maxDate={new Date()} onChange={handleDateChange(setAddDate)} style={styles.addHalfField} value={addDate} />
               </View>
               {!isCategoriesLoading && !hasCategories ? (
                 <Text style={styles.addWarningText}>
@@ -664,7 +664,7 @@ export default function ListScreen() {
               ) : null}
             </>
           ) : (
-            <DateInput label="날짜" onChange={handleDateChange(setAddDate)} value={addDate} />
+            <DateInput label="날짜" maxDate={new Date()} onChange={handleDateChange(setAddDate)} value={addDate} />
           )}
 
           <Button disabled={!isAddFormValid} loading={isSubmitting} onPress={handleCreateTransaction} style={styles.addButton}>
