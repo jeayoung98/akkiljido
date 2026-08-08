@@ -192,10 +192,12 @@ export function TransactionCalendarTab({
 const styles = StyleSheet.create({
   container: { gap: 14, padding: 16 },
   calendarSection: { gap: 14 },
-  weekdayRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  weekdayLabel: { width: 44, color: Colors.light.placeholder, fontSize: 12, fontWeight: '600', textAlign: 'center' },
+  // 아래 calendarWeekRow와 똑같이 flex:1 7칸으로 나눠서, 요일 라벨과 날짜 칸이 기기 폭과
+  // 상관없이 항상 같은 기준으로 정렬되게 한다.
+  weekdayRow: { flexDirection: 'row' },
+  weekdayLabel: { flex: 1, minWidth: 0, color: Colors.light.placeholder, fontSize: 12, fontWeight: '600', textAlign: 'center' },
   calendarGrid: { gap: 4 },
-  calendarWeekRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  calendarWeekRow: { flexDirection: 'row' },
   selectedDateTitle: { color: Colors.light.text, fontSize: 15, fontWeight: '700' },
   card: { padding: 8, borderRadius: 16, backgroundColor: Colors.light.cardBackground, borderWidth: 1, borderColor: Colors.light.border },
   divider: { height: StyleSheet.hairlineWidth, backgroundColor: Colors.light.border },
