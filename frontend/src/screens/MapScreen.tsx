@@ -1198,13 +1198,15 @@ export default function MapScreen() {
                   label="시작일"
                   value={customStartDate}
                   onChange={setCustomStartDate}
-                  maxDate={customEndDate}
+                  // 종료일보다 늦은 시작일도, 오늘보다 미래인 시작일도 고를 수 없게 두 제약 중 더 이른 날짜로 막는다.
+                  maxDate={customEndDate && customEndDate < new Date() ? customEndDate : new Date()}
                   style={{ width: '47%' }}
                 />
                 <DateInput
                   label="종료일"
                   value={customEndDate}
                   onChange={setCustomEndDate}
+                  maxDate={new Date()}
                   minDate={customStartDate}
                   style={{ width: '47%' }}
                 />

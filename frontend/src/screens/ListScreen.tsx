@@ -618,9 +618,9 @@ export default function ListScreen() {
             </View>
             {periodFilter === 'custom' ? (
               <View style={styles.dateRange}>
-                <DateInput onChange={handleDateChange(setCustomStartDate)} style={styles.dateRangeInput} value={customStartDate} />
+                <DateInput maxDate={new Date()} onChange={handleDateChange(setCustomStartDate)} style={styles.dateRangeInput} value={customStartDate} />
                 <Text style={styles.dateRangeSeparator}>~</Text>
-                <DateInput onChange={handleDateChange(setCustomEndDate)} style={styles.dateRangeInput} value={customEndDate} />
+                <DateInput maxDate={new Date()} onChange={handleDateChange(setCustomEndDate)} style={styles.dateRangeInput} value={customEndDate} />
               </View>
             ) : null}
           </FilterSection>
