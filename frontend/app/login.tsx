@@ -13,6 +13,7 @@ import { GoogleIcon } from '@/components/onboarding/GoogleIcon';
 import Colors from '@/constants/Colors';
 import { loginWithGoogle } from '@/src/api/authApi';
 import { saveAuthSession } from '@/src/auth/tokenStorage';
+import { syncPushTokenRegistration } from '@/utils/pushNotifications';
 
 const googleWebClientId =
   process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
@@ -98,6 +99,10 @@ export default function LoginScreen() {
       }
 
       if (loginResult.role === 'USER') {
+        // 리포트 푸시를 받으려면 이 기기 토큰이 서버에 등록돼 있어야 한다.
+        // 실패해도 로그인 자체는 막지 않으므로 기다리지 않고 넘어간다.
+        void syncPushTokenRegistration();
+
         router.replace('/(tabs)');
         return;
       }

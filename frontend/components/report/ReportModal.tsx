@@ -8,16 +8,21 @@ import Colors from '@/constants/Colors';
 
 // 주간·월간 리포트가 이 하나의 모달/타입을 같이 쓴다. 기간이 얼마나 긴지는 데이터(period)로만
 // 구분되고, 컴포넌트 자체는 어느 쪽인지 몰라도 되게 만든다.
+//
+// 값은 전부 GET /api/v1/report/{id}(= 리포트 푸시 data.report)에서 온다.
+// 옵셔널 필드는 그 API가 내려주지 않는 값이라, 없으면 해당 칸을 그리지 않는다.
+// (utils/reportAdapters.ts의 toReportModalData가 이 변환을 담당한다.)
 export type ReportData = {
-  period: { start: string; end: string }; // "2026-10-12" (YYYY-MM-DD)
+  period: { start: string; end: string } | null; // "2026-10-12" (YYYY-MM-DD). 기간 정보가 없는 과거 리포트는 null.
   headline: string; // AI가 뽑은 한 줄 요약. 헤더의 메인 타이틀로 쓴다.
-  // 아래 세 필드는 백엔드가 계산해서 내려주는 값. (최초 공유받은 예시 JSON엔 생략되어 있었음)
-  totalAmount: number;
-  topCategory: { name: string; amount: number };
-  topPlace: { name: string; count: number };
+  totalAmount: number; // 기간 총지출
+  /** 카테고리별 집계. 리포트 API에는 없어서 보통 비어 있고, 그 자리엔 topSpendingPlace를 대신 그린다. */
+  topCategory?: { name: string; amount: number };
+  /** 최다 지출 장소. count는 리포트 기간의 재량지출 건수. */
+  topSpendingPlace?: { name: string; count: number };
+  /** 최다 방문 장소. count(그 장소 방문 횟수)는 서버에 없어서, 보통 placeCount(기간 내 방문 장소 수)만 온다. */
+  topPlace: { name: string; count?: number; placeCount?: number };
   body: string[]; // AI 분석 문장들. 이어 붙여서 한 문단으로 보여준다.
-  publishedAt: string; // 리포트 발행 일시. "2026-08-01T07:00:00" (과거 리포트 목록에 "발행 8월 1일 오전 7:00"로 표시)
-  comparedToPrevious: number; // 직전 기간 대비 증감률(%). 양수/음수 부호 포함. "전주/전월 대비 +14%"에 쓴다.
 };
 
 export type ReportModalProps = {
@@ -36,8 +41,12 @@ function formatMonthDay(dateString: string) {
   return `${Number(month)}월 ${Number(day)}일`;
 }
 
-function formatPeriod(period: ReportData['period']) {
+function formatPeriod(period: { start: string; end: string }) {
   return `${formatMonthDay(period.start)}~${formatMonthDay(period.end)}`;
+}
+
+function formatWon(amount: number) {
+  return `${amount.toLocaleString('ko-KR')}원`;
 }
 
 /** 주간·월간 소비 리포트를 요약해서 보여주는 팝업 모달입니다. */
@@ -48,6 +57,29 @@ export function ReportModal({
   periodLabel = '주간 리포트',
   onViewRecommendations,
 }: ReportModalProps) {
+  // 왼쪽 칸: 카테고리 집계가 있으면 그걸, 없으면 최다 지출 장소를 같은 자리에 그린다.
+  const primaryCell = data.topCategory
+    ? {
+        label: '최다 소비 카테고리',
+        value: data.topCategory.name,
+        sub: formatWon(data.topCategory.amount),
+      }
+    : data.topSpendingPlace
+      ? {
+          label: '최다 지출 장소',
+          value: data.topSpendingPlace.name || '-',
+          sub: `총 ${data.topSpendingPlace.count}건`,
+        }
+      : null;
+
+  // 오른쪽 칸의 보조 문구: 그 장소 방문 횟수가 있으면 "N회", 없으면 기간 내 방문 장소 수를 쓴다.
+  const frequentPlaceSub =
+    data.topPlace.count !== undefined
+      ? `${data.topPlace.count}회`
+      : data.topPlace.placeCount !== undefined
+        ? `방문 장소 ${data.topPlace.placeCount}곳`
+        : null;
+
   return (
     <CentralModal visible={visible} onClose={onClose}>
       <View style={styles.header}>
@@ -61,30 +93,34 @@ export function ReportModal({
       <View style={styles.body}>
         <View style={styles.totalCard}>
           <Text style={styles.totalLabel}>총 지출</Text>
-          <Text style={styles.totalAmount}>{data.totalAmount.toLocaleString('ko-KR')}원</Text>
-          <Text style={styles.totalPeriod}>{formatPeriod(data.period)}</Text>
+          <Text style={styles.totalAmount}>{formatWon(data.totalAmount)}</Text>
+          {data.period ? <Text style={styles.totalPeriod}>{formatPeriod(data.period)}</Text> : null}
         </View>
 
         <View style={styles.grid}>
-          <View style={styles.gridCard}>
-            <Text style={styles.gridLabel}>최다 소비 카테고리</Text>
-            <Text style={styles.gridValue} numberOfLines={1}>
-              {data.topCategory.name}
-            </Text>
-            <Text style={styles.gridSub}>{data.topCategory.amount.toLocaleString('ko-KR')}원</Text>
-          </View>
-          <View style={[styles.gridCard, styles.gridCardDivider]}>
+          {primaryCell ? (
+            <View style={styles.gridCard}>
+              <Text style={styles.gridLabel}>{primaryCell.label}</Text>
+              <Text style={styles.gridValue} numberOfLines={1}>
+                {primaryCell.value}
+              </Text>
+              <Text style={styles.gridSub}>{primaryCell.sub}</Text>
+            </View>
+          ) : null}
+          <View style={[styles.gridCard, primaryCell ? styles.gridCardDivider : null]}>
             <Text style={styles.gridLabel}>가장 자주 소비한 장소</Text>
             <Text style={styles.gridValue} numberOfLines={1}>
-              {data.topPlace.name}
+              {data.topPlace.name || '-'}
             </Text>
-            <Text style={styles.gridSub}>{data.topPlace.count}회</Text>
+            {frequentPlaceSub ? <Text style={styles.gridSub}>{frequentPlaceSub}</Text> : null}
           </View>
         </View>
 
         <View style={styles.aiCard}>
           <Text style={styles.aiTitle}>AI 분석</Text>
-          <Text style={styles.aiBody}>{data.body.join(' ')}</Text>
+          <Text style={styles.aiBody}>
+            {data.body.length > 0 ? data.body.join(' ') : '분석 내용이 없습니다.'}
+          </Text>
         </View>
 
         <Button
