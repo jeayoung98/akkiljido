@@ -24,6 +24,7 @@ import {
   getTransactionMyPlaces,
   getTransactionPlaceMap,
   getTransactionRegionMap,
+  groupMapTransactionsByDate,
   groupMapTransactionsByName,
   type MapPlace,
   type MapRegion,
@@ -116,11 +117,9 @@ function formatManwon(amount: number) {
 }
 
 // "2026-07-17 09:20:00+09" -> "7월 17일 · 09:20"
-function formatDateShort(datetime: string) {
-  const [datePart, timePart] = datetime.split(' ');
-  const [, month, day] = datePart.split('-');
-  const [hour, minute] = timePart.split(':');
-  return `${Number(month)}월 ${Number(day)}일 · ${hour}:${minute}`;
+function formatDateOnly(date: string) {
+  const [, month, day] = date.split('-');
+  return `${Number(month)}월 ${Number(day)}일`;
 }
 
 // 지도 탭 화면. 검색·필터·내 위치·내 장소 목록을 잡아두고,
@@ -964,16 +963,11 @@ export default function MapScreen() {
                     <Text style={{ fontSize: 12, color: Colors.light.cardAccent, fontWeight: '600' }}>
                       이 가게에서 사용한 내역
                     </Text>
-                    {merchant.dateList.map((tx) => (
-                      <View key={tx.transactionId} style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                        <View>
-                          <Text style={{ fontSize: 14, color: Colors.light.cardBodyText }}>
-                            {merchant.categoryName} 결제
-                          </Text>
-                          <Text style={{ fontSize: 12, color: Colors.light.cardDescription }}>
-                            {formatDateShort(tx.datetime)}
-                          </Text>
-                        </View>
+                    {groupMapTransactionsByDate(merchant.dateList).map((tx) => (
+                      <View key={tx.transactionIds[0]} style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                        <Text style={{ fontSize: 14, color: Colors.light.cardBodyText }}>
+                          {formatDateOnly(tx.date)}
+                        </Text>
                         <Text style={{ fontSize: 14, fontWeight: '700', color: Colors.light.cardTitle }}>
                           -{formatWon(tx.amount)}원
                         </Text>
@@ -1029,16 +1023,11 @@ export default function MapScreen() {
                   <Text style={{ fontSize: 12, color: Colors.light.cardAccent, fontWeight: '600' }}>
                     이 가게에서 사용한 내역
                   </Text>
-                  {generalPlaceDetail.transactionList.map((tx) => (
-                    <View key={tx.transactionId} style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                      <View>
-                        <Text style={{ fontSize: 14, color: Colors.light.cardBodyText }}>
-                          {tx.categoryName} 결제
-                        </Text>
-                        <Text style={{ fontSize: 12, color: Colors.light.cardDescription }}>
-                          {formatDateShort(tx.datetime)}
-                        </Text>
-                      </View>
+                  {groupMapTransactionsByDate(generalPlaceDetail.transactionList).map((tx) => (
+                    <View key={tx.transactionIds[0]} style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                      <Text style={{ fontSize: 14, color: Colors.light.cardBodyText }}>
+                        {formatDateOnly(tx.date)}
+                      </Text>
                       <Text style={{ fontSize: 14, fontWeight: '700', color: Colors.light.cardTitle }}>
                         -{formatWon(tx.amount)}원
                       </Text>
@@ -1094,18 +1083,13 @@ export default function MapScreen() {
                       <Text style={{ fontSize: 12, color: Colors.light.cardAccent, fontWeight: '600' }}>
                         이 가게에서 사용한 내역
                       </Text>
-                      {merchant.dateList.map((tx) => (
+                      {groupMapTransactionsByDate(merchant.dateList).map((tx) => (
                         <View
-                          key={tx.transactionId}
+                          key={tx.transactionIds[0]}
                           style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                          <View>
-                            <Text style={{ fontSize: 14, color: Colors.light.cardBodyText }}>
-                              {merchant.categoryName} 결제
-                            </Text>
-                            <Text style={{ fontSize: 12, color: Colors.light.cardDescription }}>
-                              {formatDateShort(tx.datetime)}
-                            </Text>
-                          </View>
+                          <Text style={{ fontSize: 14, color: Colors.light.cardBodyText }}>
+                            {formatDateOnly(tx.date)}
+                          </Text>
                           <Text style={{ fontSize: 14, fontWeight: '700', color: Colors.light.cardTitle }}>
                             -{formatWon(tx.amount)}원
                           </Text>
@@ -1199,13 +1183,15 @@ export default function MapScreen() {
                   label="시작일"
                   value={customStartDate}
                   onChange={setCustomStartDate}
-                  maxDate={customEndDate}
+                  // 종료일보다 늦은 시작일도, 오늘보다 미래인 시작일도 고를 수 없게 두 제약 중 더 이른 날짜로 막는다.
+                  maxDate={customEndDate && customEndDate < new Date() ? customEndDate : new Date()}
                   style={{ width: '47%' }}
                 />
                 <DateInput
                   label="종료일"
                   value={customEndDate}
                   onChange={setCustomEndDate}
+                  maxDate={new Date()}
                   minDate={customStartDate}
                   style={{ width: '47%' }}
                 />

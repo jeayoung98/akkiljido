@@ -86,6 +86,13 @@ export type GroupedMapTransaction = {
   dateList: MyPlaceTransactionDate[];
 };
 
+export type GroupedMapTransactionDate = {
+  date: string;
+  amount: number;
+  transactionCount: number;
+  transactionIds: number[];
+};
+
 function appendDateFilter(
   query: URLSearchParams,
   filter?: Pick<TransactionMapFilter, 'startDate' | 'endDate'>,
@@ -211,4 +218,25 @@ export function groupMapTransactionsByName(
       })),
     };
   });
+}
+
+/** 같은 장소 안에서는 같은 날짜의 개별 거래를 합산해 지도 상세 행으로 보여줍니다. */
+export function groupMapTransactionsByDate(
+  transactions: MyPlaceTransactionDate[],
+): GroupedMapTransactionDate[] {
+  const groups = new Map<string, MyPlaceTransactionDate[]>();
+
+  transactions.forEach((transaction) => {
+    const date = transaction.datetime.split(' ')[0];
+    const group = groups.get(date) ?? [];
+    group.push(transaction);
+    groups.set(date, group);
+  });
+
+  return Array.from(groups.entries()).map(([date, group]) => ({
+    date,
+    amount: group.reduce((sum, transaction) => sum + transaction.amount, 0),
+    transactionCount: group.length,
+    transactionIds: group.map((transaction) => transaction.transactionId),
+  }));
 }
