@@ -117,6 +117,13 @@ export default function ListScreen() {
   const [tab, setTab] = useState<TransactionTab>(
     initialTab === 'calendar' || initialTab === 'analysis' ? initialTab : 'list'
   );
+  const [isSearching, setIsSearching] = useState(false);
+  const [isFilterVisible, setIsFilterVisible] = useState(false);
+  const [isAddVisible, setIsAddVisible] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const handledInitialTabRef = useRef<TransactionTab | null>(null);
+  const isReturningFromMapRef = useRef(false);
+  const shouldResetAddFormOnOpenRef = useRef(false);
 
   // 탭 화면은 전환해도 언마운트되지 않아서, useState 초기값은 이 화면에 "처음" 들어올 때만 적용된다.
   // 그 뒤로는 "더보기" 링크로 다시 들어와도(쿼리는 여전히 붙어 있지만) 이미 마운트돼 있어 무시된다.
@@ -124,15 +131,29 @@ export default function ListScreen() {
   // 항상 그 탭으로 이동하게 한다.
   useFocusEffect(
     useCallback(() => {
-      if (initialTab === 'calendar' || initialTab === 'analysis') {
-        setTab(initialTab);
+      const requestedTab =
+        initialTab === 'calendar' || initialTab === 'analysis' ? initialTab : null;
+
+      // 외부 화면에서 전달한 캘린더·분석 탭은 첫 진입에만 적용한다.
+      if (requestedTab && handledInitialTabRef.current !== requestedTab) {
+        setTab(requestedTab);
+        handledInitialTabRef.current = requestedTab;
+        return;
+      }
+
+      // 다른 하단 탭을 다녀온 뒤에는 거래의 기본 화면으로 복귀한다.
+      setTab('list');
+      setIsSearching(false);
+      setSearchQuery('');
+
+      // 지도 선택 화면에서 돌아오는 경우에는 작성 중이던 거래를 이어서 입력한다.
+      // 그 외 하단 탭 이동 뒤에는 다음 거래 추가를 빈 양식으로 시작한다.
+      if (!isReturningFromMapRef.current) {
+        setIsAddVisible(false);
+        shouldResetAddFormOnOpenRef.current = true;
       }
     }, [initialTab]),
   );
-  const [isSearching, setIsSearching] = useState(false);
-  const [isFilterVisible, setIsFilterVisible] = useState(false);
-  const [isAddVisible, setIsAddVisible] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
 
   const {
     categories,
@@ -185,7 +206,6 @@ export default function ListScreen() {
   const [addDate, setAddDate] = useState(() => new Date());
   const pickedLocation = useMapPickerStore((state) => state.pickedLocation);
   const clearPickedLocation = useMapPickerStore((state) => state.clearPickedLocation);
-  const isReturningFromMapRef = useRef(false);
 
   // 추가 시트는 화면 아래에 고정돼 있어서, 키보드가 올라오면 아래쪽 입력창(결제 수단 등)이 그대로 가립니다.
   // 키보드 높이만큼 스크롤 아래 여백을 늘려 두고, 포커스된 입력창을 그 위로 스크롤해서 보이게 합니다.
@@ -301,6 +321,15 @@ export default function ListScreen() {
     setAddPaymentMethod('');
     setAddDate(new Date());
     setAddType('expense');
+  };
+
+  const handleOpenAdd = () => {
+    if (shouldResetAddFormOnOpenRef.current) {
+      resetAddForm();
+      shouldResetAddFormOnOpenRef.current = false;
+    }
+
+    setIsAddVisible(true);
   };
 
   /** POST /api/v1/transaction으로 거래를 등록하고, 성공하면 목록을 새로고침합니다. */
@@ -674,7 +703,7 @@ export default function ListScreen() {
       </BottomSheet>
 
       {/* 거래 추가는 목록 탭에서만 제공한다. 캘린더·분석 탭에서는 조회와 분석에 집중할 수 있게 숨긴다. */}
-      {tab === 'list' && !isSearching ? <FloatingActionButton onPress={() => setIsAddVisible(true)} /> : null}
+      {tab === 'list' && !isSearching ? <FloatingActionButton onPress={handleOpenAdd} /> : null}
     </>
   );
 }
