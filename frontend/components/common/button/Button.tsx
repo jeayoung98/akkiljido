@@ -14,8 +14,8 @@ type ButtonProps = {
 };
 
 const variantStyles: Record<Variant, { backgroundColor: string; borderColor?: string; borderStyle?: 'solid' | 'dashed'; textColor: string }> = {
-  green: { backgroundColor: Colors.light.primary, textColor: '#fff' },
-  red: { backgroundColor: Colors.light.danger, textColor: '#fff' },
+  green: { backgroundColor: Colors.light.primary, textColor: Colors.onboarding.inverseText },
+  red: { backgroundColor: Colors.light.danger, textColor: Colors.onboarding.inverseText },
   white: { backgroundColor: Colors.light.background, borderColor: Colors.light.border, borderStyle: 'solid', textColor: Colors.light.text },
   dashed: { backgroundColor: 'transparent', borderColor: Colors.light.border, borderStyle: 'dashed', textColor: Colors.light.text },
 };
