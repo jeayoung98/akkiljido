@@ -1,6 +1,6 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, BackHandler, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Text } from '@/components/common/typography/Text';
 
 import AppScreen from '@/components/common/AppScreen';
@@ -439,6 +439,19 @@ export default function ListScreen() {
     setIsSearching(false);
     setSearchQuery('');
   };
+
+  // 검색 중에 안드로이드 뒤로가기(하드웨어/제스처)를 누르면 기본 동작(화면 자체를 벗어나 홈 탭으로
+  // 이동)이 아니라, X 버튼을 누른 것과 같이 검색만 닫고 거래 리스트 화면으로 돌아오게 한다.
+  useEffect(() => {
+    if (!isSearching) return;
+
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      handleCloseSearch();
+      return true;
+    });
+    return () => subscription.remove();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSearching]);
 
   return (
     <>

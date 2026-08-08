@@ -162,7 +162,7 @@ export default function HomeScreen() {
         <View style={styles.profileRow}>
           <Image source={require('@/assets/images/profile-icon.png')} style={styles.profileIcon} />
           <View>
-            <Text style={styles.greeting}>안녕하세요, {NICKNAME}님</Text>
+            <Text style={styles.greeting}>안녕하세요 {NICKNAME}</Text>
             <Text style={styles.greetingSubtitle}>오늘도 함께 알뜰하게!</Text>
           </View>
         </View>
