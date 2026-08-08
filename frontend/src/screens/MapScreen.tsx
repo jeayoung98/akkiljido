@@ -753,7 +753,7 @@ export default function MapScreen() {
             paddingVertical: 10,
             backgroundColor: 'rgba(32,45,37,0.92)',
           }}>
-          <Text style={{ color: '#FFFFFF', fontSize: 13, textAlign: 'center' }}>
+          <Text style={{ color: Colors.onboarding.inverseText, fontSize: 13, textAlign: 'center' }}>
             {mapDataError} · 눌러서 다시 시도
           </Text>
         </Pressable>
@@ -845,7 +845,7 @@ export default function MapScreen() {
               지도에 로드뷰 가능한 도로가 파란 선으로 표시되며 지도를 탭하면 그 지점 로드뷰가 열린다. */}
           <IconButton
             name="roadview"
-            color={roadviewMode ? '#fff' : Colors.light.primary}
+            color={roadviewMode ? Colors.onboarding.inverseText : Colors.light.primary}
             onPress={handleToggleRoadview}
             style={{
               position: 'absolute',

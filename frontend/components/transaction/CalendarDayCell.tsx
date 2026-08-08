@@ -108,7 +108,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   daySelected: {
-    color: '#fff',
+    color: Colors.onboarding.inverseText,
     fontWeight: '800',
   },
   dayDisabled: {

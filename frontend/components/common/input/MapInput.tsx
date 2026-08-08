@@ -78,6 +78,6 @@ const styles = StyleSheet.create({
   buttonText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#fff',
+    color: Colors.onboarding.inverseText,
   },
 });

@@ -121,7 +121,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontSize: 17,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: Colors.onboarding.inverseText,
     textAlign: 'center',
   },
   body: {

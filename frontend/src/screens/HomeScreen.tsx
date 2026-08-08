@@ -266,7 +266,7 @@ const styles = StyleSheet.create({
     resizeMode: 'contain',
   },
   greeting: {
-    color: '#FFFFFF',
+    color: Colors.onboarding.inverseText,
     fontSize: 17,
     fontWeight: '700',
   },
@@ -289,7 +289,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.light.danger,
   },
   badgeText: {
-    color: '#FFFFFF',
+    color: Colors.onboarding.inverseText,
     fontSize: 10,
     fontWeight: '700',
   },

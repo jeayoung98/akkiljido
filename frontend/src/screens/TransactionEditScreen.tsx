@@ -500,7 +500,7 @@ export default function TransactionEditScreen() {
                 theme={{
                   arrowColor: Colors.light.text,
                   selectedDayBackgroundColor: Colors.light.primary,
-                  selectedDayTextColor: '#fff',
+                  selectedDayTextColor: Colors.onboarding.inverseText,
                   textDayFontSize: 15,
                   textDayHeaderFontSize: 13,
                   textMonthFontSize: 18,
@@ -543,7 +543,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 18,
-    backgroundColor: '#EEF7F0',
+    backgroundColor: Colors.light.inputBackground,
   },
   fieldLabel: {
     marginTop: 12,
@@ -682,7 +682,7 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   categoryOptionTextSelected: {
-    color: '#fff',
+    color: Colors.onboarding.inverseText,
     fontWeight: '700',
   },
   actions: {
@@ -696,7 +696,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(0,0,0,0.3)',
+    backgroundColor: Colors.light.overlay,
   },
   datePopup: {
     width: '85%',

@@ -196,12 +196,12 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     flex: 1,
-    color: '#FFFFFF',
+    color: Colors.onboarding.inverseText,
     fontSize: 18,
     fontWeight: '800',
   },
   markAllText: {
-    color: '#FFFFFF',
+    color: Colors.onboarding.inverseText,
     fontSize: 13,
     fontWeight: '600',
   },

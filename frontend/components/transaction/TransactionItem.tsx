@@ -65,7 +65,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 14,
-    backgroundColor: '#EEF7F0',
+    backgroundColor: Colors.light.inputBackground,
   },
   amount: {
     color: Colors.light.cardTitle,

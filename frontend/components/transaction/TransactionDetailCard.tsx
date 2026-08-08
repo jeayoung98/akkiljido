@@ -62,7 +62,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: 20,
     // TransactionItem의 아이콘 배경과 같은 값입니다.
-    backgroundColor: '#EEF7F0',
+    backgroundColor: Colors.light.inputBackground,
   },
   title: {
     color: Colors.light.cardTitle,

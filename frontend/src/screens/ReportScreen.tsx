@@ -561,7 +561,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.light.primary,
   },
   recNumberText: {
-    color: '#FFFFFF',
+    color: Colors.onboarding.inverseText,
     fontSize: 11,
     fontWeight: '800',
   },
@@ -635,7 +635,7 @@ const styles = StyleSheet.create({
     opacity: 0.65,
   },
   retryButtonText: {
-    color: '#FFFFFF',
+    color: Colors.onboarding.inverseText,
     fontSize: 13,
     fontWeight: '700',
   },

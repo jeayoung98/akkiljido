@@ -248,7 +248,7 @@ export default function MapPickerScreen() {
               position: 'absolute',
               top: insets.top + 16,
               right: 16,
-              backgroundColor: '#fff',
+              backgroundColor: Colors.light.cardBackground,
               borderRadius: 999,
               padding: 10,
             }}
@@ -281,7 +281,7 @@ export default function MapPickerScreen() {
               position: 'absolute',
               top: insets.top + 16 + 44 + 16,
               right: 16,
-              backgroundColor: '#fff',
+              backgroundColor: Colors.light.cardBackground,
               borderRadius: 999,
               padding: 10,
             }}
@@ -301,13 +301,13 @@ export default function MapPickerScreen() {
           {/* 로드뷰 모드 토글. 켜면 초록 배경으로 바뀌고, 지도 탭이 위치 선택 대신 로드뷰 열기로 동작한다. */}
           <IconButton
             name="roadview"
-            color={roadviewMode ? '#fff' : Colors.light.primary}
+            color={roadviewMode ? Colors.onboarding.inverseText : Colors.light.primary}
             onPress={handleToggleRoadview}
             style={{
               position: 'absolute',
               top: insets.top + 16 + 44 + 16 + LOCATE_BUTTON_HEIGHT + 12 + ZOOM_CONTROL_HEIGHT + 12,
               right: 16,
-              backgroundColor: roadviewMode ? Colors.light.primary : '#fff',
+              backgroundColor: roadviewMode ? Colors.light.primary : Colors.light.cardBackground,
               borderRadius: 999,
               padding: 10,
             }}
@@ -323,7 +323,7 @@ export default function MapPickerScreen() {
               bottom: 16,
               left: 16,
               right: 16,
-              backgroundColor: '#E4EFE1',
+              backgroundColor: Colors.light.cardMutedBackground,
               borderRadius: 16,
               padding: 12,
               maxHeight: 220,

@@ -34,7 +34,7 @@ const styles = StyleSheet.create({
   },
   amount: {
     marginTop: 8,
-    color: '#FFFFFF',
+    color: Colors.onboarding.inverseText,
     fontSize: 30,
     fontWeight: '800',
   },

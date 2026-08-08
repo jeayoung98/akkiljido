@@ -99,7 +99,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 20,
-    backgroundColor: 'rgba(0, 0, 0, 0.38)',
+    backgroundColor: Colors.light.overlay,
   },
   card: {
     width: '100%',

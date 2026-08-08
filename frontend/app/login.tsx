@@ -255,7 +255,7 @@ const styles = StyleSheet.create({
   },
 
   errorText: {
-    color: '#C62828',
+    color: Colors.light.danger,
     fontSize: 14,
     marginTop: 12,
     textAlign: 'center',

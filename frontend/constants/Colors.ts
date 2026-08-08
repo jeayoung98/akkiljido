@@ -61,6 +61,7 @@ export default {
     placeholder: "#6B8F7A", // 입력창 안내 문구 색
     danger: "#FB2C36", // 위험/삭제 액션, 빨강 버튼 등
     inputBackground: "#F0F7F1", // 기본 입력창의 연한 초록 배경
+    overlay: "rgba(0,0,0,0.35)", // 바텀시트/모달 뒤 딤 배경
     cardBackground: "#FFFFFF",
     cardMutedBackground: "#F3F8F4", // 옅은 민트색 배경. 아코디언 펼친 영역 등에 사용 (투명도 아닌 실제 옅은 색)
     cardAccent: "#557A5A", // 아코디언 카드 안의 초록 포인트 텍스트(라벨, chevron 등)
