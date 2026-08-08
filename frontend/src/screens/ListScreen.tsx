@@ -673,7 +673,8 @@ export default function ListScreen() {
         </ScrollView>
       </BottomSheet>
 
-      {!isSearching ? <FloatingActionButton onPress={() => setIsAddVisible(true)} /> : null}
+      {/* 거래 추가는 목록 탭에서만 제공한다. 캘린더·분석 탭에서는 조회와 분석에 집중할 수 있게 숨긴다. */}
+      {tab === 'list' && !isSearching ? <FloatingActionButton onPress={() => setIsAddVisible(true)} /> : null}
     </>
   );
 }
