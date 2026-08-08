@@ -1,7 +1,7 @@
 import * as Location from 'expo-location';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Image, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, Image, ScrollView, StyleSheet, View } from 'react-native';
 import { Text } from '@/components/common/typography/Text';
 
 import AppScreen from '@/components/common/AppScreen';
@@ -19,8 +19,10 @@ import type { CategorySummaryItem, NearbyExpensePlace } from '@/mocks/home';
 import { MOCK_WEEKLY_REPORT, MOCK_WEEKLY_REPORT_RECOMMENDATIONS } from '@/mocks/reportModal';
 import { getTodayExpenseAmount } from '@/src/api/calendarApi';
 import { getCategorySummary, getRecentExpenses } from '@/src/api/homeApi';
+import { createNotificationPlace } from '@/src/api/notificationPlaceApi';
 import { useDevModeStore } from '@/store/devModeStore';
 import { useNotificationStore } from '@/store/notificationStore';
+import { loadNotificationPlaces, saveNotificationPlaces } from '@/utils/notificationPlaceStorage';
 import { getWeekIdentifier } from '@/utils/reportSchedule';
 
 const LAST_SHOWN_WEEK_STORAGE_KEY = 'report:lastShownWeek';
@@ -52,6 +54,7 @@ export default function HomeScreen() {
   const [recommendVisible, setRecommendVisible] = useState(false);
   const [saveAlarmVisible, setSaveAlarmVisible] = useState(false);
   const [selectedAlarm, setSelectedAlarm] = useState<AlarmFormValue | null>(null);
+  const [savingAlarm, setSavingAlarm] = useState(false);
   const isDevMode = useDevModeStore((state) => state.isDevMode);
 
   // ReportModal·RecommendModal·SaveAlarmModal은 각각 별도의 네이티브 Modal(안드로이드에서는 별도의
@@ -155,6 +158,31 @@ export default function HomeScreen() {
     }, [currentLocation]),
   );
 
+  // 리포트 추천 알림 저장. NotificationSettingsScreen의 위치 알림 추가와 같은 API·로컬 미러링 방식을 쓴다.
+  const handleSaveRecommendedAlarm = async (value: AlarmFormValue) => {
+    try {
+      setSavingAlarm(true);
+      const created = await createNotificationPlace({
+        notificationPlaceName: value.name,
+        address: value.address,
+        latitude: value.lat,
+        longitude: value.lng,
+        startTime: value.startTime,
+        endTime: value.endTime,
+        reason: value.reason,
+      });
+      // 헤드리스 위치 태스크가 읽는 로컬 목록에도 새 알림 장소를 더해 반영한다.
+      const existingPlaces = await loadNotificationPlaces();
+      void saveNotificationPlaces([...existingPlaces, created]);
+      setSaveAlarmVisible(false);
+    } catch (error) {
+      console.error('[home] recommend alarm save failed', error);
+      Alert.alert('위치 알림 저장에 실패했어요', error instanceof Error ? error.message : undefined);
+    } finally {
+      setSavingAlarm(false);
+    }
+  };
+
   return (
     <AppScreen backgroundColor={Colors.light.primary}>
       {/* 인사말+알림 영역은 스크롤 밖에 고정해서, 아래 내용을 스크롤해도 항상 화면 위에 남는다. */}
@@ -237,10 +265,8 @@ export default function HomeScreen() {
           initialValue={selectedAlarm}
           onClose={() => setSaveAlarmVisible(false)}
           onReopenAfterLocationPicked={() => setSaveAlarmVisible(true)}
-          onSave={() => {
-            // TODO: 실제 알림 저장 API 연결. 지금은 SaveAlarmModal만 닫는다.
-            setSaveAlarmVisible(false);
-          }}
+          onSave={handleSaveRecommendedAlarm}
+          saveLoading={savingAlarm}
           visible={saveAlarmVisible}
         />
       ) : null}
