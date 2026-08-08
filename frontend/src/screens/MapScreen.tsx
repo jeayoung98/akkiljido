@@ -401,9 +401,15 @@ export default function MapScreen() {
     if (!searchText.trim()) {
       return;
     }
+    // center 없이 검색하면 카카오 기본 정렬(정확도순)이라, 지금 보고 있는 지도 영역과 상관없이
+    // 엉뚱한 지역 결과가 앞에 나올 수 있다. 지금 보고 있는 지도 중심(mapBounds)을 기준으로
+    // "가까운 순"으로 검색해서, 화면에 보이는 영역과 관련된 결과가 먼저 나오게 한다.
+    const searchCenter = mapBounds
+      ? { lat: (mapBounds.south + mapBounds.north) / 2, lng: (mapBounds.west + mapBounds.east) / 2 }
+      : (currentLocation ?? undefined);
     let results;
     try {
-      results = await searchPlaces(searchText);
+      results = await searchPlaces(searchText, searchCenter);
     } catch {
       Alert.alert('검색에 실패했어요', '잠시 후 다시 시도해주세요.');
       return;
