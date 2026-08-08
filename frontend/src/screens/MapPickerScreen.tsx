@@ -2,7 +2,8 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, View } from 'react-native';
+import { Text } from '@/components/common/typography/Text';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button } from '@/components/common/button/Button';
@@ -248,7 +249,7 @@ export default function MapPickerScreen() {
               position: 'absolute',
               top: insets.top + 16,
               right: 16,
-              backgroundColor: '#fff',
+              backgroundColor: Colors.light.cardBackground,
               borderRadius: 999,
               padding: 10,
             }}
@@ -281,7 +282,7 @@ export default function MapPickerScreen() {
               position: 'absolute',
               top: insets.top + 16 + 44 + 16,
               right: 16,
-              backgroundColor: '#fff',
+              backgroundColor: Colors.light.cardBackground,
               borderRadius: 999,
               padding: 10,
             }}
@@ -301,13 +302,13 @@ export default function MapPickerScreen() {
           {/* 로드뷰 모드 토글. 켜면 초록 배경으로 바뀌고, 지도 탭이 위치 선택 대신 로드뷰 열기로 동작한다. */}
           <IconButton
             name="roadview"
-            color={roadviewMode ? '#fff' : Colors.light.primary}
+            color={roadviewMode ? Colors.onboarding.inverseText : Colors.light.primary}
             onPress={handleToggleRoadview}
             style={{
               position: 'absolute',
               top: insets.top + 16 + 44 + 16 + LOCATE_BUTTON_HEIGHT + 12 + ZOOM_CONTROL_HEIGHT + 12,
               right: 16,
-              backgroundColor: roadviewMode ? Colors.light.primary : '#fff',
+              backgroundColor: roadviewMode ? Colors.light.primary : Colors.light.cardBackground,
               borderRadius: 999,
               padding: 10,
             }}
@@ -320,10 +321,10 @@ export default function MapPickerScreen() {
           <View
             style={{
               position: 'absolute',
-              bottom: 16,
+              bottom: insets.bottom + 16,
               left: 16,
               right: 16,
-              backgroundColor: '#E4EFE1',
+              backgroundColor: Colors.light.cardMutedBackground,
               borderRadius: 16,
               padding: 12,
               maxHeight: 220,
@@ -377,14 +378,14 @@ export default function MapPickerScreen() {
             </Scroll>
           </View>
         ) : (
-          <BaseCard style={{ position: 'absolute', bottom: 16, left: 16, right: 16 }}>
+          <BaseCard style={{ position: 'absolute', bottom: insets.bottom + 16, left: 16, right: 16 }}>
             <Text>검색 결과가 없습니다</Text>
           </BaseCard>
         )
       )}
 
       {selected && (
-        <BaseCard style={{ position: 'absolute', bottom: 16, left: 16, right: 16, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <BaseCard style={{ position: 'absolute', bottom: insets.bottom + 16, left: 16, right: 16, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <Text style={{ flex: 1 }}>{selected.address}</Text>
           <Button
             variant="green"

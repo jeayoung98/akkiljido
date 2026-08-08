@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
-import { StyleSheet, Text, TextInput, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { Button } from '@/components/common/button/Button';
 import { CentralModal } from '@/components/common/modal/CentralModal';
+import { Text } from '@/components/common/typography/Text';
+import { NativeTextInput } from '@/components/common/typography/TextInput';
 import Colors from '@/constants/Colors';
 
 const MAX_LENGTH = 20;
@@ -48,7 +50,7 @@ export function NicknameEditModal({
         <Text style={styles.title}>닉네임 수정</Text>
 
         <View style={styles.inputArea}>
-          <TextInput
+          <NativeTextInput
             accessibilityLabel="닉네임"
             autoFocus
             maxLength={MAX_LENGTH}

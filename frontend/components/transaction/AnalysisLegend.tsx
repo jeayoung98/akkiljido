@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
-import { StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
+import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
+import { Text } from '@/components/common/typography/Text';
 
 import { getAnalysisColor } from '@/components/transaction/analysisColors';
 import Colors from '@/constants/Colors';
@@ -41,7 +42,7 @@ export function AnalysisLegend({ items, style }: AnalysisLegendProps) {
           <View style={styles.leading}>
             {/* icon을 따로 넘기지 않으면 PieChart와 같은 규칙으로 색 점을 그립니다. */}
             {item.icon ?? <View style={[styles.dot, { backgroundColor: item.color ?? getAnalysisColor(item.percent, maxPercent) }]} />}
-            <Text style={styles.percent}>{item.percent}%</Text>
+            <Text numberOfLines={1} style={styles.percent}>{item.percent}%</Text>
             <Text numberOfLines={1} style={styles.name}>
               {item.name}
             </Text>
@@ -75,7 +76,9 @@ const styles = StyleSheet.create({
     borderRadius: 5,
   },
   percent: {
-    width: 34,
+    // "100%"(4자)까지도 줄바꿈 없이 들어가도록 여유를 둔다. 폭이 좁으면(예: 34) "100%"에서만
+    // 퍼센트 기호가 다음 줄로 밀려 내려가 보이는 문제가 있었다.
+    width: 40,
     color: Colors.light.cardTitle,
     fontSize: 13,
     fontWeight: '700',

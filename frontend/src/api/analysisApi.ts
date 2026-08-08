@@ -83,6 +83,30 @@ function toAnalysisResult(data: RawAnalysisResponse | undefined): AnalysisResult
   };
 }
 
+// 실제 항목과 겹치지 않도록 음수를 씁니다(id는 항상 양수인 categoryId/placeId).
+const OTHER_PLACE_ID = -1;
+const OTHER_PLACE_LABEL = '기타';
+
+/**
+ * 화면 문구("등록한 장소 주변 소비만 묶고, 범위 밖 소비는 기타로 분류했어요")와 달리,
+ * 서버가 범위 밖 소비를 "기타" 항목으로 내려주지 않을 때가 있습니다(items 합계가 totalAmount보다
+ * 작음). 그 차이를 프론트에서 계산해 "기타" 항목으로 채워 넣어, 문구와 실제 화면이 어긋나지
+ * 않게 합니다. 다른 항목들과 달리 비중과 상관없이 항상 맨 뒤에 둡니다("기타"는 관례상 마지막).
+ */
+function withOtherBucket(result: AnalysisResult): AnalysisResult {
+  const itemizedAmount = result.items.reduce((sum, item) => sum + item.amount, 0);
+  const otherAmount = result.totalAmount - itemizedAmount;
+
+  if (otherAmount <= 0) return result;
+
+  const otherPercent = result.totalAmount > 0 ? Math.round((otherAmount / result.totalAmount) * 100) : 0;
+
+  return {
+    ...result,
+    items: [...result.items, { id: OTHER_PLACE_ID, name: OTHER_PLACE_LABEL, amount: otherAmount, percent: otherPercent }],
+  };
+}
+
 /* ------------------------------------------------------------------ */
 /* API 호출                                                             */
 /* ------------------------------------------------------------------ */
@@ -101,7 +125,8 @@ export async function fetchCategoryAnalysis(
 
 /**
  * GET /api/v1/analysis/my-place — 그 달의 "내 장소"별 소비를 가져옵니다.
- * 등록한 장소 반경 밖의 소비는 서버가 `기타`로 묶어서 내려줍니다.
+ * 등록한 장소 반경 밖의 소비는 서버가 `기타`로 묶어서 내려줘야 하지만, 그렇지 않고
+ * items 합계가 totalAmount보다 작게 내려올 때가 있어 withOtherBucket으로 보정합니다.
  */
 export async function fetchMyPlaceAnalysis(
   year: number,
@@ -111,5 +136,5 @@ export async function fetchMyPlaceAnalysis(
     `/api/v1/analysis/my-place?year=${year}&month=${month}`,
   );
 
-  return toAnalysisResult(data);
+  return withOtherBucket(toAnalysisResult(data));
 }

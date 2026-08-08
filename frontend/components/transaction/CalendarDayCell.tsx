@@ -1,4 +1,5 @@
-import { Pressable, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
+import { Pressable, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
+import { Text } from '@/components/common/typography/Text';
 
 import Colors from '@/constants/Colors';
 
@@ -72,9 +73,13 @@ export function CalendarDayCell({
 
 const styles = StyleSheet.create({
   cell: {
-    width: 44,
-    // 웹(flexbox)에서는 minWidth 기본값이 콘텐츠 크기라, 긴 금액 텍스트가 있으면 width:44를
-    // 무시하고 칸이 넓어져 옆 칸을 밀어낸다. 0으로 낮춰서 width가 실제 상한이 되게 한다.
+    // 고정 px 폭 대신 flex:1로 7칸을 똑같이 나눠서, 화면 폭이 기기마다 달라도 늘 요일 라벨과
+    // 정확히 같은 폭으로 정렬된다(고정폭 + space-between 조합은 화면 폭에 따라 남는 여백이
+    // 칸 사이에 나뉘어 들어가는 방식이라, 금액 텍스트가 긴 칸이 있으면 그 칸만 폭이 밀려나면서
+    // 뒤 칸들이 오른쪽으로 조금씩 쏠려 보이는 문제가 있었다).
+    flex: 1,
+    // 웹(flexbox)에서는 minWidth 기본값이 콘텐츠 크기라, 긴 금액 텍스트가 있으면 flex:1 폭을
+    // 무시하고 칸이 넓어져 옆 칸을 밀어낸다. 0으로 낮춰서 flex 폭이 실제 상한이 되게 한다.
     minWidth: 0,
     // 수입·소비 금액 줄 수(0~2줄)에 따라 칸 높이가 들쭉날쭉해지지 않도록, 두 줄이 다 있는
     // 경우를 기준으로 높이를 고정한다. 금액이 없는 날은 그만큼 아래쪽이 비어 보일 뿐, 요일
@@ -108,7 +113,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   daySelected: {
-    color: '#fff',
+    color: Colors.onboarding.inverseText,
     fontWeight: '800',
   },
   dayDisabled: {

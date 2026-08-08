@@ -1,4 +1,5 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { Text } from '@/components/common/typography/Text';
 
 import { CentralModal } from '@/components/common/modal/CentralModal';
 import { Button } from '@/components/common/button/Button';
@@ -159,7 +160,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontSize: 17,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: Colors.onboarding.inverseText,
     textAlign: 'center',
   },
   body: {

@@ -4,14 +4,8 @@ import {
 } from '@react-native-google-signin/google-signin';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  Pressable,
-  StyleSheet,
-  Text,
-  useWindowDimensions,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Text } from '@/components/common/typography/Text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BrandLockup } from '@/components/onboarding/BrandLockup';
@@ -260,7 +254,7 @@ const styles = StyleSheet.create({
   },
 
   errorText: {
-    color: '#C62828',
+    color: Colors.light.danger,
     fontSize: 14,
     marginTop: 12,
     textAlign: 'center',

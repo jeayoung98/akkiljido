@@ -1,7 +1,8 @@
 import * as Location from 'expo-location';
 import * as Notifications from 'expo-notifications';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AppState, Alert, Linking, StyleSheet, Text, View } from 'react-native';
+import { AppState, Alert, Linking, StyleSheet, View } from 'react-native';
+import { Text } from '@/components/common/typography/Text';
 
 import AppScreen from '@/components/common/AppScreen';
 import InfoListItem from '@/components/common/card/InfoListItem';

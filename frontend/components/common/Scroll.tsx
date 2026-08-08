@@ -93,7 +93,7 @@ export const Scroll = forwardRef<ScrollView, ScrollProps>(function Scroll({ chil
         <View
           {...panResponder.panHandlers}
           style={{ width: 20, height, alignItems: 'center' }}>
-          <View style={{ width: 4, height, backgroundColor: '#fff', borderRadius: 2 }}>
+          <View style={{ width: 4, height, backgroundColor: Colors.light.cardBackground, borderRadius: 2 }}>
             <View
               style={{
                 position: 'absolute',

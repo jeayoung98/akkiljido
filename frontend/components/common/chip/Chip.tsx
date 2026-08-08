@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import type { StyleProp, ViewStyle } from 'react-native';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '@/components/common/typography/Text';
 
 import Colors from '@/constants/Colors';
 
@@ -64,6 +65,8 @@ export function Chip({
       ) : null}
 
       <Text
+        adjustsFontSizeToFit
+        minimumFontScale={0.75}
         numberOfLines={1}
         style={[styles.label, align === 'center' && styles.centeredLabel, selected && styles.selectedLabel]}>
         {label}

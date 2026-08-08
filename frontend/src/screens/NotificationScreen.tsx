@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { type ReactNode, useEffect } from 'react';
-import { Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Dimensions, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Text } from '@/components/common/typography/Text';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 
@@ -222,12 +223,12 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     flex: 1,
-    color: '#FFFFFF',
+    color: Colors.onboarding.inverseText,
     fontSize: 18,
     fontWeight: '800',
   },
   markAllText: {
-    color: '#FFFFFF',
+    color: Colors.onboarding.inverseText,
     fontSize: 13,
     fontWeight: '600',
   },

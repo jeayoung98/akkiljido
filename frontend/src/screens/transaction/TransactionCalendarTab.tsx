@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { Text } from '@/components/common/typography/Text';
 
 import { AsyncStateView } from '@/components/common/AsyncStateView';
 import { CalendarDayCell } from '@/components/transaction/CalendarDayCell';
@@ -9,6 +10,7 @@ import TransactionItem from '@/components/transaction/TransactionItem';
 import Colors from '@/constants/Colors';
 import { useCalendarDay, useCalendarMonth } from '@/hooks/useCalendar';
 import { fromDateKey, toCalendarParams } from '@/src/api/calendarApi';
+import { groupTransactions } from '@/src/utils/groupTransactions';
 
 type MonthCell = { day: number; dateKey: string; inCurrentMonth: boolean };
 
@@ -100,6 +102,7 @@ export function TransactionCalendarTab({
   }, [daySummaries]);
 
   const dayTransactions = dayDetail?.transactionList ?? [];
+  const groupedDayTransactions = useMemo(() => groupTransactions(dayTransactions), [dayTransactions]);
 
   return (
     <View style={styles.container}>
@@ -145,11 +148,11 @@ export function TransactionCalendarTab({
       <AsyncStateView
         emptyMessage="선택한 날짜에 거래 내역이 없습니다."
         error={dayError}
-        isEmpty={dayTransactions.length === 0}
+        isEmpty={groupedDayTransactions.length === 0}
         isLoading={isDayLoading}
         onRetry={refetchDay}>
         <View style={styles.card}>
-          {dayTransactions.map((item, index) => (
+          {groupedDayTransactions.map((item, index) => (
             <View key={item.transactionId}>
               {index > 0 ? <View style={styles.divider} /> : null}
               <TransactionItem
@@ -170,6 +173,11 @@ export function TransactionCalendarTab({
                   ) : undefined
                 }
                 onPress={() => onOpenDetail(String(item.transactionId))}
+                description={
+                  item.transactionCount > 1
+                    ? `${item.categoryName} · ${item.transactionCount}건`
+                    : item.categoryName
+                }
                 title={item.name}
                 type={item.type}
               />
@@ -184,10 +192,12 @@ export function TransactionCalendarTab({
 const styles = StyleSheet.create({
   container: { gap: 14, padding: 16 },
   calendarSection: { gap: 14 },
-  weekdayRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  weekdayLabel: { width: 44, color: Colors.light.placeholder, fontSize: 12, fontWeight: '600', textAlign: 'center' },
+  // 아래 calendarWeekRow와 똑같이 flex:1 7칸으로 나눠서, 요일 라벨과 날짜 칸이 기기 폭과
+  // 상관없이 항상 같은 기준으로 정렬되게 한다.
+  weekdayRow: { flexDirection: 'row' },
+  weekdayLabel: { flex: 1, minWidth: 0, color: Colors.light.placeholder, fontSize: 12, fontWeight: '600', textAlign: 'center' },
   calendarGrid: { gap: 4 },
-  calendarWeekRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  calendarWeekRow: { flexDirection: 'row' },
   selectedDateTitle: { color: Colors.light.text, fontSize: 15, fontWeight: '700' },
   card: { padding: 8, borderRadius: 16, backgroundColor: Colors.light.cardBackground, borderWidth: 1, borderColor: Colors.light.border },
   divider: { height: StyleSheet.hairlineWidth, backgroundColor: Colors.light.border },

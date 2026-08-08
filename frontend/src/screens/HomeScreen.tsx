@@ -1,7 +1,10 @@
 import * as Location from 'expo-location';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, ScrollView, StyleSheet, View } from 'react-native';
+
+// 앱 전체 폰트를 에이투지체로 통일하기 위해 react-native의 Text 대신 공통 Text를 쓴다.
+import { Text } from '@/components/common/typography/Text';
 
 import AppScreen from '@/components/common/AppScreen';
 import { SaveAlarmModal, type AlarmFormValue } from '@/components/common/modal/SaveAlarmModal';
@@ -19,6 +22,7 @@ import { getTodayExpenseAmount } from '@/src/api/calendarApi';
 import { getCategorySummary, getRecentExpenses } from '@/src/api/homeApi';
 import { createNotificationPlace } from '@/src/api/notificationPlaceApi';
 import { getLatestReportDetail, getReportDetail } from '@/src/api/reportApi';
+import { getMyProfile } from '@/src/api/usersApi';
 import { useDevModeStore } from '@/store/devModeStore';
 import { useNotificationStore } from '@/store/notificationStore';
 import { useReportPopupStore } from '@/store/reportPopupStore';
@@ -36,8 +40,6 @@ import { getWeekIdentifier } from '@/utils/reportSchedule';
 
 const LAST_SHOWN_WEEK_STORAGE_KEY = 'report:lastShownWeek';
 
-const NICKNAME = 'Dust';
-
 /**
  * 홈 탭 화면입니다. 상단(인사말+알림)과 오늘 지출액 카드는 초록 배경 안에, 그 아래 두 카드
  * (내 주변 7일간 지출, 카테고리별 지출)는 흰 배경 안에 둬서 두 영역을 시각적으로 구분합니다.
@@ -51,6 +53,8 @@ const NICKNAME = 'Dust';
  * 2. 이번 주 첫 진입 — 최신 주간 리포트를 조회해 자동으로 한 번 띄웁니다.
  */
 export default function HomeScreen() {
+  // 서버 응답이 오기 전에는 빈 문자열로 두고, 조회 실패하면 콘솔에만 남기고 빈 상태로 둔다(MyScreen과 동일한 방식).
+  const [nickname, setNickname] = useState('');
   const [categories, setCategories] = useState<CategorySummaryItem[]>([]);
   const [todayExpense, setTodayExpense] = useState(0);
   const [nearbyExpenses, setNearbyExpenses] = useState<{ totalAmount: number; placeList: NearbyExpensePlace[] }>({
@@ -249,6 +253,20 @@ export default function HomeScreen() {
     }, [isDevMode, openReport]),
   );
 
+  // 마이페이지에서 닉네임을 바꾸고 돌아와도 바로 반영되도록, 다른 데이터들과 같이 focus마다 새로 불러온다.
+  useFocusEffect(
+    useCallback(() => {
+      (async () => {
+        try {
+          const profile = await getMyProfile();
+          setNickname(profile.nickname);
+        } catch (error) {
+          console.error('[home] profile failed', error);
+        }
+      })();
+    }, []),
+  );
+
   const unreadNotificationCount = useNotificationStore(
     (state) => state.notifications.filter((item) => !item.read).length
   );
@@ -330,7 +348,7 @@ export default function HomeScreen() {
         <View style={styles.profileRow}>
           <Image source={require('@/assets/images/profile-icon.png')} style={styles.profileIcon} />
           <View>
-            <Text style={styles.greeting}>안녕하세요, {NICKNAME}님</Text>
+            <Text style={styles.greeting}>안녕하세요 {nickname}</Text>
             <Text style={styles.greetingSubtitle}>오늘도 함께 알뜰하게!</Text>
           </View>
         </View>
@@ -433,7 +451,7 @@ const styles = StyleSheet.create({
     resizeMode: 'contain',
   },
   greeting: {
-    color: '#FFFFFF',
+    color: Colors.onboarding.inverseText,
     fontSize: 17,
     fontWeight: '700',
   },
@@ -456,7 +474,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.light.danger,
   },
   badgeText: {
-    color: '#FFFFFF',
+    color: Colors.onboarding.inverseText,
     fontSize: 10,
     fontWeight: '700',
   },

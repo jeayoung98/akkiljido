@@ -16,6 +16,7 @@ import Animated, {
   useSharedValue,
   withSpring,
 } from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import Colors from "@/constants/Colors";
 
@@ -81,6 +82,10 @@ export default function BottomSheet(props: BottomSheetProps) {
   // modal=false면 애초에 배경(Pressable)이 없어서 이 값 자체가 의미 없다.
   const closeOnBackdropPress =
     props.modal === false ? false : (props.closeOnBackdropPress ?? true);
+  // 기기 하단 안전 영역(홈 인디케이터/제스처 바, 3버튼 내비게이션 등) 높이만큼 내용 아래쪽에
+  // 여유를 둬서, 시트 맨 아래 버튼이 그 영역과 겹쳐 눌리지 않는 문제를 막는다. 이 값이 없으면
+  // 기기의 내비게이션 바 종류(제스처형/버튼형)에 따라 맨 아래 버튼을 못 누르는 경우가 있었다.
+  const insets = useSafeAreaInsets();
 
   // 비율(0~1)로 받은 높이들을 실제 픽셀로 변환한다.
   const minHeightPx = minHeight * SCREEN_HEIGHT;
@@ -191,7 +196,7 @@ export default function BottomSheet(props: BottomSheetProps) {
         ) : (
           header
         )}
-        <View style={styles.content}>{children}</View>
+        <View style={[styles.content, { paddingBottom: insets.bottom }]}>{children}</View>
       </View>
     </Animated.View>
   );
@@ -231,7 +236,7 @@ export default function BottomSheet(props: BottomSheetProps) {
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.35)",
+    backgroundColor: Colors.light.overlay,
     justifyContent: "flex-end",
   },
   nonModalOverlay: {

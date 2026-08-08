@@ -1,13 +1,7 @@
 import type { ReactNode } from 'react';
-import {
-  Pressable,
-  StyleProp,
-  StyleSheet,
-  Text,
-  TextInput as NativeTextInput,
-  View,
-  ViewStyle,
-} from 'react-native';
+import { Pressable, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
+import { Text } from '@/components/common/typography/Text';
+import { NativeTextInput } from '@/components/common/typography/TextInput';
 
 import { IconButton } from '@/components/common/button/IconButton';
 import Colors from '@/constants/Colors';

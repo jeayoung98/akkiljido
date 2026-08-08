@@ -1,14 +1,6 @@
 import type { ReactNode } from 'react';
-import {
-  Pressable,
-  type PressableProps,
-  type StyleProp,
-  StyleSheet,
-  Text,
-  type TextStyle,
-  View,
-  type ViewStyle,
-} from 'react-native';
+import { Pressable, type PressableProps, type StyleProp, StyleSheet, type TextStyle, View, type ViewStyle } from 'react-native';
+import { Text } from '@/components/common/typography/Text';
 
 import Colors from '@/constants/Colors';
 

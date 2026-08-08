@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useRef, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, View } from 'react-native';
+import { Text } from '@/components/common/typography/Text';
 
 import AppScreen from '@/components/common/AppScreen';
 import InfoListItem from '@/components/common/card/InfoListItem';
@@ -20,6 +21,7 @@ import {
 } from '@/src/api/notificationPlaceApi';
 import { saveNotificationPlaces } from '@/utils/notificationPlaceStorage';
 import { releaseNotificationClaimForToday } from '@/utils/notifiedPlacesStorage';
+import { loadReportNotificationSettings, saveReportNotificationSettings } from '@/utils/reportNotificationSettingsStorage';
 
 // "+" 버튼을 누르면 이 빈 값으로 SaveAlarmModal을 연다. 지도에서 장소를 고르기 전까지는
 // address·좌표가 비어 있어서, 모달의 필수값 검사(address)가 저장을 막아준다.
@@ -76,6 +78,25 @@ export default function NotificationSettingsScreen() {
       }
     })();
   }, []);
+
+  // 소비 리포트 알림 on/off는 서버 API가 아직 없어(필드 미정), 기기에 저장해둔 값을 불러온다.
+  useEffect(() => {
+    (async () => {
+      const settings = await loadReportNotificationSettings();
+      setWeeklyReport(settings.weeklyReport);
+      setMonthlyReport(settings.monthlyReport);
+    })();
+  }, []);
+
+  const handleToggleWeeklyReport = (next: boolean) => {
+    setWeeklyReport(next);
+    void saveReportNotificationSettings({ weeklyReport: next, monthlyReport });
+  };
+
+  const handleToggleMonthlyReport = (next: boolean) => {
+    setMonthlyReport(next);
+    void saveReportNotificationSettings({ weeklyReport, monthlyReport: next });
+  };
 
   const handleTogglePlace = async (id: number, next: boolean) => {
     setPlaces((prev) => prev.map((place) => (place.notificationPlaceId === id ? { ...place, active: next } : place)));
@@ -192,13 +213,13 @@ export default function NotificationSettingsScreen() {
             <InfoListItem
               description="월-일 소비 · 매주 월요일 오전 7:00"
               title="주간 리포트"
-              trailing={<Switch onValueChange={setWeeklyReport} value={weeklyReport} />}
+              trailing={<Switch onValueChange={handleToggleWeeklyReport} value={weeklyReport} />}
             />
             <View style={styles.divider} />
             <InfoListItem
               description="1일-말일 소비 · 다음 달 1일 오전 7:00"
               title="월간 리포트"
-              trailing={<Switch onValueChange={setMonthlyReport} value={monthlyReport} />}
+              trailing={<Switch onValueChange={handleToggleMonthlyReport} value={monthlyReport} />}
             />
           </View>
         </View>

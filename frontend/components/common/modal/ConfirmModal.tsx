@@ -1,4 +1,5 @@
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '@/components/common/typography/Text';
 
 import { Button } from '@/components/common/button/Button';
 import Colors from '@/constants/Colors';
@@ -99,7 +100,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 20,
-    backgroundColor: 'rgba(0, 0, 0, 0.38)',
+    backgroundColor: Colors.light.overlay,
   },
   card: {
     width: '100%',
