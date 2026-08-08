@@ -321,7 +321,7 @@ export default function MapPickerScreen() {
           <View
             style={{
               position: 'absolute',
-              bottom: 16,
+              bottom: insets.bottom + 16,
               left: 16,
               right: 16,
               backgroundColor: Colors.light.cardMutedBackground,
@@ -378,14 +378,14 @@ export default function MapPickerScreen() {
             </Scroll>
           </View>
         ) : (
-          <BaseCard style={{ position: 'absolute', bottom: 16, left: 16, right: 16 }}>
+          <BaseCard style={{ position: 'absolute', bottom: insets.bottom + 16, left: 16, right: 16 }}>
             <Text>검색 결과가 없습니다</Text>
           </BaseCard>
         )
       )}
 
       {selected && (
-        <BaseCard style={{ position: 'absolute', bottom: 16, left: 16, right: 16, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <BaseCard style={{ position: 'absolute', bottom: insets.bottom + 16, left: 16, right: 16, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <Text style={{ flex: 1 }}>{selected.address}</Text>
           <Button
             variant="green"
