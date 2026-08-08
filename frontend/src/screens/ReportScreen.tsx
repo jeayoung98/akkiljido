@@ -118,7 +118,7 @@ function ReportDetailContent({
 
       <View style={styles.sectionCard}>
         <Text style={styles.sectionCardTitle}>
-          알림 추천
+          방앗간 추천
         </Text>
 
         {detail.recommendations.length > 0 ? (
@@ -167,7 +167,7 @@ function ReportDetailContent({
           </View>
         ) : (
           <Text style={styles.emptyText}>
-            이번 리포트에는 추천 알림이 없습니다.
+            이번 리포트에는 추천 방앗간이 없습니다.
           </Text>
         )}
       </View>
