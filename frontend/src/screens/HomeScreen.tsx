@@ -2,6 +2,8 @@ import * as Location from 'expo-location';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Image, ScrollView, StyleSheet, View } from 'react-native';
+
+// 앱 전체 폰트를 에이투지체로 통일하기 위해 react-native의 Text 대신 공통 Text를 쓴다.
 import { Text } from '@/components/common/typography/Text';
 
 import AppScreen from '@/components/common/AppScreen';
@@ -16,14 +18,24 @@ import { ReportRecommendationsModal } from '@/components/report/RecommendModal';
 import Colors from '@/constants/Colors';
 import { useShowOncePerPeriod } from '@/hooks/useShowOncePerPeriod';
 import type { CategorySummaryItem, NearbyExpensePlace } from '@/mocks/home';
-import { MOCK_WEEKLY_REPORT, MOCK_WEEKLY_REPORT_RECOMMENDATIONS } from '@/mocks/reportModal';
 import { getTodayExpenseAmount } from '@/src/api/calendarApi';
 import { getCategorySummary, getRecentExpenses } from '@/src/api/homeApi';
 import { createNotificationPlace } from '@/src/api/notificationPlaceApi';
+import { getLatestReportDetail, getReportDetail } from '@/src/api/reportApi';
 import { getMyProfile } from '@/src/api/usersApi';
 import { useDevModeStore } from '@/store/devModeStore';
 import { useNotificationStore } from '@/store/notificationStore';
-import { loadNotificationPlaces, saveNotificationPlaces } from '@/utils/notificationPlaceStorage';
+import { useReportPopupStore } from '@/store/reportPopupStore';
+import {
+  getReportPeriodLabel,
+  getReportRecommendationTitle,
+  toReportModalData,
+  toReportRecommendations,
+} from '@/utils/reportAdapters';
+import {
+  loadNotificationPlaces,
+  saveNotificationPlaces,
+} from '@/utils/notificationPlaceStorage';
 import { getWeekIdentifier } from '@/utils/reportSchedule';
 
 const LAST_SHOWN_WEEK_STORAGE_KEY = 'report:lastShownWeek';
@@ -34,6 +46,11 @@ const LAST_SHOWN_WEEK_STORAGE_KEY = 'report:lastShownWeek';
  * 데이터는 전부 src/api/에서 실제 API로 가져옵니다. "오늘 지출액"은 전용 API가 없어서
  * 캘린더 day API(오늘 날짜)를 재사용하고, transactionList에서 지출만 합산합니다.
  * 알림 뱃지 개수는 store/notificationStore.ts의 안 읽은 알림 수를 그대로 씁니다.
+ *
+ * 리포트 팝업은 두 경로로 열립니다.
+ * 1. 리포트 푸시 알림 탭 — 루트 레이아웃의 푸시 처리기(hooks/useReportPushHandler.ts)가
+ *    store/reportPopupStore에 "띄울 리포트"를 예약하고 홈으로 보냅니다.
+ * 2. 이번 주 첫 진입 — 최신 주간 리포트를 조회해 자동으로 한 번 띄웁니다.
  */
 export default function HomeScreen() {
   // 서버 응답이 오기 전에는 빈 문자열로 두고, 조회 실패하면 콘솔에만 남기고 빈 상태로 둔다(MyScreen과 동일한 방식).
@@ -55,8 +72,19 @@ export default function HomeScreen() {
   const [recommendVisible, setRecommendVisible] = useState(false);
   const [saveAlarmVisible, setSaveAlarmVisible] = useState(false);
   const [selectedAlarm, setSelectedAlarm] = useState<AlarmFormValue | null>(null);
-  const [savingAlarm, setSavingAlarm] = useState(false);
+  const [alarmSaving, setAlarmSaving] = useState(false);
   const isDevMode = useDevModeStore((state) => state.isDevMode);
+
+  const pendingReport = useReportPopupStore((state) => state.pending);
+  const openReport = useReportPopupStore((state) => state.openReport);
+  const setReportDetail = useReportPopupStore((state) => state.setDetail);
+  const closeReport = useReportPopupStore((state) => state.closeReport);
+
+  const reportDetail = pendingReport?.detail ?? null;
+  const reportType = pendingReport?.reportType ?? 'WEEKLY';
+  // 표시용 값으로 옮기는 건 모달에 넘기기 직전에 한 번만. 상세가 없으면 모달 자체를 그리지 않는다.
+  const reportData = reportDetail ? toReportModalData(reportDetail) : null;
+  const reportRecommendations = reportDetail ? toReportRecommendations(reportDetail) : [];
 
   // ReportModal·RecommendModal·SaveAlarmModal은 각각 별도의 네이티브 Modal(안드로이드에서는 별도의
   // Dialog 창)이라, 여러 개가 동시에 진짜로 visible=true면 안드로이드가 어떤 걸 맨 위에 그릴지
@@ -69,20 +97,160 @@ export default function HomeScreen() {
   const reportModalVisible = reportVisible && !recommendVisible && !saveAlarmVisible;
   const recommendModalVisible = recommendVisible && !saveAlarmVisible;
 
+  /** 리포트 흐름(요약·추천·알림 저장)을 통째로 닫고, 예약된 리포트도 비운다. */
+  const dismissReportFlow = useCallback(() => {
+    setRecommendVisible(false);
+    setReportVisible(false);
+    closeReport();
+  }, [closeReport]);
+
+  /**
+   * 추천 위치 알림을 실제로 등록한다(POST /api/v1/notification).
+   *
+   * 저장 뒤에는 SaveAlarmModal만 닫아서 추천 목록으로 되돌아가게 한다 — 한 리포트에 추천이
+   * 최대 3건이라, 하나 저장했다고 흐름 전체를 닫으면 나머지를 또 열어야 한다.
+   * 알림 설정 화면과 마찬가지로, 백그라운드 위치 태스크가 읽는 로컬 목록에도 같이 반영한다.
+   */
+  const handleSaveRecommendedAlarm = async (value: AlarmFormValue) => {
+    try {
+      setAlarmSaving(true);
+
+      const created = await createNotificationPlace({
+        notificationPlaceName: value.name,
+        address: value.address,
+        latitude: value.lat,
+        longitude: value.lng,
+        startTime: value.startTime,
+        endTime: value.endTime,
+        reason: value.reason,
+      });
+
+      // 헤드리스 위치 태스크는 API가 아니라 이 로컬 목록만 읽는다. 여기 반영이 빠지면
+      // 방금 등록한 장소에 가도 알림이 울리지 않는다.
+      // (생성 응답 스키마가 Swagger에 비어 있어서, 실제로 id가 왔을 때만 로컬에 반영한다.
+      //  못 받았더라도 서버에는 저장됐고, 알림 설정 화면에 들어가면 목록째 다시 동기화된다.)
+      if (created?.notificationPlaceId !== undefined) {
+        try {
+          const storedPlaces = await loadNotificationPlaces();
+          await saveNotificationPlaces([
+            ...storedPlaces.filter(
+              (place) => place.notificationPlaceId !== created.notificationPlaceId,
+            ),
+            created,
+          ]);
+        } catch (error) {
+          console.error('[home] notification place local sync failed', error);
+        }
+      }
+
+      setSaveAlarmVisible(false);
+    } catch (error) {
+      console.error('[home] notification place save failed', error);
+      Alert.alert('위치 알림 저장에 실패했어요', error instanceof Error ? error.message : undefined);
+    } finally {
+      setAlarmSaving(false);
+    }
+  };
+
+  // 푸시 data에 전문이 실려 오지 못한 경우(reportPayload=ID_ONLY)에만 상세를 조회한다.
+  // FULL로 왔으면 이 효과는 아무 일도 하지 않으므로, 알림을 탭한 직후 네트워크 없이 바로 그려진다.
   useEffect(() => {
-    if (shouldShowWeeklyReport) {
+    if (!pendingReport || pendingReport.detail) {
+      return;
+    }
+
+    let active = true;
+    const { reportId } = pendingReport;
+
+    (async () => {
+      try {
+        const detail = await getReportDetail(reportId);
+        if (active) {
+          setReportDetail(reportId, detail);
+        }
+      } catch (error) {
+        // 조회에 실패하면 팝업을 띄울 수 없다. 알림함에는 남아 있으니 다시 눌러 재시도할 수 있다.
+        console.error('[home] report detail failed', error);
+        if (active) {
+          closeReport();
+        }
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [closeReport, pendingReport, setReportDetail]);
+
+  // 상세가 준비되면 모달을 연다. 사용자가 닫은 뒤에는 pending을 비우므로 다시 열리지 않는다.
+  useEffect(() => {
+    if (reportDetail) {
       setReportVisible(true);
     }
-  }, [shouldShowWeeklyReport]);
+  }, [reportDetail]);
+
+  // 이번 주 첫 진입이면 최신 주간 리포트를 자동으로 한 번 띄운다. 아직 생성된 리포트가 없으면
+  // 아무것도 뜨지 않는다(빈 화면을 보여주느니 안 띄우는 게 낫다).
+  useEffect(() => {
+    if (!shouldShowWeeklyReport) {
+      return;
+    }
+
+    let active = true;
+
+    (async () => {
+      try {
+        const detail = await getLatestReportDetail('weekly');
+        if (!active || !detail) {
+          return;
+        }
+        openReport({
+          reportId: detail.reportId,
+          reportType: detail.type,
+          detail,
+          source: 'auto',
+        });
+      } catch (error) {
+        console.error('[home] weekly report auto popup failed', error);
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [openReport, shouldShowWeeklyReport]);
 
   // 개발자 모드일 때는 AsyncStorage 기반 1회 표시 제한을 무시하고, 홈 화면에 포커스가 올 때마다
-  // 리포트를 다시 띄운다. 탭은 전환해도 언마운트되지 않아서 focus 이벤트로 "재진입"을 감지한다.
+  // 최신 주간 리포트를 다시 띄운다. 탭은 전환해도 언마운트되지 않아서 focus 이벤트로 "재진입"을 감지한다.
   useFocusEffect(
     useCallback(() => {
-      if (isDevMode) {
-        setReportVisible(true);
+      if (!isDevMode) {
+        return;
       }
-    }, [isDevMode]),
+
+      let active = true;
+
+      (async () => {
+        try {
+          const detail = await getLatestReportDetail('weekly');
+          if (!active || !detail) {
+            return;
+          }
+          openReport({
+            reportId: detail.reportId,
+            reportType: detail.type,
+            detail,
+            source: 'auto',
+          });
+        } catch (error) {
+          console.error('[home] dev mode report popup failed', error);
+        }
+      })();
+
+      return () => {
+        active = false;
+      };
+    }, [isDevMode, openReport]),
   );
 
   // 마이페이지에서 닉네임을 바꾸고 돌아와도 바로 반영되도록, 다른 데이터들과 같이 focus마다 새로 불러온다.
@@ -173,31 +341,6 @@ export default function HomeScreen() {
     }, [currentLocation]),
   );
 
-  // 리포트 추천 알림 저장. NotificationSettingsScreen의 위치 알림 추가와 같은 API·로컬 미러링 방식을 쓴다.
-  const handleSaveRecommendedAlarm = async (value: AlarmFormValue) => {
-    try {
-      setSavingAlarm(true);
-      const created = await createNotificationPlace({
-        notificationPlaceName: value.name,
-        address: value.address,
-        latitude: value.lat,
-        longitude: value.lng,
-        startTime: value.startTime,
-        endTime: value.endTime,
-        reason: value.reason,
-      });
-      // 헤드리스 위치 태스크가 읽는 로컬 목록에도 새 알림 장소를 더해 반영한다.
-      const existingPlaces = await loadNotificationPlaces();
-      void saveNotificationPlaces([...existingPlaces, created]);
-      setSaveAlarmVisible(false);
-    } catch (error) {
-      console.error('[home] recommend alarm save failed', error);
-      Alert.alert('위치 알림 저장에 실패했어요', error instanceof Error ? error.message : undefined);
-    } finally {
-      setSavingAlarm(false);
-    }
-  };
-
   return (
     <AppScreen backgroundColor={Colors.light.primary}>
       {/* 인사말+알림 영역은 스크롤 밖에 고정해서, 아래 내용을 스크롤해도 항상 화면 위에 남는다. */}
@@ -242,38 +385,38 @@ export default function HomeScreen() {
         </View>
       </ScrollView>
 
-      <ReportModal
-        visible={reportModalVisible}
-        onClose={() => setReportVisible(false)}
-        data={MOCK_WEEKLY_REPORT}
-        onViewRecommendations={() => {
-          // ReportModal은 계속 visible로 두고, 그 위에 RecommendModal만 새로 연다(스택 유지, 번쩍임 방지).
-          setRecommendVisible(true);
-        }}
-      />
+      {reportData ? (
+        <ReportModal
+          visible={reportModalVisible}
+          onClose={dismissReportFlow}
+          data={reportData}
+          periodLabel={getReportPeriodLabel(reportType)}
+          onViewRecommendations={() => {
+            // ReportModal은 계속 visible로 두고, 그 위에 RecommendModal만 새로 연다(스택 유지, 번쩍임 방지).
+            setRecommendVisible(true);
+          }}
+        />
+      ) : null}
 
-      <ReportRecommendationsModal
-        onClose={() => {
-          // 배경 탭/닫기: 흐름을 완전히 끝내는 동작이라 이때만 둘 다 닫는다.
-          setRecommendVisible(false);
-          setReportVisible(false);
-        }}
-        onConfirm={() => {
-          setRecommendVisible(false);
-          setReportVisible(false);
-        }}
-        onPrev={() => {
-          // ReportModal은 이미 visible 상태 그대로였으므로 RecommendModal만 닫으면 된다.
-          setRecommendVisible(false);
-        }}
-        onSelectRecommendation={(rec) => {
-          // RecommendModal은 계속 visible로 두고, 그 위에 SaveAlarmModal만 새로 연다.
-          setSelectedAlarm(rec.alarm);
-          setSaveAlarmVisible(true);
-        }}
-        recommendations={MOCK_WEEKLY_REPORT_RECOMMENDATIONS}
-        visible={recommendModalVisible}
-      />
+      {reportData ? (
+        <ReportRecommendationsModal
+          onClose={dismissReportFlow}
+          onConfirm={dismissReportFlow}
+          onPrev={() => {
+            // ReportModal은 이미 visible 상태 그대로였으므로 RecommendModal만 닫으면 된다.
+            setRecommendVisible(false);
+          }}
+          onSelectRecommendation={(rec) => {
+            // RecommendModal은 계속 visible로 두고, 그 위에 SaveAlarmModal만 새로 연다.
+            setSelectedAlarm(rec.alarm);
+            setSaveAlarmVisible(true);
+          }}
+          periodLabel={getReportPeriodLabel(reportType)}
+          recommendations={reportRecommendations}
+          title={getReportRecommendationTitle(reportType)}
+          visible={recommendModalVisible}
+        />
+      ) : null}
 
       {selectedAlarm ? (
         <SaveAlarmModal
@@ -281,7 +424,7 @@ export default function HomeScreen() {
           onClose={() => setSaveAlarmVisible(false)}
           onReopenAfterLocationPicked={() => setSaveAlarmVisible(true)}
           onSave={handleSaveRecommendedAlarm}
-          saveLoading={savingAlarm}
+          saveLoading={alarmSaving}
           visible={saveAlarmVisible}
         />
       ) : null}

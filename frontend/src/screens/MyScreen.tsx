@@ -18,6 +18,7 @@ import { clearAuthSession, getAuthSession, saveAuthSession } from '@/src/auth/to
 import { stopBackgroundLocationTracking } from '@/utils/backgroundLocationTask';
 import { clearPresentedNotifications } from '@/utils/localNotifications';
 import { clearNotificationPlaces } from '@/utils/notificationPlaceStorage';
+import { clearPushTokenRegistration } from '@/utils/pushNotifications';
 
 /** 마이페이지. 프로필 요약과 내 장소 관리·알림 설정·설정·로그아웃으로 가는 메뉴를 보여준다. */
 export default function MyScreen() {
@@ -78,7 +79,10 @@ export default function MyScreen() {
       }
 
       // 위치 알림은 로그인 사용자별 데이터이므로, 로그아웃과 함께 감시·기기 캐시·알림함을 모두 정리합니다.
+      // 리포트 푸시 토큰도 같이 해제해야, 로그아웃한 기기로 이전 계정의 리포트 알림이 계속 오지 않습니다.
+      // (토큰 해제는 인증이 필요하므로 반드시 clearAuthSession 전에 합니다.)
       try {
+        await clearPushTokenRegistration();
         await stopBackgroundLocationTracking();
         await clearNotificationPlaces();
         clearNotifications();
