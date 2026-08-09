@@ -63,7 +63,8 @@ export function toReportRecommendations(detail: ReportDetail): ReportRecommendat
       placeName: recommendation.placeName,
       timeRange,
       alarm: {
-        name: `${recommendation.placeName} 알림`,
+        // 알림 본문에서 "{이름} 근처입니다"로 사용하므로 접미사 없이 장소명만 저장합니다.
+        name: recommendation.placeName,
         placeName: recommendation.placeName,
         address: recommendation.address,
         lat: recommendation.latitude,
