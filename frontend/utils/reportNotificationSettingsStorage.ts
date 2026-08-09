@@ -33,7 +33,8 @@ export async function loadReportNotificationSettings(): Promise<ReportNotificati
 export async function saveReportNotificationSettings(settings: ReportNotificationSettings) {
   try {
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-  } catch {
-    // 저장 공간 부족 등으로 실패해도 설정 화면이 중단되지는 않게 둡니다.
+  } catch (error) {
+    // 저장 공간 부족 등으로 실패해도 설정 화면이 중단되지는 않게 두되, 원인 파악을 위해 로그는 남깁니다.
+    console.error('[notification] report settings save failed', error);
   }
 }

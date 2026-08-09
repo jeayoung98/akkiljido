@@ -46,9 +46,10 @@ const LOCATE_BUTTON_HEIGHT = 44;
 const ZOOM_CONTROL_HEIGHT = 89;
 // 내 장소 상세 모드에서 이동할 줌 레벨. 반경 2km 원(지름 4km)이 폰 화면에 통째로 들어오는 최소 축소 레벨이다.
 const PLACE_DETAIL_LEVEL = 6;
-// 내 장소 시트에서 목록 위에 고정으로 자리 차지하는 영역(드래그 핸들 + "내 장소 N개" 제목)의 대략적인 높이.
+// 내 장소 시트에서 목록 위에 고정으로 자리 차지하는 영역(드래그 핸들 + "내 장소 N개" 제목 +
+// "설정 페이지에서 가능해요" 안내 문구)의 대략적인 높이.
 // 시트의 보이는 높이에서 이만큼을 빼면 목록(Scroll)에 줄 수 있는 높이가 나온다.
-const SHEET_HEADER_HEIGHT = 56;
+const SHEET_HEADER_HEIGHT = 80;
 // 내 장소 상세에서 아코디언 목록 위 영역(드래그 핸들 + 뒤로가기·장소명·누적 금액 헤더)의 대략적인 높이.
 const DETAIL_HEADER_HEIGHT = 72;
 
@@ -246,8 +247,23 @@ export default function MapScreen() {
   const [myPlaces, setMyPlaces] = useState<MyPlaceMap[]>([]);
   const [placeDetail, setPlaceDetail] = useState<MyPlaceTransactionList | null>(null);
   const [mapDataLoading, setMapDataLoading] = useState(false);
+  // 화면 진입 시 handleLocate가 lastKnown 위치 → 정확한 위치 순으로 지도 중심을 두 번 옮기는데,
+  // 그때마다 bounds가 바뀌어 데이터를 다시 불러오면서 "지도 내역 불러오는 중" 표시가 껐다 켜졌다
+  // 짧게 두 번 깜빡였다. mapDataLoading이 꺼지고 나서 잠깐(200ms) 동안 다시 켜지지 않을 때만
+  // 실제로 숨기도록 지연시켜서, 연달아 일어나는 로딩은 하나로 이어져 보이게 한다.
+  const [mapDataLoadingDisplay, setMapDataLoadingDisplay] = useState(false);
   const [mapDataError, setMapDataError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+
+  useEffect(() => {
+    if (mapDataLoading) {
+      setMapDataLoadingDisplay(true);
+      return;
+    }
+
+    const timer = setTimeout(() => setMapDataLoadingDisplay(false), 200);
+    return () => clearTimeout(timer);
+  }, [mapDataLoading]);
 
   // 세 상세 모드(내 장소/일반 가게/지역)는 동시에 하나만 열려야 한다. 하나를 열 때 나머지 둘은 닫는다.
   const closeAllDetails = () => {
@@ -420,6 +436,9 @@ export default function MapScreen() {
     if (!searchText.trim()) {
       return;
     }
+    // center 없이 검색하면 카카오 기본 정렬(정확도순)이라, 지금 보고 있는 지도 영역과 상관없이
+    // 엉뚱한 지역 결과가 앞에 나올 수 있다. 지금 보고 있는 지도 중심(mapBounds)을 기준으로
+    // "가까운 순"으로 검색해서, 화면에 보이는 영역과 관련된 결과가 먼저 나오게 한다.
     const searchCenter = mapBounds
       ? { lat: (mapBounds.south + mapBounds.north) / 2, lng: (mapBounds.west + mapBounds.east) / 2 }
       : (currentLocation ?? undefined);
@@ -780,7 +799,7 @@ export default function MapScreen() {
         style={{ flex: 1 }}
       />
 
-      {mapDataLoading ? (
+      {mapDataLoadingDisplay ? (
         <View
           pointerEvents="none"
           style={{
@@ -1057,7 +1076,7 @@ export default function MapScreen() {
               </Text>
             </View>
 
-            <Scroll ref={merchantScrollRef} height={merchantListHeight} style={{ paddingHorizontal: 16 }}>
+            <Scroll ref={merchantScrollRef} contentContainerStyle={{ paddingBottom: 16 }} height={merchantListHeight} style={{ paddingHorizontal: 16 }}>
               {/* Scroll은 contentContainerStyle을 안 받아서, 카드 사이 간격(gap)은 View로 한 번 감싸서 준다. */}
               <View style={{ gap: 12 }}>
               {placeMerchants.map((merchant) => (
@@ -1157,7 +1176,7 @@ export default function MapScreen() {
               </Text>
             </View>
 
-            <Scroll height={merchantListHeight} style={{ paddingHorizontal: 16 }}>
+            <Scroll contentContainerStyle={{ paddingBottom: 16 }} height={merchantListHeight} style={{ paddingHorizontal: 16 }}>
               <AccordionCard
                 defaultOpen
                 header={
@@ -1210,7 +1229,7 @@ export default function MapScreen() {
               </Text>
             </View>
 
-            <Scroll height={merchantListHeight} style={{ paddingHorizontal: 16 }}>
+            <Scroll contentContainerStyle={{ paddingBottom: 16 }} height={merchantListHeight} style={{ paddingHorizontal: 16 }}>
               <View style={{ gap: 12 }}>
                 {regionMerchants.map((merchant) => (
                   <AccordionCard
@@ -1254,7 +1273,19 @@ export default function MapScreen() {
           </>
         ) : (
           <>
-            <Scroll height={placeListHeight} style={{ paddingHorizontal: 16 }}>
+            {/* 장소 추가·수정·삭제는 이 목록에서 바로 할 수 없고 마이페이지 > 설정에서만 가능해서,
+                여기서 시도하다 헷갈리지 않도록 안내를 먼저 보여준다. */}
+            <Text
+              style={{
+                paddingHorizontal: 16,
+                paddingBottom: 8,
+                color: Colors.light.cardDescription,
+                fontSize: 12,
+                textAlign: 'center',
+              }}>
+              내 장소 추가, 수정, 삭제는 설정 페이지에서 가능해요!
+            </Text>
+            <Scroll contentContainerStyle={{ paddingBottom: 16 }} height={placeListHeight} style={{ paddingHorizontal: 16 }}>
               {myPlaces.map((place) => {
                 return (
                   <InfoListItem

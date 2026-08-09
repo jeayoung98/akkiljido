@@ -8,7 +8,7 @@ import type { CategorySummaryItem } from '@/mocks/home';
 
 type CategorySummaryCardProps = {
   categories: CategorySummaryItem[];
-  onPressMore?: () => void;
+  onPress?: () => void;
 };
 
 // 서버 값이 이상하게 와도(음수거나 100 초과) 막대가 화면 밖으로 넘치거나 안 보이지 않게 0~100으로 잘라낸다.
@@ -16,18 +16,16 @@ function clampPercent(percent: number) {
   return Math.max(0, Math.min(percent, 100));
 }
 
-/** 홈 화면의 "카테고리별 지출" 섹션. 이번 달 누적 기준 상위 4개(서버가 이미 top4로 잘라서 줌)를 막대그래프로 보여준다. */
-export function CategorySummaryCard({ categories, onPressMore }: CategorySummaryCardProps) {
+/**
+ * 홈 화면의 "카테고리별 지출" 섹션. 이번 달 누적 기준 상위 4개(서버가 이미 top4로 잘라서 줌)를 막대그래프로 보여준다.
+ * "더보기" 버튼 대신 카드 어디를 눌러도 분석 탭으로 이동한다.
+ */
+export function CategorySummaryCard({ categories, onPress }: CategorySummaryCardProps) {
   return (
-    <View style={styles.section}>
+    <Pressable onPress={onPress} style={({ pressed }) => [styles.section, pressed && styles.sectionPressed]}>
       <View style={styles.headerRow}>
-        <View>
-          <Text style={styles.title}>카테고리별 지출</Text>
-          <Text style={styles.subtitle}>이번 달 누적 기준</Text>
-        </View>
-        <Pressable hitSlop={8} onPress={onPressMore}>
-          <Text style={styles.moreText}>더보기</Text>
-        </Pressable>
+        <Text style={styles.title}>카테고리별 지출</Text>
+        <Text style={styles.subtitle}>이번 달 누적 기준</Text>
       </View>
 
       {/* 이번 달에 쓴 내역이 없어서 카테고리가 하나도 없는 경우, 빈 목록 대신 안내 문구를 보여준다. */}
@@ -59,7 +57,7 @@ export function CategorySummaryCard({ categories, onPressMore }: CategorySummary
           );
         })
       )}
-    </View>
+    </Pressable>
   );
 }
 
@@ -72,10 +70,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.light.border,
   },
+  sectionPressed: {
+    opacity: 0.8,
+  },
   headerRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
+    gap: 2,
   },
   title: {
     color: Colors.light.cardTitle,
@@ -83,13 +82,8 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   subtitle: {
-    marginTop: 2,
     color: Colors.light.cardDescription,
     fontSize: 12,
-  },
-  moreText: {
-    color: Colors.light.cardDescription,
-    fontSize: 13,
   },
   emptyText: {
     paddingVertical: 12,

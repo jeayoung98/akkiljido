@@ -15,10 +15,16 @@ type ScrollProps = {
   children: React.ReactNode;
   height: number; // 스크롤 영역이 보여지는 높이. 이 높이보다 내용이 길 때만 스크롤바가 보인다.
   style?: StyleProp<ViewStyle>;
+  // 스크롤되는 내용물 쪽에 붙는 스타일입니다(예: 맨 아래 여백). 기본값 없이 콘텐츠가 스크롤 영역
+  // 경계에 딱 붙어서, 아코디언을 펼쳤을 때 맨 아래 카드가 미묘하게 잘려 보이는 문제가 있었습니다.
+  contentContainerStyle?: StyleProp<ViewStyle>;
 };
 
 // 흰 트랙 + 초록 막대로 된 커스텀 스크롤바가 있는 스크롤 영역. 트랙을 드래그해서 스크롤 위치를 직접 옮길 수도 있다.
-export const Scroll = forwardRef<ScrollView, ScrollProps>(function Scroll({ children, height, style }, forwardedRef) {
+export const Scroll = forwardRef<ScrollView, ScrollProps>(function Scroll(
+  { children, height, style, contentContainerStyle },
+  forwardedRef,
+) {
   const [contentHeight, setContentHeight] = useState(0);
   const [scrollY, setScrollY] = useState(0);
 
@@ -82,6 +88,7 @@ export const Scroll = forwardRef<ScrollView, ScrollProps>(function Scroll({ chil
       <ScrollView
         ref={setRefs}
         style={{ maxHeight: height, flex: 1 }}
+        contentContainerStyle={contentContainerStyle}
         showsVerticalScrollIndicator={false}
         onScroll={handleScroll}
         scrollEventThrottle={16}
