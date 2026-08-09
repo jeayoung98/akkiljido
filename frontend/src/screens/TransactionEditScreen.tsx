@@ -72,6 +72,9 @@ const TYPE_OPTIONS: { value: TransactionType; label: string; color: string }[] =
   { value: 'income', label: '💰 소득', color: Colors.light.primary },
 ];
 
+/** 구분 드롭다운(Modal) 너비. 트리거 오른쪽 끝에 맞춰 띄우는 위치 계산에도 쓴다. */
+const TYPE_DROPDOWN_WIDTH = 130;
+
 /**
  * 거래 수정 화면입니다.
  * GET /api/v1/transaction/{transactionId}로 기존 값을 불러오고,
@@ -105,6 +108,9 @@ export default function TransactionEditScreen() {
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
   const [isTypeOpen, setIsTypeOpen] = useState(false);
+  // 구분 드롭다운을 Modal로 화면 좌표에 직접 띄우기 위해, 열 때 트리거 위치를 재서 담아둔다.
+  const [typeAnchor, setTypeAnchor] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
+  const typeTriggerRef = useRef<View>(null);
   const isSaving = updateMutation.isPending;
 
   // 소득 거래에는 장소·카테고리·결제 수단 개념이 없어서(등록 화면도 소득이면 이 입력들을 아예 감춥니다)
@@ -162,6 +168,25 @@ export default function TransactionEditScreen() {
     if (nextType === 'income') {
       setIsCategoryOpen(false);
     }
+  };
+
+  /**
+   * 구분 드롭다운을 연다. SelectInput의 dropdownDirection="up"과 같은 방식으로, 트리거 위치를
+   * 먼저 재고 Modal 위에 그 좌표로 띄운다. 예전에는 카테고리 목록처럼 제자리에서 펼쳐 아래
+   * 입력들을 밀어냈는데, 그러면 열 때마다 "구분"과 "가게명" 사이 간격이 넓어져 보였다. absolute로
+   * 그냥 겹쳐 띄우면 부모(ScrollView) 영역 밖이라 터치가 전달되지 않는 문제가 있어(SelectInput.tsx와
+   * 동일한 이유), Modal로 띄워 그 문제를 피한다.
+   */
+  const handleToggleType = () => {
+    if (isTypeOpen) {
+      setIsTypeOpen(false);
+      return;
+    }
+
+    typeTriggerRef.current?.measureInWindow((x, y, width, height) => {
+      setTypeAnchor({ x, y, width, height });
+      setIsTypeOpen(true);
+    });
   };
 
   const handleSelectDay = (day: DateData) => {
@@ -280,10 +305,11 @@ export default function TransactionEditScreen() {
             <View style={styles.typeFieldRow}>
               <Text style={[styles.fieldLabel, styles.typeFieldLabel]}>구분</Text>
               <Pressable
+                ref={typeTriggerRef}
                 accessibilityLabel="소비·소득 구분"
                 accessibilityRole="button"
                 accessibilityState={{ expanded: isTypeOpen }}
-                onPress={() => setIsTypeOpen((current) => !current)}
+                onPress={handleToggleType}
                 style={({ pressed }) => [
                   styles.typeTrigger,
                   { borderColor: selectedTypeOption.color },
@@ -299,39 +325,6 @@ export default function TransactionEditScreen() {
                 />
               </Pressable>
             </View>
-
-            {/*
-              아래 카테고리 목록과 같은 방식으로, 겹쳐 띄우지 않고 제자리에서 펼쳐 아래 입력들을 잠시 밀어낸다.
-              absolute로 겹쳐 띄우면 부모 영역 밖이라 터치가 전달되지 않아 선택이 안 된다.
-            */}
-            {isTypeOpen ? (
-              <View style={styles.typeDropdown}>
-                {TYPE_OPTIONS.map((option) => {
-                  const isSelected = option.value === type;
-                  return (
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityState={{ selected: isSelected }}
-                      key={option.value}
-                      onPress={() => handleSelectType(option.value)}
-                      style={({ pressed }) => [
-                        styles.typeOption,
-                        isSelected && { backgroundColor: `${option.color}1A` },
-                        pressed && styles.pressed,
-                      ]}>
-                      <Text
-                        style={[
-                          styles.typeOptionText,
-                          { color: option.color },
-                          isSelected && styles.typeOptionTextSelected,
-                        ]}>
-                        {option.label}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            ) : null}
 
             <Text style={styles.fieldLabel}>{isIncome ? '항목명' : '가게명'}</Text>
             <View style={styles.nameFieldRow}>
@@ -353,13 +346,9 @@ export default function TransactionEditScreen() {
 
             <Text style={styles.fieldLabel}>금액</Text>
             <View style={styles.amountRow}>
-              {/* 구분은 위 드롭다운에서 고른다. 여기 부호는 고른 결과를 다시 한 번 색으로 보여주기만 한다. */}
-              <View style={[styles.signBadge, { backgroundColor: `${selectedTypeOption.color}1A` }]}>
-                <Text style={[styles.signBadgeText, { color: selectedTypeOption.color }]}>
-                  {isIncome ? '+' : '−'}
-                </Text>
-              </View>
-
+              {/* 부호(+/−)는 위 구분 드롭다운으로 이미 표시되고 있어서(글자·색), 금액 앞에 따로 또
+                  보여주지 않는다. amount 자체는 항상 양수로만 저장·전송되고 부호는 type 필드로만
+                  구분되므로, 이 배지를 빼도 저장 로직에는 영향이 없다. */}
               <NativeTextInput
                 accessibilityLabel="금액"
                 inputMode="numeric"
@@ -524,6 +513,51 @@ export default function TransactionEditScreen() {
           </Pressable>
         </Modal>
       ) : null}
+
+      {/*
+        구분 드롭다운을 트리거 바로 아래, 오른쪽 끝을 맞춰 화면 좌표에 직접 띄운다. SelectInput.tsx의
+        dropdownDirection="up"과 같은 이유로 Modal을 쓴다 — ScrollView 안에서 absolute로 겹쳐 띄우면
+        부모 영역 밖이라 터치가 전달되지 않고, 제자리에서 펼치면 "구분"과 "가게명" 사이 간격이
+        열 때마다 넓어져 보였다.
+      */}
+      {isTypeOpen && typeAnchor ? (
+        <Modal animationType="none" onRequestClose={() => setIsTypeOpen(false)} statusBarTranslucent transparent visible>
+          <Pressable onPress={() => setIsTypeOpen(false)} style={StyleSheet.absoluteFill} />
+          <View
+            style={[
+              styles.typeDropdown,
+              {
+                top: typeAnchor.y + typeAnchor.height + 6,
+                left: typeAnchor.x + typeAnchor.width - TYPE_DROPDOWN_WIDTH,
+              },
+            ]}>
+            {TYPE_OPTIONS.map((option) => {
+              const isSelected = option.value === type;
+              return (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: isSelected }}
+                  key={option.value}
+                  onPress={() => handleSelectType(option.value)}
+                  style={({ pressed }) => [
+                    styles.typeOption,
+                    isSelected && { backgroundColor: `${option.color}1A` },
+                    pressed && styles.pressed,
+                  ]}>
+                  <Text
+                    style={[
+                      styles.typeOptionText,
+                      { color: option.color },
+                      isSelected && styles.typeOptionTextSelected,
+                    ]}>
+                    {option.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </Modal>
+      ) : null}
     </AppScreen>
   );
 }
@@ -578,16 +612,20 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '800',
   },
-  // 제자리에서 펼쳐지는 목록. 트리거(오른쪽 정렬)와 같은 쪽에 붙도록 alignSelf를 준다.
+  // Modal 위에 화면 좌표(top/left)로 직접 띄우는 목록이라, 위치는 인라인 스타일로만 정한다.
   typeDropdown: {
-    alignSelf: 'flex-end',
-    minWidth: 120,
-    marginTop: 6,
+    position: 'absolute',
+    width: TYPE_DROPDOWN_WIDTH,
     padding: 4,
     borderWidth: 1,
     borderColor: Colors.light.border,
     borderRadius: 12,
     backgroundColor: Colors.light.cardBackground,
+    elevation: 8,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.16,
+    shadowRadius: 8,
   },
   typeOption: {
     paddingHorizontal: 10,
@@ -620,17 +658,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
-  signBadge: {
-    width: 36,
-    height: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 12,
-  },
-  signBadgeText: {
-    fontSize: 20,
-    fontWeight: '800',
-  },
   amountInput: {
     // 웹 <input>은 width를 안 주면 브라우저 기본폭(약 20자)을 그대로 가져가 카드 밖으로
     // 넘친다. flexGrow:0으로 내용 길이에 맞게 두되, minWidth:0으로 그 기본폭을 무시하게 한다.
@@ -638,8 +665,6 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     minWidth: 0,
     maxWidth: 160,
-    // 부호 버튼과 금액 사이만 더 띄운다(다른 요소 사이 gap은 그대로 둔다).
-    marginLeft: 16,
     padding: 0,
     color: Colors.light.cardTitle,
     fontSize: 26,

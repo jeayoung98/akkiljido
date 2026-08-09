@@ -76,6 +76,11 @@ export function TransactionCalendarTab({
 }: TransactionCalendarTabProps) {
   const monthWeeks = useMemo(() => getMonthWeeks(month), [month]);
 
+  // 먼 미래까지 무한정 넘겨볼 수 있으면 의미가 없어서, 오늘로부터 3년 뒤 달까지만 이동을 허용한다.
+  const today = new Date();
+  const maxMonth = new Date(today.getFullYear() + 3, today.getMonth(), 1);
+  const isAtMaxMonth = month.getFullYear() === maxMonth.getFullYear() && month.getMonth() === maxMonth.getMonth();
+
   const monthParams = toCalendarParams(month);
   const {
     daySummaries,
@@ -106,7 +111,7 @@ export function TransactionCalendarTab({
 
   return (
     <View style={styles.container}>
-      <MonthPicker month={month} onNext={onNextMonth} onPrev={onPreviousMonth} />
+      <MonthPicker disableNext={isAtMaxMonth} month={month} onNext={onNextMonth} onPrev={onPreviousMonth} />
 
       {/*
         isEmpty를 false로 고정해 로딩 중에도 달력 자체는 그립니다.

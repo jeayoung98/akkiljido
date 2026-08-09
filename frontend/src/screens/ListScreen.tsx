@@ -58,6 +58,13 @@ const ADD_TRANSACTION_TYPE_OPTIONS = [
 const startOfMonth = (date: Date) => new Date(date.getFullYear(), date.getMonth(), 1);
 const endOfMonth = (date: Date) => new Date(date.getFullYear(), date.getMonth() + 1, 0);
 
+// "2026-08-05" -> "8월 5일". 검색 결과는 여러 날짜가 섞여 나오는데 카테고리만 보여서 언제 결제했는지
+// 안 보인다는 피드백이 있어, 카테고리 앞에 날짜를 붙여 보여준다.
+const formatSearchResultDate = (dateString: string) => {
+  const [, month, day] = dateString.split('-');
+  return `${Number(month)}월 ${Number(day)}일`;
+};
+
 // 필터 칩을 한 줄에 2개씩 배치할 때 쓴다. width:'48.5%' + flexWrap 조합은 화면 폭에 따라
 // 계산이 아슬아슬해서(패딩·gap을 조금만 더 먹어도) 기기별로 한 줄에 1개씩 떨어지는 문제가 있었다.
 // 그래서 퍼센트 대신, 두 개씩 묶어 각 줄을 별도의 flex:1 행으로 직접 그려 폭 계산 위험을 없앤다.
@@ -122,9 +129,15 @@ export default function ListScreen() {
   const [isFilterVisible, setIsFilterVisible] = useState(false);
   const [isAddVisible, setIsAddVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const handledInitialTabRef = useRef<TransactionTab | null>(null);
   const isReturningFromMapRef = useRef(false);
   const shouldResetAddFormOnOpenRef = useRef(false);
+  // 아래 focus effect가 매 렌더의 최신 initialTab을 "구독하지 않고" 읽기 위한 ref.
+  // useFocusEffect(useCallback(...))는 콜백 deps가 바뀔 때마다 실제 focus 이벤트 없이도 즉시
+  // 한 번 더 실행되는 구현이라(SaveAlarmModal.tsx 등에서 이미 겪은 문제), initialTab을 deps에
+  // 넣으면 아래에서 그 값을 지우는 router.setParams 호출 자체가 effect를 곧장 재실행시켜
+  // 방금 반영한 탭을 되돌려버린다. deps 없이 ref로만 최신값을 읽어 이 문제를 피한다.
+  const initialTabRef = useRef(initialTab);
+  initialTabRef.current = initialTab;
 
   const {
     categories,
@@ -248,28 +261,34 @@ export default function ListScreen() {
   // 탭 화면은 전환해도 언마운트되지 않아서, useState 초기값은 이 화면에 "처음" 들어올 때만 적용된다.
   // 그 뒤로는 "더보기" 링크로 다시 들어와도(쿼리는 여전히 붙어 있지만) 이미 마운트돼 있어 무시된다.
   // useFocusEffect로 포커스가 올 때마다 쿼리의 tab을 다시 반영해서, 홈 화면 더보기를 몇 번을 눌러도
-  // 항상 그 탭으로 이동하게 한다.
+  // 항상 그 탭으로 이동하게 한다. 한 번 반영한 뒤에는 setParams로 쿼리를 지워서, 이후 하단 탭
+  // 아이콘을 눌러 다시 돌아오는 등 "쿼리 없는" 평범한 재방문까지 계속 이 탭으로 강제되지 않게 한다
+  // (예전에는 ref로 "이미 처리했는지"만 기억했는데, 그러면 같은 카드를 두 번째 눌렀을 때 값이 안
+  // 바뀌었다는 이유로 무시되고 오히려 기본 화면(list)으로 되돌아가버리는 문제가 있었다).
   //
   // 지도 선택에서 돌아오는 것도 이 화면 입장에서는 똑같은 "포커스 복귀"라서, 그 처리도 이 effect
-  // 안에서 같이 한다. 처음에는 pickedLocation을 useMapPickerStore(selector)로 구독해서 deps에
-  // 넣었는데, expo-router의 useFocusEffect(useCallback(...))는 콜백 참조가 바뀔 때마다(=deps 중
-  // 하나라도 바뀔 때마다) 실제 focus 이벤트를 기다리지 않고 즉시 한 번 더 실행되는 구현이라
-  // (SaveAlarmModal.tsx에서 같은 이유로 이미 한 번 겪은 문제), map-picker 화면에서
-  // setPickedLocation이 호출되는 순간(아직 이 화면으로 돌아오기도 전) 이 effect가 먼저 실행돼
-  // isReturningFromMapRef를 리셋해버렸다. 그러면 뒤이어 실제 focus가 돌아왔을 때 다시 실행되는
-  // effect는 "지도에서 돌아온 게 아니다"로 오판하고 방금 조용히 열어둔 추가 시트를 곧장 닫아버렸다.
-  // 그래서 pickedLocation을 deps로 구독하지 않고, 실제 focus 시점에 store에서 직접 한 번만
-  // 읽어(getState) 그때그때의 최신값을 쓰도록 바꿨다 — 이러면 이 effect는 store 값 변화와 무관하게
-  // 오직 진짜 focus 이벤트에서만 실행된다.
+  // 안에서 같이 한다. pickedLocation을 useMapPickerStore(selector)로 구독해서 deps에 넣으면,
+  // expo-router의 useFocusEffect(useCallback(...))는 콜백 참조가 바뀔 때마다(=deps 중 하나라도
+  // 바뀔 때마다) 실제 focus 이벤트를 기다리지 않고 즉시 한 번 더 실행되는 구현이라(SaveAlarmModal.tsx
+  // 에서 같은 이유로 이미 한 번 겪은 문제) map-picker 화면에서 setPickedLocation이 호출되는
+  // 순간(아직 이 화면으로 돌아오기도 전) 이 effect가 먼저 실행돼버린다. initialTab도 마찬가지라서
+  // (아래에서 setParams로 지우는 순간 다시 즉시 실행돼 방금 반영한 탭을 되돌려버린다), 이 effect는
+  // deps 없이(오직 진짜 focus 이벤트에서만) 실행되게 하고, pickedLocation·initialTab 둘 다 최신값을
+  // ref(useMapPickerStore.getState(), initialTabRef)로만 읽는다.
   useFocusEffect(
     useCallback(() => {
+      const currentInitialTab = initialTabRef.current;
       const requestedTab =
-        initialTab === 'calendar' || initialTab === 'analysis' ? initialTab : null;
+        currentInitialTab === 'calendar' || currentInitialTab === 'analysis' ? currentInitialTab : null;
 
-      // 외부 화면에서 전달한 캘린더·분석 탭은 첫 진입에만 적용한다.
-      if (requestedTab && handledInitialTabRef.current !== requestedTab) {
+      if (requestedTab) {
         setTab(requestedTab);
-        handledInitialTabRef.current = requestedTab;
+        // 홈 화면 "카테고리별 지출" 카드는 항상 카테고리별 분석을 기대하고 들어오므로, 이전에
+        // 장소 분석을 보고 있었더라도 분석 탭 진입 시점에는 항상 카테고리 모드로 되돌린다.
+        if (requestedTab === 'analysis') {
+          setAnalysisMode('category');
+        }
+        router.setParams({ tab: undefined });
         return;
       }
 
@@ -294,7 +313,7 @@ export default function ListScreen() {
       // 그 외 하단 탭 이동 뒤에는 다음 거래 추가를 빈 양식으로 시작한다.
       setIsAddVisible(false);
       shouldResetAddFormOnOpenRef.current = true;
-    }, [initialTab]),
+    }, []),
   );
 
   const handleOpenMapPicker = () => {
@@ -538,8 +557,8 @@ export default function ListScreen() {
                           amount={record.amount}
                           description={
                             record.transactionCount > 1
-                              ? `${record.categoryName} · ${record.transactionCount}건`
-                              : record.categoryName
+                              ? `${formatSearchResultDate(record.transactionDate)} · ${record.categoryName} · ${record.transactionCount}건`
+                              : `${formatSearchResultDate(record.transactionDate)} · ${record.categoryName}`
                           }
                           leading={<CategoryIcon categoryId={record.categoryId} categoryName={record.categoryName} size={20} type={record.type} />}
                           onPress={() => handleOpenDetail(String(record.transactionId))}
