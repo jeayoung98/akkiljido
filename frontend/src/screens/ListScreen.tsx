@@ -515,7 +515,10 @@ export default function ListScreen() {
 
   return (
     <>
-      <AppScreen scrollable backgroundColor={Colors.light.cardBackground}>
+      {/* AppScreen의 scrollable(내부 ScrollView가 헤더까지 통째로 감싸는 방식) 대신, 과거 리포트
+          화면(ReportScreen.tsx)과 같은 패턴으로 헤더를 스크롤 영역 밖에 직접 두고, 그 아래 내용만
+          별도 ScrollView로 감싼다. 그래야 스크롤해도 헤더(검색줄 포함)가 항상 위에 고정된다. */}
+      <AppScreen backgroundColor={Colors.light.cardBackground}>
         {isSearching ? (
           <View style={styles.searchHeader}>
             <SearchInput
@@ -537,7 +540,7 @@ export default function ListScreen() {
           />
         )}
 
-        <View style={styles.body}>
+        <ScrollView contentContainerStyle={styles.body} style={styles.bodyScroll}>
           {isSearching ? (
             <View style={styles.section}>
               {searchQuery.trim() === '' ? (
@@ -606,7 +609,7 @@ export default function ListScreen() {
               ) : null}
             </>
           )}
-        </View>
+        </ScrollView>
       </AppScreen>
 
       {/* 지도 필터(MapScreen.tsx)와 동일하게 min=max로 고정해서, 열자마자 아래 초기화/적용하기
@@ -765,6 +768,7 @@ function FilterSection({ label, children, actionLabel, onAction }: FilterSection
 const styles = StyleSheet.create({
   searchHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: Colors.light.border, backgroundColor: Colors.light.cardBackground },
   searchInput: { flex: 1 },
+  bodyScroll: { backgroundColor: Colors.light.cardBackground },
   body: { flexGrow: 1, backgroundColor: Colors.light.background },
   section: { padding: 16, gap: 14 },
   card: { padding: 8, borderRadius: 16, backgroundColor: Colors.light.cardBackground, borderWidth: 1, borderColor: Colors.light.border },

@@ -12,6 +12,7 @@
     },
     "android": {
       "package": "com.a508.googlelogintest",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#F3F8F4",
         "foregroundImage": "./assets/images/android-icon-foreground.png",

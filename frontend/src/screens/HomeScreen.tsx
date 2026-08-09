@@ -16,11 +16,11 @@ import type { LatLng } from '@/components/map/KakaoMap';
 import { ReportModal } from '@/components/report/ReportModal';
 import { ReportRecommendationsModal } from '@/components/report/RecommendModal';
 import Colors from '@/constants/Colors';
+import { useSaveRecommendedAlarm } from '@/hooks/useSaveRecommendedAlarm';
 import { useShowOncePerPeriod } from '@/hooks/useShowOncePerPeriod';
 import type { CategorySummaryItem, NearbyExpensePlace } from '@/mocks/home';
 import { getTodayExpenseAmount } from '@/src/api/calendarApi';
 import { getCategorySummary, getRecentExpenses } from '@/src/api/homeApi';
-import { createNotificationPlace } from '@/src/api/notificationPlaceApi';
 import { getLatestReportDetail, getReportDetail } from '@/src/api/reportApi';
 import { getMyProfile } from '@/src/api/usersApi';
 import { useDevModeStore } from '@/store/devModeStore';
@@ -32,10 +32,6 @@ import {
   toReportModalData,
   toReportRecommendations,
 } from '@/utils/reportAdapters';
-import {
-  loadNotificationPlaces,
-  saveNotificationPlaces,
-} from '@/utils/notificationPlaceStorage';
 import { getWeekIdentifier } from '@/utils/reportSchedule';
 
 const LAST_SHOWN_WEEK_STORAGE_KEY = 'report:lastShownWeek';
@@ -72,7 +68,9 @@ export default function HomeScreen() {
   const [recommendVisible, setRecommendVisible] = useState(false);
   const [saveAlarmVisible, setSaveAlarmVisible] = useState(false);
   const [selectedAlarm, setSelectedAlarm] = useState<AlarmFormValue | null>(null);
-  const [alarmSaving, setAlarmSaving] = useState(false);
+  const { saveAlarm: handleSaveRecommendedAlarm, saving: alarmSaving } = useSaveRecommendedAlarm(() =>
+    setSaveAlarmVisible(false),
+  );
   const isDevMode = useDevModeStore((state) => state.isDevMode);
 
   const pendingReport = useReportPopupStore((state) => state.pending);
@@ -103,54 +101,6 @@ export default function HomeScreen() {
     setReportVisible(false);
     closeReport();
   }, [closeReport]);
-
-  /**
-   * 추천 위치 알림을 실제로 등록한다(POST /api/v1/notification).
-   *
-   * 저장 뒤에는 SaveAlarmModal만 닫아서 추천 목록으로 되돌아가게 한다 — 한 리포트에 추천이
-   * 최대 3건이라, 하나 저장했다고 흐름 전체를 닫으면 나머지를 또 열어야 한다.
-   * 알림 설정 화면과 마찬가지로, 백그라운드 위치 태스크가 읽는 로컬 목록에도 같이 반영한다.
-   */
-  const handleSaveRecommendedAlarm = async (value: AlarmFormValue) => {
-    try {
-      setAlarmSaving(true);
-
-      const created = await createNotificationPlace({
-        notificationPlaceName: value.name,
-        address: value.address,
-        latitude: value.lat,
-        longitude: value.lng,
-        startTime: value.startTime,
-        endTime: value.endTime,
-        reason: value.reason,
-      });
-
-      // 헤드리스 위치 태스크는 API가 아니라 이 로컬 목록만 읽는다. 여기 반영이 빠지면
-      // 방금 등록한 장소에 가도 알림이 울리지 않는다.
-      // (생성 응답 스키마가 Swagger에 비어 있어서, 실제로 id가 왔을 때만 로컬에 반영한다.
-      //  못 받았더라도 서버에는 저장됐고, 알림 설정 화면에 들어가면 목록째 다시 동기화된다.)
-      if (created?.notificationPlaceId !== undefined) {
-        try {
-          const storedPlaces = await loadNotificationPlaces();
-          await saveNotificationPlaces([
-            ...storedPlaces.filter(
-              (place) => place.notificationPlaceId !== created.notificationPlaceId,
-            ),
-            created,
-          ]);
-        } catch (error) {
-          console.error('[home] notification place local sync failed', error);
-        }
-      }
-
-      setSaveAlarmVisible(false);
-    } catch (error) {
-      console.error('[home] notification place save failed', error);
-      Alert.alert('위치 알림 저장에 실패했어요', error instanceof Error ? error.message : undefined);
-    } finally {
-      setAlarmSaving(false);
-    }
-  };
 
   // 푸시 data에 전문이 실려 오지 못한 경우(reportPayload=ID_ONLY)에만 상세를 조회한다.
   // FULL로 왔으면 이 효과는 아무 일도 하지 않으므로, 알림을 탭한 직후 네트워크 없이 바로 그려진다.
@@ -348,8 +298,8 @@ export default function HomeScreen() {
         <View style={styles.profileRow}>
           <Image source={require('@/assets/images/profile-icon.png')} style={styles.profileIcon} />
           <View>
-            <Text style={styles.greeting}>안녕하세요 {nickname}</Text>
-            <Text style={styles.greetingSubtitle}>오늘도 함께 알뜰하게!</Text>
+            <Text style={styles.greeting}>안녕하세요, {nickname} 님</Text>
+            <Text style={styles.greetingSubtitle}>오늘도 소비를 지도 위에서 확인해보아요!</Text>
           </View>
         </View>
 
