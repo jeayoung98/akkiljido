@@ -43,3 +43,6 @@ yarn-error.*
 
 # scratch test file
 /app/test.tsx
+
+# fcm
+google-services.json

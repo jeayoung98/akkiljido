@@ -32,9 +32,13 @@ async function getDevicePushToken(): Promise<string | null> {
 /**
  * 로그인 상태라면 이 기기의 푸시 토큰을 서버에 등록한다.
  *
- * 로그인 직후와 앱 시작(세션 복구) 시점에 호출한다. 토큰은 OS가 재발급할 수 있어서
- * "한 번 등록했으면 끝"이 아니라 켤 때마다 다시 올린다(서버가 upsert 한다).
- * 리포트 푸시 엔드포인트가 ROLE_USER 전용이라 닉네임 설정 전(GUEST)에는 건너뛴다.
+ * 호출 시점은 로그인 경로 세 군데뿐이다.
+ * 1. 구글 로그인 성공 직후(role=USER)
+ * 2. 닉네임 등록으로 GUEST -> USER가 된 직후
+ * 3. 저장된 세션으로 자동 로그인해 들어올 때
+ *
+ * 토큰은 OS가 재발급할 수 있어서 "한 번 등록했으면 끝"이 아니라 로그인할 때마다 다시 올린다
+ * (서버가 upsert 한다). 리포트 푸시 엔드포인트가 ROLE_USER 전용이라 닉네임 설정 전(GUEST)에는 건너뛴다.
  */
 export async function syncPushTokenRegistration(): Promise<void> {
   const session = await getAuthSession();

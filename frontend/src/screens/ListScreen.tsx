@@ -540,7 +540,12 @@ export default function ListScreen() {
           />
         )}
 
-        <ScrollView contentContainerStyle={styles.body} style={styles.bodyScroll}>
+        {/* 헤더는 AppScreen 바로 아래에 남기고, 거래 목록·캘린더·분석 본문만 스크롤합니다. */}
+        <ScrollView
+          contentContainerStyle={styles.bodyContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          style={styles.body}>
           {isSearching ? (
             <View style={styles.section}>
               {searchQuery.trim() === '' ? (
@@ -768,8 +773,8 @@ function FilterSection({ label, children, actionLabel, onAction }: FilterSection
 const styles = StyleSheet.create({
   searchHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: Colors.light.border, backgroundColor: Colors.light.cardBackground },
   searchInput: { flex: 1 },
-  bodyScroll: { backgroundColor: Colors.light.cardBackground },
-  body: { flexGrow: 1, backgroundColor: Colors.light.background },
+  body: { flex: 1, backgroundColor: Colors.light.background },
+  bodyContent: { flexGrow: 1 },
   section: { padding: 16, gap: 14 },
   card: { padding: 8, borderRadius: 16, backgroundColor: Colors.light.cardBackground, borderWidth: 1, borderColor: Colors.light.border },
   divider: { height: StyleSheet.hairlineWidth, backgroundColor: Colors.light.border },
