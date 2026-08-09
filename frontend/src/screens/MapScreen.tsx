@@ -9,6 +9,7 @@ import BottomSheet from '@/components/common/BottomSheet';
 import { Button } from '@/components/common/button/Button';
 import { IconButton } from '@/components/common/button/IconButton';
 import AccordionCard from '@/components/common/card/AccordionCard';
+import BaseCard from '@/components/common/card/BaseCard';
 import InfoListItem from '@/components/common/card/InfoListItem';
 import { Chip } from '@/components/common/chip/Chip';
 import { DateInput } from '@/components/common/input/DateInput';
@@ -131,6 +132,14 @@ export default function MapScreen() {
   const [searchText, setSearchText] = useState('');
   // 검색해서 찾은 장소. 있으면 지도 중심과 선택 핀으로 쓰인다.
   const [searchedPlace, setSearchedPlace] = useState<PlaceResult | null>(null);
+  // 검색 결과 목록. MapPickerScreen과 같은 방식(카드 목록 + 지도 핀)으로 보여준다.
+  const [searchResults, setSearchResults] = useState<PlaceResult[]>([]);
+  const [hasSearchResults, setHasSearchResults] = useState(false);
+  // 지도의 검색 핀을 눌렀을 때 그 핀에 해당하는 카드를 강조하기 위한 인덱스.
+  const [highlightedResultIndex, setHighlightedResultIndex] = useState<number | null>(null);
+  const searchScrollRef = useRef<ScrollView>(null);
+  // 각 카드가 리스트 안에서 세로로 몇 px 위치에 있는지 기록해뒀다가, 핀 클릭 시 그 위치로 스크롤한다.
+  const searchCardOffsets = useRef<number[]>([]);
   const [currentLocation, setCurrentLocation] = useState<LatLng | null>(null);
   // 카카오맵의 현재 줌 레벨. 줌 버튼으로 바꾸든 손가락으로 핀치줌하든 onLevelChange로 여기 반영된다.
   const [currentLevel, setCurrentLevel] = useState(INITIAL_LEVEL);
@@ -406,25 +415,56 @@ export default function MapScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // 검색어로 장소를 찾아 지도 중심을 그 위치로 옮긴다.
+  // 검색어로 장소를 찾아 목록으로 보여준다. MapPickerScreen과 동일하게, 지금 보고 있는 지도
+  // 중심을 기준 좌표로 넘겨서 결과가 "여기서 가까운 순"으로 정렬되게 한다.
   const handleSearch = async () => {
     if (!searchText.trim()) {
       return;
     }
-    let results;
+    const searchCenter = mapBounds
+      ? { lat: (mapBounds.south + mapBounds.north) / 2, lng: (mapBounds.west + mapBounds.east) / 2 }
+      : (currentLocation ?? undefined);
+    let places;
     try {
-      results = await searchPlaces(searchText);
+      places = await searchPlaces(searchText, searchCenter);
     } catch {
       Alert.alert('검색에 실패했어요', '잠시 후 다시 시도해주세요.');
       return;
     }
-    if (results.length > 0) {
+    setSearchResults(places);
+    setHasSearchResults(true);
+    setHighlightedResultIndex(null);
+    setSearchedPlace(null);
+    if (places.length > 0) {
       userMovedMapRef.current = true;
-      setSearchedPlace(results[0]);
       // 좌표값이 이전과 같으면 initialCenter가 안 바뀌어 지도가 안 움직일 수 있으니,
       // 명령형으로 직접 지도 중심을 옮겨서 항상 확실히 이동시킨다("내 위치" 버튼과 같은 방식).
-      mapRef.current?.setCenter({ lat: results[0].lat, lng: results[0].lng });
+      mapRef.current?.setCenter({ lat: places[0].lat, lng: places[0].lng });
     }
+  };
+
+  // 결과 카드에서 선택 버튼 제외한 부분을 눌렀을 때. 지도만 그 위치로 옮기고, 그 카드를 강조 표시한다.
+  const handlePreviewSearchResult = (place: PlaceResult, index: number) => {
+    userMovedMapRef.current = true;
+    setHighlightedResultIndex(index);
+    mapRef.current?.setCenter({ lat: place.lat, lng: place.lng });
+  };
+
+  // 결과 카드의 "선택" 버튼을 눌렀을 때. 이 위치를 검색된 장소로 확정하고 목록을 닫는다.
+  const handleSelectSearchResult = (place: PlaceResult) => {
+    userMovedMapRef.current = true;
+    setSearchedPlace(place);
+    setSearchText(place.name);
+    setHasSearchResults(false);
+    setSearchResults([]);
+    mapRef.current?.setCenter({ lat: place.lat, lng: place.lng });
+  };
+
+  // 지도의 검색 결과 핀을 눌렀을 때. 그 핀에 해당하는 카드로 리스트를 스크롤하고 강조 표시한다.
+  const handleSearchPinPress = (index: number) => {
+    setHighlightedResultIndex(index);
+    const offset = searchCardOffsets.current[index] ?? 0;
+    searchScrollRef.current?.scrollTo({ y: offset, animated: true });
   };
 
   const center = searchedPlace
@@ -728,10 +768,12 @@ export default function MapScreen() {
         myLocation={currentLocation ?? undefined}
         myPlaceCircle={selectedPlace ? { lat: selectedPlace.latitude, lng: selectedPlace.longitude } : undefined}
         markers={markers}
+        pins={searchResults.map((place) => ({ lat: place.lat, lng: place.lng }))}
         selectedPin={searchedPlace ? { lat: searchedPlace.lat, lng: searchedPlace.lng } : undefined}
         onBoundsChange={setMapBounds}
         onLevelChange={setCurrentLevel}
         onMarkerPress={handleMarkerPress}
+        onPinPress={handleSearchPinPress}
         onRoadviewChange={setRoadviewOpen}
         onRoadviewUnavailable={() =>
           Alert.alert('로드뷰가 없는 지점이에요', '파란 선이 표시된 도로 근처를 눌러주세요.')
@@ -879,6 +921,93 @@ export default function MapScreen() {
             }}
           />
         </>
+      )}
+
+      {/* 검색 결과 목록. MapPickerScreen과 같은 구성(카드 목록 + 지도 핀)이다. 아래 "내 장소" 시트를
+          가리지 않도록 그 시트의 현재 보이는 높이(sheetVisibleHeight)만큼 위로 띄운다. */}
+      {hasSearchResults && (
+        searchResults.length > 0 ? (
+          <View
+            style={{
+              position: 'absolute',
+              bottom: insets.bottom + sheetVisibleHeight + 16,
+              left: 16,
+              right: 16,
+              backgroundColor: Colors.light.cardMutedBackground,
+              borderRadius: 16,
+              padding: 12,
+              maxHeight: 220,
+            }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <Text style={{ color: Colors.light.textSecondary }}>
+                가까운 순 · 검색 결과 {searchResults.length}개
+              </Text>
+              <IconButton
+                name="close"
+                onPress={() => {
+                  setHasSearchResults(false);
+                  setSearchResults([]);
+                }}
+              />
+            </View>
+
+            <Scroll ref={searchScrollRef} height={160}>
+              {searchResults.map((place, index) => (
+                <View
+                  key={`${place.lat}-${place.lng}`}
+                  style={{ marginBottom: 8 }}
+                  onLayout={(event) => {
+                    searchCardOffsets.current[index] = event.nativeEvent.layout.y;
+                  }}>
+                  <BaseCard
+                    style={[
+                      { flexDirection: 'row', alignItems: 'center', gap: 8 },
+                      highlightedResultIndex === index && { borderWidth: 2, borderColor: Colors.light.primary },
+                    ]}>
+                    <Pressable
+                      style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 4 }}
+                      onPress={() => handlePreviewSearchResult(place, index)}>
+                      <View style={{ flex: 1 }}>
+                        <Text>{place.name}</Text>
+                        <Text style={{ color: Colors.light.textSecondary }}>{place.address}</Text>
+                      </View>
+                      <View
+                        style={{
+                          width: 28,
+                          height: 28,
+                          borderRadius: 999,
+                          backgroundColor: Colors.light.primary,
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}>
+                        <Ionicons name="location" size={16} color="#fff" />
+                      </View>
+                    </Pressable>
+                    <Button
+                      variant="green"
+                      style={{ height: 36, paddingHorizontal: 16 }}
+                      onPress={() => handleSelectSearchResult(place)}>
+                      선택
+                    </Button>
+                  </BaseCard>
+                </View>
+              ))}
+            </Scroll>
+          </View>
+        ) : (
+          <View
+            style={{
+              position: 'absolute',
+              bottom: insets.bottom + sheetVisibleHeight + 16,
+              left: 16,
+              right: 16,
+              backgroundColor: Colors.light.cardMutedBackground,
+              borderRadius: 16,
+              padding: 16,
+            }}>
+            <Text style={{ textAlign: 'center', color: Colors.light.textSecondary }}>검색 결과가 없어요.</Text>
+          </View>
+        )
       )}
 
       {/* 내 장소 목록. 드래그로 높이를 바꿀 수 있고, 배경(지도)은 계속 조작 가능하다.

@@ -27,9 +27,13 @@ export default function AppScreen({
       <SafeAreaView
         style={[styles.safeArea, backgroundStyle, contentSafeAreaStyle]}
         edges={['left', 'right']}>
-        {/* 키보드가 올라오면 화면 높이를 줄여 하단의 TextInput·SearchInput 등이 가려지지 않게 합니다. */}
+        {/* 키보드가 올라오면 화면 높이를 줄여 하단의 TextInput·SearchInput 등이 가려지지 않게 합니다.
+            Android는 AndroidManifest의 windowSoftInputMode="adjustResize"가 이미 화면 전체를
+            키보드 높이만큼 줄여주므로, 여기서 또 'height'로 줄이면 이중으로 줄어들어 그만큼
+            배경색이 빈 공간으로 드러난다(모달 뒤에 깔린 화면에서도 키보드 이벤트에 반응하기 때문에
+            더 눈에 띈다). 그래서 Android에서는 behavior를 주지 않고 OS 처리에 맡긴다. */}
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={styles.container}>
           {/* 화면 성격에 따라 스크롤 컨테이너와 고정 컨테이너를 선택합니다. */}
           {scrollable ? (
