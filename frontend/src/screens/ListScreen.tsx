@@ -36,7 +36,6 @@ import { TransactionAnalysisTab, type AnalysisMode } from '@/src/screens/transac
 import { TransactionCalendarTab } from '@/src/screens/transaction/TransactionCalendarTab';
 import { TransactionListTab } from '@/src/screens/transaction/TransactionListTab';
 import { useMapPickerStore } from '@/store/mapPickerStore';
-import { groupTransactions } from '@/src/utils/groupTransactions';
 
 type PeriodFilter = 'thisMonth' | 'last3Months' | 'custom';
 
@@ -245,11 +244,6 @@ export default function ListScreen() {
     error: searchError,
     refetch: refetchSearch,
   } = useTransactionSearch({ ...listQuery, query: searchQuery });
-  const groupedSearchResults = useMemo(
-    () => groupTransactions(searchResults, (transaction) => transaction.transactionDate),
-    [searchResults],
-  );
-
   // 상세 화면에서 수정·삭제하면 그 훅이 거래 캐시를 무효화하므로, 목록으로 돌아오면 자동으로 최신 값을 다시 받아옵니다.
   const createMutation = useCreateTransaction();
   const isSubmitting = createMutation.isPending;
@@ -554,20 +548,16 @@ export default function ListScreen() {
                 <AsyncStateView
                   emptyMessage="검색 결과가 없습니다."
                   error={searchError}
-                  isEmpty={groupedSearchResults.length === 0}
+                  isEmpty={searchResults.length === 0}
                   isLoading={isSearchLoading}
                   onRetry={refetchSearch}>
                   <View style={styles.card}>
-                    {groupedSearchResults.map((record, index) => (
+                    {searchResults.map((record, index) => (
                       <View key={record.transactionId}>
                         {index > 0 ? <View style={styles.divider} /> : null}
                         <TransactionItem
                           amount={record.amount}
-                          description={
-                            record.transactionCount > 1
-                              ? `${formatSearchResultDate(record.transactionDate)} · ${record.categoryName} · ${record.transactionCount}건`
-                              : `${formatSearchResultDate(record.transactionDate)} · ${record.categoryName}`
-                          }
+                          description={`${formatSearchResultDate(record.transactionDate)} · ${record.categoryName}`}
                           leading={<CategoryIcon categoryId={record.categoryId} categoryName={record.categoryName} size={20} type={record.type} />}
                           onPress={() => handleOpenDetail(String(record.transactionId))}
                           title={record.name}
