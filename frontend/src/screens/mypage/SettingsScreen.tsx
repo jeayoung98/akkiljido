@@ -1,5 +1,4 @@
 import * as Location from 'expo-location';
-import * as Notifications from 'expo-notifications';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, Alert, Linking, StyleSheet, View } from 'react-native';
 import { Text } from '@/components/common/typography/Text';
@@ -11,7 +10,11 @@ import { Switch } from '@/components/my/Switch';
 import Colors from '@/constants/Colors';
 import { useDevModeStore } from '@/store/devModeStore';
 import { startBackgroundLocationTracking, stopBackgroundLocationTracking } from '@/utils/backgroundLocationTask';
-import { clearPresentedNotifications } from '@/utils/localNotifications';
+import {
+  clearPresentedNotifications,
+  getNotificationPermission,
+  requestNotificationPermission,
+} from '@/utils/localNotifications';
 
 /** 마이페이지 > 설정 화면입니다. 알람·위치 권한 스위치는 실제 OS 권한 상태를 그대로 보여줍니다. */
 export default function SettingsScreen() {
@@ -26,12 +29,10 @@ export default function SettingsScreen() {
 
   // 스위치는 로컬 state가 아니라 실제 OS 알림/위치 권한 상태를 그대로 보여준다.
   const syncAlarmPermission = useCallback(async () => {
-    try {
-      const { status } = await Notifications.getPermissionsAsync();
-      setAlarmPermission(status === 'granted');
-    } catch (error) {
-      console.error('[settings] notification permission check failed', error);
-    }
+    // expo-notifications를 정적으로 import하면 Expo Go에서 앱 전체가 죽어서(utils/localNotifications.ts
+    // 상단 주석 참고) 지연 로드 헬퍼를 통해서만 접근한다.
+    const { granted } = await getNotificationPermission();
+    setAlarmPermission(granted);
   }, []);
 
   const syncLocationPermission = useCallback(async () => {
@@ -65,22 +66,18 @@ export default function SettingsScreen() {
 
   const handleAlarmPermissionChange = async (next: boolean) => {
     if (next) {
-      try {
-        const { status, canAskAgain } = await Notifications.requestPermissionsAsync();
-        if (status === 'granted') {
-          setAlarmPermission(true);
-          void startBackgroundLocationTracking();
-          return;
-        }
-        // OS가 다시 물어볼 수 없는 상태(한 번 거부됨)면 앱 안에서는 더 할 수 있는 게 없어 설정 앱으로 안내한다.
-        if (!canAskAgain) {
-          Alert.alert('알람 권한이 꺼져 있어요', '설정 앱에서 알람 권한을 켜주세요.', [
-            { text: '취소', style: 'cancel' },
-            { text: '설정으로 이동', onPress: () => Linking.openSettings() },
-          ]);
-        }
-      } catch (error) {
-        console.error('[settings] notification permission request failed', error);
+      const { granted, canAskAgain } = await requestNotificationPermission();
+      if (granted) {
+        setAlarmPermission(true);
+        void startBackgroundLocationTracking();
+        return;
+      }
+      // OS가 다시 물어볼 수 없는 상태(한 번 거부됨)면 앱 안에서는 더 할 수 있는 게 없어 설정 앱으로 안내한다.
+      if (!canAskAgain) {
+        Alert.alert('알람 권한이 꺼져 있어요', '설정 앱에서 알람 권한을 켜주세요.', [
+          { text: '취소', style: 'cancel' },
+          { text: '설정으로 이동', onPress: () => Linking.openSettings() },
+        ]);
       }
       return;
     }
