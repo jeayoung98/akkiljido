@@ -18,6 +18,7 @@ import { KakaoMap, type KakaoMapHandle, type LatLng, type MapMarker } from '@/co
 import { Scroll } from '@/components/common/Scroll';
 import { MapZoom } from '@/components/map/MapZoom';
 import Colors from '@/constants/Colors';
+import { useKeyboardHeight } from '@/hooks/useKeyboardHeight';
 import { getCategoryColorById, getCategoryIconKey } from '@/constants/categories';
 import { getCategories, type Category } from '@/src/api/categoryApi';
 import {
@@ -118,16 +119,24 @@ function formatManwon(amount: number) {
   return `${Math.round(amount / 10000)}만원`;
 }
 
-// "2026-07-17 09:20:00+09" -> "7월 17일 · 09:20"
+// "2026-07-17" -> "7월 17일"
 function formatDateOnly(date: string) {
   const [, month, day] = date.split('-');
   return `${Number(month)}월 ${Number(day)}일`;
+}
+
+// "2026-07-17 09:20:00+09" -> "09:20". 실제 거래에 기록된 시각을 그대로 잘라 쓴다(임의 생성 아님).
+function formatTimeOnly(datetime: string) {
+  const timePart = datetime.split(' ')[1] ?? '';
+  return timePart.slice(0, 5);
 }
 
 // 지도 탭 화면. 검색·필터·내 위치·내 장소 목록을 잡아두고,
 // 줌 컨트롤/마커 라벨/클러스터링은 이 화면이 자리 잡은 뒤에 이어서 붙인다.
 export default function MapScreen() {
   const insets = useSafeAreaInsets();
+  // 검색 결과 패널이 키보드에 가리지 않도록 MapPickerScreen과 같은 방식으로 띄운다.
+  const keyboardHeight = useKeyboardHeight();
   const mapRef = useRef<KakaoMapHandle>(null);
   const [searchText, setSearchText] = useState('');
   // 검색해서 찾은 장소. 있으면 지도 중심과 선택 핀으로 쓰인다.
@@ -483,6 +492,15 @@ export default function MapScreen() {
     setHighlightedResultIndex(index);
     const offset = searchCardOffsets.current[index] ?? 0;
     searchScrollRef.current?.scrollTo({ y: offset, animated: true });
+  };
+
+  // 검색 결과 패널의 X 버튼. 검색 관련 상태를 전부 지워서 화면을 검색 시작 전 기본 상태로 되돌린다
+  // (이때 hasSearchResults가 false가 되면서 "내 장소" 시트가 다시 visible={true}로 올라온다).
+  const handleCloseSearchResults = () => {
+    setHasSearchResults(false);
+    setSearchResults([]);
+    setSearchText('');
+    setHighlightedResultIndex(null);
   };
 
   const center = searchedPlace
@@ -941,14 +959,15 @@ export default function MapScreen() {
         </>
       )}
 
-      {/* 검색 결과 목록. MapPickerScreen과 같은 구성(카드 목록 + 지도 핀)이다. 아래 "내 장소" 시트를
-          가리지 않도록 그 시트의 현재 보이는 높이(sheetVisibleHeight)만큼 위로 띄운다. */}
+      {/* 검색 결과 목록. MapPickerScreen의 검색 결과 패널과 같은 구성·위치(카드 목록 + 지도 핀,
+          키보드 높이만큼 띄우기)를 그대로 재사용한다. 아래 "내 장소" 시트와 겹쳐 보이지 않도록,
+          검색 중에는 그 시트를 visible={false}로 내려서 화면에 시트가 하나만 보이게 한다. */}
       {hasSearchResults && (
         searchResults.length > 0 ? (
           <View
             style={{
               position: 'absolute',
-              bottom: insets.bottom + sheetVisibleHeight + 16,
+              bottom: 16 + keyboardHeight,
               left: 16,
               right: 16,
               backgroundColor: Colors.light.cardMutedBackground,
@@ -962,10 +981,7 @@ export default function MapScreen() {
               </Text>
               <IconButton
                 name="close"
-                onPress={() => {
-                  setHasSearchResults(false);
-                  setSearchResults([]);
-                }}
+                onPress={handleCloseSearchResults}
               />
             </View>
 
@@ -1016,23 +1032,28 @@ export default function MapScreen() {
           <View
             style={{
               position: 'absolute',
-              bottom: insets.bottom + sheetVisibleHeight + 16,
+              bottom: 16 + keyboardHeight,
               left: 16,
               right: 16,
               backgroundColor: Colors.light.cardMutedBackground,
               borderRadius: 16,
               padding: 16,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
             }}>
-            <Text style={{ textAlign: 'center', color: Colors.light.textSecondary }}>검색 결과가 없어요.</Text>
+            <Text style={{ color: Colors.light.textSecondary }}>검색 결과가 없어요.</Text>
+            <IconButton name="close" onPress={handleCloseSearchResults} />
           </View>
         )
       )}
 
       {/* 내 장소 목록. 드래그로 높이를 바꿀 수 있고, 배경(지도)은 계속 조작 가능하다.
           "내 장소 N개"는 핸들 바로 아래, 접혔을 때(peek 상태)도 보이는 자리에 가운데 정렬로 둔다.
-          로드뷰가 떠 있는 동안엔 아래쪽 1/3 지도가 시트에 가리지 않도록 숨긴다. */}
+          로드뷰가 떠 있는 동안엔 아래쪽 1/3 지도가 시트에 가리지 않도록 숨긴다. 검색 결과 패널이 떠
+          있는 동안에도 이 시트를 내려서, 시트 두 개가 겹쳐 보이지 않고 항상 하나만 보이게 한다. */}
       <BottomSheet
-        visible={!roadviewOpen}
+        visible={!roadviewOpen && !hasSearchResults}
         modal={false}
         minHeight={0.08}
         maxHeight={0.5}
@@ -1138,6 +1159,9 @@ export default function MapScreen() {
                         <Text style={{ fontSize: 14, color: Colors.light.cardBodyText }}>
                           {formatDateOnly(tx.date)}
                         </Text>
+                        <Text style={{ fontSize: 14, color: Colors.light.cardBodyText }}>
+                          {formatTimeOnly(tx.datetime)}
+                        </Text>
                         <Text style={{ fontSize: 14, fontWeight: '700', color: Colors.light.cardTitle }}>
                           -{formatWon(tx.amount)}원
                         </Text>
@@ -1197,6 +1221,9 @@ export default function MapScreen() {
                     <View key={tx.transactionIds[0]} style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                       <Text style={{ fontSize: 14, color: Colors.light.cardBodyText }}>
                         {formatDateOnly(tx.date)}
+                      </Text>
+                      <Text style={{ fontSize: 14, color: Colors.light.cardBodyText }}>
+                        {formatTimeOnly(tx.datetime)}
                       </Text>
                       <Text style={{ fontSize: 14, fontWeight: '700', color: Colors.light.cardTitle }}>
                         -{formatWon(tx.amount)}원
@@ -1259,6 +1286,9 @@ export default function MapScreen() {
                           style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                           <Text style={{ fontSize: 14, color: Colors.light.cardBodyText }}>
                             {formatDateOnly(tx.date)}
+                          </Text>
+                          <Text style={{ fontSize: 14, color: Colors.light.cardBodyText }}>
+                            {formatTimeOnly(tx.datetime)}
                           </Text>
                           <Text style={{ fontSize: 14, fontWeight: '700', color: Colors.light.cardTitle }}>
                             -{formatWon(tx.amount)}원

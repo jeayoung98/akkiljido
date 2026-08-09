@@ -515,6 +515,9 @@ export default function ListScreen() {
 
   return (
     <>
+      {/* AppScreen의 scrollable(내부 ScrollView가 헤더까지 통째로 감싸는 방식) 대신, 과거 리포트
+          화면(ReportScreen.tsx)과 같은 패턴으로 헤더를 스크롤 영역 밖에 직접 두고, 그 아래 내용만
+          별도 ScrollView로 감싼다. 그래야 스크롤해도 헤더(검색줄 포함)가 항상 위에 고정된다. */}
       <AppScreen backgroundColor={Colors.light.cardBackground}>
         {isSearching ? (
           <View style={styles.searchHeader}>
