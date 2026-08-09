@@ -14,6 +14,8 @@ type TransactionDetailCardProps = {
   type: TransactionType;
   /** 카테고리 아이콘 등 원형 배지 안에 넣을 요소입니다. */
   leading?: ReactNode;
+  /** 여러 건을 묶어 보여줄 때 금액의 의미를 보완하는 안내 문구입니다. */
+  description?: string;
   style?: StyleProp<ViewStyle>;
 };
 
@@ -29,7 +31,14 @@ const formatAmount = (amount: number, type: TransactionType) => {
  * 금액 부호/색 규칙(소비는 검정, 수입은 초록)은 TransactionItem과 동일하게 맞춰서,
  * 리스트와 상세 화면에서 같은 거래가 다르게 표시되는 일이 없게 합니다.
  */
-export function TransactionDetailCard({ title, amount, type, leading, style }: TransactionDetailCardProps) {
+export function TransactionDetailCard({
+  title,
+  amount,
+  type,
+  leading,
+  description,
+  style,
+}: TransactionDetailCardProps) {
   return (
     <BaseCard style={[styles.card, style]}>
       {/* leading은 선택 항목이라, 아이콘 없이 제목부터 보여주는 화면에서도 그대로 쓸 수 있다. */}
@@ -38,6 +47,7 @@ export function TransactionDetailCard({ title, amount, type, leading, style }: T
       <Text style={[styles.amount, type === 'income' && styles.incomeAmount]}>
         {formatAmount(amount, type)}
       </Text>
+      {description ? <Text style={styles.description}>{description}</Text> : null}
     </BaseCard>
   );
 }
@@ -77,5 +87,10 @@ const styles = StyleSheet.create({
   },
   incomeAmount: {
     color: Colors.light.primary,
+  },
+  description: {
+    color: Colors.light.cardDescription,
+    fontSize: 12,
+    fontWeight: '600',
   },
 });

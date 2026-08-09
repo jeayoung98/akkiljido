@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Text } from '@/components/common/typography/Text';
 
 import AppScreen from '@/components/common/AppScreen';
@@ -344,10 +344,11 @@ export default function ReportScreen() {
       : '월간 리포트';
 
   return (
-    <AppScreen backgroundColor={Colors.light.cardBackground} scrollable>
+    <AppScreen backgroundColor={Colors.light.background}>
+      {/* 제목·안내 문구를 같은 공통 헤더 안에 두어 다른 화면의 상단 여백과 통일합니다. */}
       <AppHeader subtitle="주간·월간 소비 리포트를 모아볼 수 있어요" title="과거 리포트" />
 
-      <View style={styles.body}>
+      <ScrollView contentContainerStyle={styles.body} style={styles.bodyScroll}>
         <SegmentedControl
           onChange={setTab}
           options={REPORT_TABS}
@@ -430,12 +431,15 @@ export default function ReportScreen() {
             ))}
           </View>
         )}
-      </View>
+      </ScrollView>
     </AppScreen>
   );
 }
 
 const styles = StyleSheet.create({
+  bodyScroll: {
+    backgroundColor: Colors.light.background,
+  },
   body: {
     flexGrow: 1,
     gap: 16,

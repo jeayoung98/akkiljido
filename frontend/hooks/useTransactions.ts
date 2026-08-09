@@ -42,10 +42,11 @@ export const transactionKeys = {
 };
 
 /** GET /api/v1/transaction/list — 필터 조건이 바뀌면 queryKey가 바뀌어 자동으로 다시 조회합니다. */
-export function useTransactionList(query: TransactionListQuery) {
+export function useTransactionList(query: TransactionListQuery, enabled = true) {
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: transactionKeys.list(query),
     queryFn: () => fetchTransactionList(query),
+    enabled,
   });
 
   return {

@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Text } from '@/components/common/typography/Text';
 import { NativeTextInput } from '@/components/common/typography/TextInput';
@@ -89,6 +89,8 @@ export default function TransactionEditScreen() {
 
   const pickedLocation = useMapPickerStore((state) => state.pickedLocation);
   const clearPickedLocation = useMapPickerStore((state) => state.clearPickedLocation);
+  // pickedLocation은 다른 화면의 지도 선택 흐름과 공유하는 전역 store라, 이 화면에서 연 게 아니면 건드리지 않는다.
+  const isReturningFromMapRef = useRef(false);
 
   const [name, setName] = useState('');
   const [amount, setAmount] = useState<number | null>(null);
@@ -132,11 +134,12 @@ export default function TransactionEditScreen() {
 
   // map-picker에서 장소를 고르고 돌아오면 store에 값이 채워진다. 여기서 읽어서 반영한 뒤 비운다.
   useEffect(() => {
-    if (!pickedLocation) return;
+    if (!pickedLocation || !isReturningFromMapRef.current) return;
 
     setAddress(pickedLocation.address);
     setCoords({ latitude: pickedLocation.lat, longitude: pickedLocation.lng });
     clearPickedLocation();
+    isReturningFromMapRef.current = false;
   }, [pickedLocation, clearPickedLocation]);
 
   // 카테고리 목록을 못 받았을 때 엉뚱한 이름('기타')을 보여주지 않도록, 상세 응답의 이름으로 되돌립니다.
@@ -167,6 +170,7 @@ export default function TransactionEditScreen() {
   };
 
   const handleOpenMapPicker = () => {
+    isReturningFromMapRef.current = true;
     router.push('/map-picker');
   };
 
@@ -488,7 +492,10 @@ export default function TransactionEditScreen() {
               <Calendar
                 current={toDateString(date)}
                 markedDates={{ [toDateString(date)]: { selected: true, selectedColor: Colors.light.primary } }}
+                maxDate={toDateString(new Date())}
                 monthFormat="yyyy년 MMMM"
+                // 미래 날짜(회색 처리)는 눌러도 onDayPress가 호출되지 않게 한다.
+                disableAllTouchEventsForDisabledDays
                 onDayPress={handleSelectDay}
                 theme={{
                   arrowColor: Colors.light.text,
@@ -496,6 +503,7 @@ export default function TransactionEditScreen() {
                   selectedDayTextColor: Colors.onboarding.inverseText,
                   textDayFontSize: 15,
                   textDayHeaderFontSize: 13,
+                  textDisabledColor: Colors.light.disabled,
                   textMonthFontSize: 18,
                   textMonthFontWeight: '700',
                   textSectionTitleColor: Colors.light.textSecondary,

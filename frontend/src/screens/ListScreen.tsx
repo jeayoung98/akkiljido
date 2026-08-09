@@ -1,6 +1,6 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, BackHandler, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Text } from '@/components/common/typography/Text';
 
 import AppScreen from '@/components/common/AppScreen';
@@ -36,6 +36,7 @@ import { TransactionAnalysisTab, type AnalysisMode } from '@/src/screens/transac
 import { TransactionCalendarTab } from '@/src/screens/transaction/TransactionCalendarTab';
 import { TransactionListTab } from '@/src/screens/transaction/TransactionListTab';
 import { useMapPickerStore } from '@/store/mapPickerStore';
+import { groupTransactions } from '@/src/utils/groupTransactions';
 
 type PeriodFilter = 'thisMonth' | 'last3Months' | 'custom';
 
@@ -117,22 +118,13 @@ export default function ListScreen() {
   const [tab, setTab] = useState<TransactionTab>(
     initialTab === 'calendar' || initialTab === 'analysis' ? initialTab : 'list'
   );
-
-  // 탭 화면은 전환해도 언마운트되지 않아서, useState 초기값은 이 화면에 "처음" 들어올 때만 적용된다.
-  // 그 뒤로는 "더보기" 링크로 다시 들어와도(쿼리는 여전히 붙어 있지만) 이미 마운트돼 있어 무시된다.
-  // useFocusEffect로 포커스가 올 때마다 쿼리의 tab을 다시 반영해서, 홈 화면 더보기를 몇 번을 눌러도
-  // 항상 그 탭으로 이동하게 한다.
-  useFocusEffect(
-    useCallback(() => {
-      if (initialTab === 'calendar' || initialTab === 'analysis') {
-        setTab(initialTab);
-      }
-    }, [initialTab]),
-  );
   const [isSearching, setIsSearching] = useState(false);
   const [isFilterVisible, setIsFilterVisible] = useState(false);
   const [isAddVisible, setIsAddVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const handledInitialTabRef = useRef<TransactionTab | null>(null);
+  const isReturningFromMapRef = useRef(false);
+  const shouldResetAddFormOnOpenRef = useRef(false);
 
   const {
     categories,
@@ -183,9 +175,6 @@ export default function ListScreen() {
   const [addCategoryId, setAddCategoryId] = useState<string | null>(null);
   const [addPaymentMethod, setAddPaymentMethod] = useState('');
   const [addDate, setAddDate] = useState(() => new Date());
-  const pickedLocation = useMapPickerStore((state) => state.pickedLocation);
-  const clearPickedLocation = useMapPickerStore((state) => state.clearPickedLocation);
-  const isReturningFromMapRef = useRef(false);
 
   // 추가 시트는 화면 아래에 고정돼 있어서, 키보드가 올라오면 아래쪽 입력창(결제 수단 등)이 그대로 가립니다.
   // 키보드 높이만큼 스크롤 아래 여백을 늘려 두고, 포커스된 입력창을 그 위로 스크롤해서 보이게 합니다.
@@ -243,6 +232,10 @@ export default function ListScreen() {
     error: searchError,
     refetch: refetchSearch,
   } = useTransactionSearch({ ...listQuery, query: searchQuery });
+  const groupedSearchResults = useMemo(
+    () => groupTransactions(searchResults, (transaction) => transaction.transactionDate),
+    [searchResults],
+  );
 
   // 상세 화면에서 수정·삭제하면 그 훅이 거래 캐시를 무효화하므로, 목록으로 돌아오면 자동으로 최신 값을 다시 받아옵니다.
   const createMutation = useCreateTransaction();
@@ -252,18 +245,57 @@ export default function ListScreen() {
     router.push({ pathname: '/transaction/[id]', params: { id: transactionId } });
   };
 
-  // 지도 선택 뒤에는 선택 주소·좌표를 폼 상태로 옮긴 후 거래 추가 시트를 다시 표시합니다.
-  useEffect(() => {
-    if (!pickedLocation) return;
+  // 탭 화면은 전환해도 언마운트되지 않아서, useState 초기값은 이 화면에 "처음" 들어올 때만 적용된다.
+  // 그 뒤로는 "더보기" 링크로 다시 들어와도(쿼리는 여전히 붙어 있지만) 이미 마운트돼 있어 무시된다.
+  // useFocusEffect로 포커스가 올 때마다 쿼리의 tab을 다시 반영해서, 홈 화면 더보기를 몇 번을 눌러도
+  // 항상 그 탭으로 이동하게 한다.
+  //
+  // 지도 선택에서 돌아오는 것도 이 화면 입장에서는 똑같은 "포커스 복귀"라서, 그 처리도 이 effect
+  // 안에서 같이 한다. 처음에는 pickedLocation을 useMapPickerStore(selector)로 구독해서 deps에
+  // 넣었는데, expo-router의 useFocusEffect(useCallback(...))는 콜백 참조가 바뀔 때마다(=deps 중
+  // 하나라도 바뀔 때마다) 실제 focus 이벤트를 기다리지 않고 즉시 한 번 더 실행되는 구현이라
+  // (SaveAlarmModal.tsx에서 같은 이유로 이미 한 번 겪은 문제), map-picker 화면에서
+  // setPickedLocation이 호출되는 순간(아직 이 화면으로 돌아오기도 전) 이 effect가 먼저 실행돼
+  // isReturningFromMapRef를 리셋해버렸다. 그러면 뒤이어 실제 focus가 돌아왔을 때 다시 실행되는
+  // effect는 "지도에서 돌아온 게 아니다"로 오판하고 방금 조용히 열어둔 추가 시트를 곧장 닫아버렸다.
+  // 그래서 pickedLocation을 deps로 구독하지 않고, 실제 focus 시점에 store에서 직접 한 번만
+  // 읽어(getState) 그때그때의 최신값을 쓰도록 바꿨다 — 이러면 이 effect는 store 값 변화와 무관하게
+  // 오직 진짜 focus 이벤트에서만 실행된다.
+  useFocusEffect(
+    useCallback(() => {
+      const requestedTab =
+        initialTab === 'calendar' || initialTab === 'analysis' ? initialTab : null;
 
-    setAddAddress(pickedLocation.address);
-    setAddCoords({ latitude: pickedLocation.lat, longitude: pickedLocation.lng });
-    clearPickedLocation();
-    if (isReturningFromMapRef.current) {
-      setIsAddVisible(true);
-      isReturningFromMapRef.current = false;
-    }
-  }, [clearPickedLocation, pickedLocation]);
+      // 외부 화면에서 전달한 캘린더·분석 탭은 첫 진입에만 적용한다.
+      if (requestedTab && handledInitialTabRef.current !== requestedTab) {
+        setTab(requestedTab);
+        handledInitialTabRef.current = requestedTab;
+        return;
+      }
+
+      // 다른 하단 탭을 다녀온 뒤에는 거래의 기본 화면으로 복귀한다.
+      setTab('list');
+      setIsSearching(false);
+      setSearchQuery('');
+
+      // 지도 선택 화면에서 돌아오는 경우에는 작성 중이던 거래를 이어서 입력한다.
+      if (isReturningFromMapRef.current) {
+        isReturningFromMapRef.current = false;
+        const picked = useMapPickerStore.getState().pickedLocation;
+        if (picked) {
+          setAddAddress(picked.address);
+          setAddCoords({ latitude: picked.lat, longitude: picked.lng });
+          useMapPickerStore.getState().clearPickedLocation();
+        }
+        setIsAddVisible(true);
+        return;
+      }
+
+      // 그 외 하단 탭 이동 뒤에는 다음 거래 추가를 빈 양식으로 시작한다.
+      setIsAddVisible(false);
+      shouldResetAddFormOnOpenRef.current = true;
+    }, [initialTab]),
+  );
 
   const handleOpenMapPicker = () => {
     isReturningFromMapRef.current = true;
@@ -301,6 +333,15 @@ export default function ListScreen() {
     setAddPaymentMethod('');
     setAddDate(new Date());
     setAddType('expense');
+  };
+
+  const handleOpenAdd = () => {
+    if (shouldResetAddFormOnOpenRef.current) {
+      resetAddForm();
+      shouldResetAddFormOnOpenRef.current = false;
+    }
+
+    setIsAddVisible(true);
   };
 
   /** POST /api/v1/transaction으로 거래를 등록하고, 성공하면 목록을 새로고침합니다. */
@@ -440,6 +481,19 @@ export default function ListScreen() {
     setSearchQuery('');
   };
 
+  // 검색 중에 안드로이드 뒤로가기(하드웨어/제스처)를 누르면 기본 동작(화면 자체를 벗어나 홈 탭으로
+  // 이동)이 아니라, X 버튼을 누른 것과 같이 검색만 닫고 거래 리스트 화면으로 돌아오게 한다.
+  useEffect(() => {
+    if (!isSearching) return;
+
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      handleCloseSearch();
+      return true;
+    });
+    return () => subscription.remove();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSearching]);
+
   return (
     <>
       <AppScreen scrollable backgroundColor={Colors.light.cardBackground}>
@@ -473,16 +527,20 @@ export default function ListScreen() {
                 <AsyncStateView
                   emptyMessage="검색 결과가 없습니다."
                   error={searchError}
-                  isEmpty={searchResults.length === 0}
+                  isEmpty={groupedSearchResults.length === 0}
                   isLoading={isSearchLoading}
                   onRetry={refetchSearch}>
                   <View style={styles.card}>
-                    {searchResults.map((record, index) => (
+                    {groupedSearchResults.map((record, index) => (
                       <View key={record.transactionId}>
                         {index > 0 ? <View style={styles.divider} /> : null}
                         <TransactionItem
                           amount={record.amount}
-                          description={record.categoryName}
+                          description={
+                            record.transactionCount > 1
+                              ? `${record.categoryName} · ${record.transactionCount}건`
+                              : record.categoryName
+                          }
                           leading={<CategoryIcon categoryId={record.categoryId} categoryName={record.categoryName} size={20} type={record.type} />}
                           onPress={() => handleOpenDetail(String(record.transactionId))}
                           title={record.name}
@@ -564,9 +622,9 @@ export default function ListScreen() {
             </View>
             {periodFilter === 'custom' ? (
               <View style={styles.dateRange}>
-                <DateInput onChange={handleDateChange(setCustomStartDate)} style={styles.dateRangeInput} value={customStartDate} />
+                <DateInput maxDate={new Date()} onChange={handleDateChange(setCustomStartDate)} style={styles.dateRangeInput} value={customStartDate} />
                 <Text style={styles.dateRangeSeparator}>~</Text>
-                <DateInput onChange={handleDateChange(setCustomEndDate)} style={styles.dateRangeInput} value={customEndDate} />
+                <DateInput maxDate={new Date()} onChange={handleDateChange(setCustomEndDate)} style={styles.dateRangeInput} value={customEndDate} />
               </View>
             ) : null}
           </FilterSection>
@@ -608,7 +666,7 @@ export default function ListScreen() {
         </View>
       </BottomSheet>
 
-      <BottomSheet initialHeight={0.82} maxHeight={0.92} minHeight={0.62} onClose={() => setIsAddVisible(false)} visible={isAddVisible}>
+      <BottomSheet maxHeight={0.92} minHeight={0.92} onClose={() => setIsAddVisible(false)} visible={isAddVisible}>
         <ScrollView
           ref={addScrollRef}
           // 키보드가 덮는 만큼 아래 여백을 더해, 가려진 입력창을 키보드 위로 스크롤할 수 있게 합니다.
@@ -642,7 +700,7 @@ export default function ListScreen() {
                   placeholder={isCategoriesLoading ? '불러오는 중' : hasCategories ? '선택' : '불러오기 실패'}
                   value={addCategoryId}
                 />
-                <DateInput label="날짜" onChange={handleDateChange(setAddDate)} style={styles.addHalfField} value={addDate} />
+                <DateInput label="날짜" maxDate={new Date()} onChange={handleDateChange(setAddDate)} style={styles.addHalfField} value={addDate} />
               </View>
               {!isCategoriesLoading && !hasCategories ? (
                 <Text style={styles.addWarningText}>
@@ -651,7 +709,7 @@ export default function ListScreen() {
               ) : null}
             </>
           ) : (
-            <DateInput label="날짜" onChange={handleDateChange(setAddDate)} value={addDate} />
+            <DateInput label="날짜" maxDate={new Date()} onChange={handleDateChange(setAddDate)} value={addDate} />
           )}
 
           <Button disabled={!isAddFormValid} loading={isSubmitting} onPress={handleCreateTransaction} style={styles.addButton}>
@@ -660,7 +718,8 @@ export default function ListScreen() {
         </ScrollView>
       </BottomSheet>
 
-      {!isSearching ? <FloatingActionButton onPress={() => setIsAddVisible(true)} /> : null}
+      {/* 거래 추가는 목록 탭에서만 제공한다. 캘린더·분석 탭에서는 조회와 분석에 집중할 수 있게 숨긴다. */}
+      {tab === 'list' && !isSearching ? <FloatingActionButton onPress={handleOpenAdd} /> : null}
     </>
   );
 }

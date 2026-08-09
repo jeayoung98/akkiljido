@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 import { Text } from '@/components/common/typography/Text';
 import { NativeTextInput } from '@/components/common/typography/TextInput';
@@ -78,11 +78,30 @@ export function CurrencyInput({
     const cursor = formatCurrency(getRawValue(value)).length;
     return { start: cursor, end: cursor };
   });
+  // 쉼표 포맷팅 직후에는 state 반영보다 네이티브 selection 이벤트가 먼저 올 수 있어,
+  // 입력 순서(특히 0)를 계산할 때는 가장 최신 커서 값을 ref에서도 즉시 사용합니다.
+  const selectionRef = useRef(selection);
+  // Android는 value가 포맷팅된 직후 이전 selection 이벤트를 한 번 더 보낼 수 있습니다.
+  // 이 값을 그대로 받으면 다음 숫자가 마지막 쉼표 앞에 들어가므로, 짧은 시간 동안은 우리가 계산한
+  // 커서 위치를 우선 유지합니다.
+  const pendingSelectionRef = useRef<{ start: number; end: number } | null>(null);
+  const selectionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasError = Boolean(errorMessage);
   const amountDescription = getAmountDescription(value);
   // 입력 중에도 현재 금액을 바로 확인할 수 있도록 천 단위 구분 기호를 표시합니다.
   const displayValue = formatCurrency(rawValue);
   const accessibilityValue = value === null ? '금액 미입력' : `${value.toLocaleString('ko-KR')}원${amountDescription ? `, ${amountDescription}` : ''}`;
+
+  const updateSelection = useCallback((nextSelection: { start: number; end: number }) => {
+    selectionRef.current = nextSelection;
+    pendingSelectionRef.current = nextSelection;
+    setSelection(nextSelection);
+
+    if (selectionTimerRef.current) clearTimeout(selectionTimerRef.current);
+    selectionTimerRef.current = setTimeout(() => {
+      pendingSelectionRef.current = null;
+    }, 80);
+  }, []);
 
   // 외부에서 값이 변경된 경우에도 사용자가 입력 중인 문자열은 덮어쓰지 않습니다.
   useEffect(() => {
@@ -90,15 +109,17 @@ export function CurrencyInput({
       const nextRawValue = getRawValue(value);
       const cursor = formatCurrency(nextRawValue).length;
       setRawValue(nextRawValue);
-      setSelection({ start: cursor, end: cursor });
+      const nextSelection = { start: cursor, end: cursor };
+      updateSelection(nextSelection);
     }
-  }, [isFocused, value]);
+  }, [isFocused, updateSelection, value]);
 
   const handleChangeText = (text: string) => {
     const digits = text.replace(/[^0-9]/g, '').replace(/^0+(?=\d)/, '');
     // 변경 전 선택 영역을 숫자 순서로 계산해 쉼표가 추가된 뒤의 커서 위치로 변환합니다.
-    const selectionStartDigit = countDigits(displayValue.slice(0, selection.start));
-    const selectionEndDigit = countDigits(displayValue.slice(0, selection.end));
+    const currentSelection = selectionRef.current;
+    const selectionStartDigit = countDigits(displayValue.slice(0, currentSelection.start));
+    const selectionEndDigit = countDigits(displayValue.slice(0, currentSelection.end));
     const selectedDigitCount = selectionEndDigit - selectionStartDigit;
     const insertedDigitCount = digits.length - (rawValue.length - selectedDigitCount);
     const nextDigitCursor = Math.max(
@@ -110,13 +131,17 @@ export function CurrencyInput({
 
     setRawValue(digits);
     // 포맷 적용 후에도 사용자가 수정하던 숫자 위치에 커서를 유지합니다.
-    setSelection({ start: nextCursor, end: nextCursor });
+    const nextSelection = { start: nextCursor, end: nextCursor };
+    updateSelection(nextSelection);
     onChangeValue(digits ? Number(digits) : null);
   };
 
   const handleFocus = () => {
     // 포커스 시 외부 숫자값을 원시 문자열로 바꿔 사용자가 자연스럽게 수정할 수 있게 합니다.
     setRawValue(getRawValue(value));
+    const cursor = formatCurrency(getRawValue(value)).length;
+    const nextSelection = { start: cursor, end: cursor };
+    updateSelection(nextSelection);
     setIsFocused(true);
     onFocus?.();
   };
@@ -145,7 +170,20 @@ export function CurrencyInput({
             onBlur={handleBlur}
             onChangeText={handleChangeText}
             onFocus={handleFocus}
-            onSelectionChange={(event) => setSelection(event.nativeEvent.selection)}
+            onSelectionChange={(event) => {
+              const nextSelection = event.nativeEvent.selection;
+              const pendingSelection = pendingSelectionRef.current;
+              const isOutdatedSelection =
+                pendingSelection != null &&
+                (pendingSelection.start !== nextSelection.start || pendingSelection.end !== nextSelection.end);
+
+              // value 변경 직후 늦게 도착한 이전 커서 이벤트는 무시합니다.
+              if (isOutdatedSelection) return;
+
+              pendingSelectionRef.current = null;
+              selectionRef.current = nextSelection;
+              setSelection(nextSelection);
+            }}
             placeholder="0"
             placeholderTextColor={Colors.light.placeholder}
             selection={selection}
