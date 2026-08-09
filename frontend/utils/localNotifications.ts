@@ -59,19 +59,55 @@ export async function loadNotifications(): Promise<NotificationsModule | null> {
   }
 }
 
-export async function ensureNotificationPermission() {
+export type NotificationPermissionState = {
+  /** OS 알림 권한이 허용된 상태인지. 모듈을 못 쓰는 환경(Expo Go 등)에서도 false. */
+  granted: boolean;
+  /** 앱 안에서 권한 요청 팝업을 다시 띄울 수 있는지. false면 설정 앱으로 안내해야 한다. */
+  canAskAgain: boolean;
+};
+
+const UNAVAILABLE_PERMISSION: NotificationPermissionState = { granted: false, canAskAgain: false };
+
+/**
+ * 권한 요청 팝업을 띄우지 않고 현재 OS 알림 권한 상태만 읽는다.
+ *
+ * 앱 포그라운드 복귀처럼 "사용자가 요청하지 않은" 시점에는 팝업을 띄우면 안 되므로,
+ * 조회와 요청을 분리해둔다.
+ */
+export async function getNotificationPermission(): Promise<NotificationPermissionState> {
   const Notifications = await loadNotifications();
-  if (!Notifications) return false;
+  if (!Notifications) return UNAVAILABLE_PERMISSION;
 
   try {
-    const { status } = await Notifications.getPermissionsAsync();
-    if (status === 'granted') return true;
-
-    const { status: requestedStatus } = await Notifications.requestPermissionsAsync();
-    return requestedStatus === 'granted';
+    const { status, canAskAgain } = await Notifications.getPermissionsAsync();
+    return { granted: status === 'granted', canAskAgain };
   } catch {
-    return false;
+    return UNAVAILABLE_PERMISSION;
   }
+}
+
+/** 이미 허용돼 있으면 그대로 두고, 아니면 OS 권한 요청 팝업을 띄운다. */
+export async function requestNotificationPermission(): Promise<NotificationPermissionState> {
+  const Notifications = await loadNotifications();
+  if (!Notifications) return UNAVAILABLE_PERMISSION;
+
+  try {
+    const current = await Notifications.getPermissionsAsync();
+    if (current.status === 'granted') {
+      return { granted: true, canAskAgain: current.canAskAgain };
+    }
+
+    const requested = await Notifications.requestPermissionsAsync();
+    return { granted: requested.status === 'granted', canAskAgain: requested.canAskAgain };
+  } catch {
+    return UNAVAILABLE_PERMISSION;
+  }
+}
+
+/** 권한이 없으면 요청까지 하고, 최종적으로 허용됐는지만 알려준다. */
+export async function ensureNotificationPermission(): Promise<boolean> {
+  const { granted } = await requestNotificationPermission();
+  return granted;
 }
 
 export async function presentLocalNotification(title: string, body: string): Promise<boolean> {
