@@ -10,7 +10,6 @@ import TransactionItem from '@/components/transaction/TransactionItem';
 import Colors from '@/constants/Colors';
 import { useCalendarDay, useCalendarMonth } from '@/hooks/useCalendar';
 import { fromDateKey, toCalendarParams } from '@/src/api/calendarApi';
-import { groupTransactions } from '@/src/utils/groupTransactions';
 
 type MonthCell = { day: number; dateKey: string; inCurrentMonth: boolean };
 
@@ -107,7 +106,6 @@ export function TransactionCalendarTab({
   }, [daySummaries]);
 
   const dayTransactions = dayDetail?.transactionList ?? [];
-  const groupedDayTransactions = useMemo(() => groupTransactions(dayTransactions), [dayTransactions]);
 
   return (
     <View style={styles.container}>
@@ -153,11 +151,11 @@ export function TransactionCalendarTab({
       <AsyncStateView
         emptyMessage="선택한 날짜에 거래 내역이 없습니다."
         error={dayError}
-        isEmpty={groupedDayTransactions.length === 0}
+        isEmpty={dayTransactions.length === 0}
         isLoading={isDayLoading}
         onRetry={refetchDay}>
         <View style={styles.card}>
-          {groupedDayTransactions.map((item, index) => (
+          {dayTransactions.map((item, index) => (
             <View key={item.transactionId}>
               {index > 0 ? <View style={styles.divider} /> : null}
               <TransactionItem
@@ -178,11 +176,7 @@ export function TransactionCalendarTab({
                   ) : undefined
                 }
                 onPress={() => onOpenDetail(String(item.transactionId))}
-                description={
-                  item.transactionCount > 1
-                    ? `${item.categoryName} · ${item.transactionCount}건`
-                    : item.categoryName
-                }
+                description={item.categoryName}
                 title={item.name}
                 type={item.type}
               />

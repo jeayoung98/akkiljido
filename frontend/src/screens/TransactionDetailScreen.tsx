@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 
 import AppScreen from '@/components/common/AppScreen';
@@ -11,12 +11,7 @@ import { CategoryIcon } from '@/components/transaction/CategoryIcon';
 import { InfoRow } from '@/components/transaction/InfoRow';
 import { TransactionDetailCard } from '@/components/transaction/TransactionDetailCard';
 import Colors from '@/constants/Colors';
-import {
-  useDeleteTransaction,
-  useTransactionDetail,
-  useTransactionList,
-} from '@/hooks/useTransactions';
-import { groupTransactions } from '@/src/utils/groupTransactions';
+import { useDeleteTransaction, useTransactionDetail } from '@/hooks/useTransactions';
 
 // "2026-07-17 09:12:00" 또는 "2026-07-17 09:12:00+09" → "2026.07.17"
 function formatDate(datetime: string) {
@@ -41,25 +36,9 @@ function orDash(value: string) {
 export default function TransactionDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { transaction, isLoading, error, refetch } = useTransactionDetail(id);
-  const transactionDate = transaction?.datetime.slice(0, 10) ?? '';
-  const { dateGroups } = useTransactionList(
-    { startDate: transactionDate, endDate: transactionDate },
-    Boolean(transactionDate),
-  );
-
-  // 목록·캘린더와 같은 기준(동일 날짜·상호명·카테고리·거래 구분)으로 묶어 상세 금액도 누적으로 맞춘다.
   // 목록 API에는 주소가 없으므로, 같은 이름의 서로 다른 지점은 API에 지점 식별자가 추가되면 그 값으로 구분한다.
-  const groupedTransaction = useMemo(() => {
-    if (!transaction) return undefined;
-
-    const dayTransactions = dateGroups.find((group) => group.date === transactionDate)?.transactionList ?? [];
-    return groupTransactions(dayTransactions).find((item) =>
-      item.transactionIds.includes(transaction.transactionId),
-    );
-  }, [dateGroups, transaction, transactionDate]);
-
-  const displayedAmount = groupedTransaction?.amount ?? transaction?.amount ?? 0;
-  const transactionCount = groupedTransaction?.transactionCount ?? 1;
+  // 같은 이름의 결제라도 시간과 건이 다르면 각각 독립적인 거래로 보여줍니다.
+  const displayedAmount = transaction?.amount ?? 0;
 
   // 삭제 버튼을 누른 뒤 사용자 확인을 받을 때만 공통 모달을 표시합니다.
   const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
@@ -100,7 +79,6 @@ export default function TransactionDetailScreen() {
           <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
             <TransactionDetailCard
               amount={displayedAmount}
-              description={transactionCount > 1 ? `동일 거래 ${transactionCount}건 누적` : undefined}
               leading={
                 <CategoryIcon
                   categoryId={transaction.categoryId}
