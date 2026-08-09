@@ -281,7 +281,7 @@ export default function TransactionEditScreen() {
   };
 
   return (
-    <AppScreen backgroundColor={Colors.light.background}>
+    <AppScreen scrollable backgroundColor={Colors.light.background}>
       <AppHeader showBackButton title="거래 수정" />
 
       <AsyncStateView

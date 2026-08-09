@@ -50,8 +50,8 @@ function toAlarmFormValue(place: NotificationPlace): AlarmFormValue {
 }
 
 /**
- * 마이페이지 > 알림 설정 화면입니다. 소비 리포트(주간/월간) 알림과, 등록한 위치 알림 목록을 보여줍니다.
- * 위치 알림은 추가·수정 모두 SaveAlarmModal을 사용하며, 저장한 값은 목업 목록에 즉시 반영합니다.
+ * 마이페이지 > 알림 설정 화면입니다. 소비 리포트(주간/월간) 알림과, 등록한 방앗간 알림 목록을 보여줍니다.
+ * 방앗간(위치 알림)은 추가·수정 모두 SaveAlarmModal을 사용하며, 저장한 값은 목업 목록에 즉시 반영합니다.
  */
 export default function NotificationSettingsScreen() {
   const [weeklyReport, setWeeklyReport] = useState(true);
@@ -154,7 +154,7 @@ export default function NotificationSettingsScreen() {
       setAddModalVisible(false);
     } catch (error) {
       console.error('[notification] save failed', error);
-      Alert.alert('위치 알림 저장에 실패했어요', error instanceof Error ? error.message : undefined);
+      Alert.alert('방앗간 저장에 실패했어요', error instanceof Error ? error.message : undefined);
     } finally {
       setSaving(false);
     }
@@ -194,7 +194,7 @@ export default function NotificationSettingsScreen() {
       setDeleteTarget(null);
     } catch (error) {
       console.error('[notification] delete failed', error);
-      Alert.alert('위치 알림 삭제에 실패했어요', error instanceof Error ? error.message : undefined);
+      Alert.alert('방앗간 삭제에 실패했어요', error instanceof Error ? error.message : undefined);
     } finally {
       setDeleting(false);
     }
@@ -226,14 +226,14 @@ export default function NotificationSettingsScreen() {
 
         <View style={styles.section}>
           <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionTitle}>위치 알림</Text>
-            <AddCircleButton accessibilityLabel="새 위치 알림 추가" onPress={handleAddPlace} style={styles.addPlaceButton} />
+            <Text style={styles.sectionTitle}>방앗간 알림</Text>
+            <AddCircleButton accessibilityLabel="새 방앗간 추가" onPress={handleAddPlace} style={styles.addPlaceButton} />
           </View>
-          <Text style={styles.sectionDescription}>등록한 장소에 도착하면 설정한 시간에 알려드려요</Text>
+          <Text style={styles.sectionDescription}>참새가 방앗간을 그냥 지나치랴 — 등록한 방앗간에 도착하면 알려드려요</Text>
 
-          {/* 등록한 위치 알림이 하나도 없으면 + 버튼만 덩그러니 남지 않게 안내 문구를 보여준다. */}
+          {/* 등록한 방앗간이 하나도 없으면 + 버튼만 덩그러니 남지 않게 안내 문구를 보여준다. */}
           {places.length === 0 ? (
-            <Text style={styles.emptyText}>아직 등록한 위치 알림이 없어요.</Text>
+            <Text style={styles.emptyText}>아직 등록한 방앗간이 없어요.</Text>
           ) : (
             <View style={styles.placeList}>
               {places.map((place) => (
@@ -289,18 +289,18 @@ export default function NotificationSettingsScreen() {
         destructive
         onCancel={() => setDeleteTarget(null)}
         onConfirm={handleConfirmDelete}
-        title="알림 장소를 삭제할까요?"
+        title="방앗간을 삭제할까요?"
         visible={deleteTarget != null}
       />
 
       <SaveAlarmModal
-        description={editTarget ? '기존 위치 알림 정보를 수정한 뒤 저장할 수 있어요.' : '장소와 시간대를 정해서 새 위치 알림을 추가해요.'}
+        description={editTarget ? '기존 방앗간 정보를 수정한 뒤 저장할 수 있어요.' : '장소와 시간대를 정해서 새 방앗간을 추가해요.'}
         initialValue={editTarget ? toAlarmFormValue(editTarget) : EMPTY_ALARM_FORM}
         onClose={handleCloseSaveModal}
         onReopenAfterLocationPicked={handleReopenAfterLocationPicked}
         onSave={handleSavePlace}
         saveLoading={saving}
-        title={editTarget ? '위치 알림 수정' : '위치 알림 추가'}
+        title={editTarget ? '방앗간 수정' : '방앗간 추가'}
         visible={addModalVisible || editTarget != null}
       />
     </AppScreen>

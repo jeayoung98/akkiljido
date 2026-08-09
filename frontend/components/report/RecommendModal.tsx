@@ -60,7 +60,7 @@ export function ReportRecommendationsModal({
 
       <View style={styles.body}>
         <View>
-          <Text style={styles.sectionTitle}>위치 알림 추천</Text>
+          <Text style={styles.sectionTitle}>방앗간 알림 추천</Text>
           <Text style={styles.sectionSub}>소비 패턴을 분석해 알림을 추천해 드려요.</Text>
         </View>
 
