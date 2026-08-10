@@ -1,0 +1,211 @@
+import { Ionicons } from '@expo/vector-icons';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '@/components/common/typography/Text';
+
+import { Button } from '@/components/common/button/Button';
+import { CentralModal } from '@/components/common/modal/CentralModal';
+import type { AlarmFormValue } from '@/components/common/modal/SaveAlarmModal';
+import { BrandLogo } from '@/components/onboarding/BrandLogo';
+import Colors from '@/constants/Colors';
+
+export type ReportRecommendation = {
+  // 리스트 key용 고유 ID. placeName+timeRange 조합은 같은 장소·시간대 추천이 여러 개면 겹칠 수 있어 따로 둔다.
+  id: string;
+  // 강조 앞까지의 설명 문장. 뒤에 "{placeName} {timeRange}에 알림을 설정해 보세요!"가 자동으로 붙는다.
+  description: string;
+  placeName: string; // 초록으로 강조되는 장소명
+  timeRange: string; // 초록으로 강조되는 시간대. "12:00~13:00"
+  // 이 추천 박스를 눌렀을 때 알림 저장 모달(SaveAlarmModal)에 채워 넣을 추천값
+  alarm: AlarmFormValue;
+};
+
+export type ReportRecommendationsModalProps = {
+  visible: boolean;
+  // 헤더 타이틀. 리포트 요약 모달과 같은 값을 쓰거나 생략하면 기본 문구가 나온다.
+  title?: string;
+  // 헤더 배지 위에 뜨는 작은 라벨. ReportModal의 periodLabel과 같은 값을 준다. 기본은 "주간 리포트".
+  periodLabel?: string;
+  recommendations: ReportRecommendation[];
+  // 배경 탭/Android 뒤로가기로 닫을 때
+  onClose: () => void;
+  // "이전" — 리포트 요약 모달로 되돌아갈 때
+  onPrev: () => void;
+  // "확인하고 홈으로" — 리포트 흐름을 끝낼 때
+  onConfirm: () => void;
+  // 추천 박스 하나를 눌렀을 때. 호출부는 rec.alarm으로 알림 추가 모달을 띄운다.
+  onSelectRecommendation: (rec: ReportRecommendation) => void;
+};
+
+export type RecommendationRowProps = {
+  rec: ReportRecommendation;
+  index: number;
+  onPress: () => void;
+};
+
+/**
+ * 방앗간 알림 추천 항목 하나(번호 원 + 설명 + "+" 아이콘)입니다.
+ * 이 모달과 과거 리포트 화면(ReportScreen.tsx)이 똑같이 써서 두 화면의 추천 UI가 갈리지 않게 합니다.
+ */
+export function RecommendationRow({ rec, index, onPress }: RecommendationRowProps) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [styles.recCard, pressed && styles.recCardPressed]}>
+      <View style={styles.recIndexCircle}>
+        <Text style={styles.recIndexText}>{index + 1}</Text>
+      </View>
+      <Text style={styles.recText}>
+        {rec.description}{' '}
+        <Text style={styles.recHighlight}>
+          {rec.placeName} {rec.timeRange}
+        </Text>
+        에 알림을 설정해 보세요!
+      </Text>
+      <View style={styles.recAction}>
+        <Ionicons name="add-circle-outline" size={26} color={Colors.light.reportHeaderBackground} />
+      </View>
+    </Pressable>
+  );
+}
+
+/** 주간·월간 리포트의 두 번째 페이지: AI가 추천한 위치 알림 목록을 보여주는 팝업 모달입니다. */
+export function ReportRecommendationsModal({
+  visible,
+  title = '지난주 소비 리포트',
+  periodLabel = '주간 리포트',
+  recommendations,
+  onClose,
+  onPrev,
+  onConfirm,
+  onSelectRecommendation,
+}: ReportRecommendationsModalProps) {
+  return (
+    <CentralModal visible={visible} onClose={onClose}>
+      {/* ReportModal과 같은 딥그린 헤더. 두 모달이 한 흐름(요약 → 추천)으로 보이게 모양을 맞춘다. */}
+      <View style={styles.header}>
+        <View style={styles.badge}>
+          <BrandLogo size={40} />
+        </View>
+        <Text style={styles.subtitle}>{periodLabel}</Text>
+        <Text style={styles.title}>{title}</Text>
+      </View>
+
+      <View style={styles.body}>
+        <View>
+          <Text style={styles.sectionTitle}>방앗간 알림 추천</Text>
+          <Text style={styles.sectionSub}>소비 패턴을 분석해 알림을 추천해 드려요.</Text>
+        </View>
+
+        {recommendations.map((rec, index) => (
+          <RecommendationRow key={rec.id} index={index} onPress={() => onSelectRecommendation(rec)} rec={rec} />
+        ))}
+
+        <View style={styles.buttonRow}>
+          <Button onPress={onPrev} style={styles.prevButton} variant="white">
+            이전
+          </Button>
+          <Button onPress={onConfirm} style={styles.confirmButton} variant="green">
+            확인하고 홈으로
+          </Button>
+        </View>
+      </View>
+    </CentralModal>
+  );
+}
+
+const styles = StyleSheet.create({
+  header: {
+    alignItems: 'center',
+    paddingTop: 24,
+    paddingBottom: 20,
+    paddingHorizontal: 20,
+    backgroundColor: Colors.light.reportHeaderBackground,
+  },
+  badge: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.light.reportHeaderBadge,
+  },
+  subtitle: {
+    marginTop: 10,
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.light.reportHeaderSubtitle,
+  },
+  title: {
+    marginTop: 4,
+    fontSize: 17,
+    fontWeight: '800',
+    color: Colors.onboarding.inverseText,
+    textAlign: 'center',
+  },
+  body: {
+    padding: 20,
+    gap: 14,
+  },
+  sectionTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: Colors.light.cardTitle,
+  },
+  sectionSub: {
+    marginTop: 4,
+    fontSize: 13,
+    color: Colors.light.cardDescription,
+  },
+  recCard: {
+    flexDirection: 'row',
+    gap: 6,
+    borderRadius: 16,
+    padding: 16,
+    backgroundColor: Colors.light.cardMutedBackground,
+  },
+  recCardPressed: {
+    opacity: 0.7,
+  },
+  recIndexCircle: {
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 12,
+    backgroundColor: Colors.light.primary,
+  },
+  recIndexText: {
+    color: Colors.onboarding.inverseText,
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  recText: {
+    flex: 1,
+    fontSize: 14,
+    lineHeight: 21,
+    color: Colors.light.cardBodyText,
+  },
+  recHighlight: {
+    fontWeight: '800',
+    color: Colors.light.reportHeaderBackground,
+  },
+  recAction: {
+    alignSelf: 'center',
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 4,
+  },
+  prevButton: {
+    flex: 1,
+    height: 56,
+    borderRadius: 16,
+  },
+  confirmButton: {
+    flex: 1.4,
+    height: 56,
+    borderRadius: 16,
+    backgroundColor: Colors.light.reportHeaderBackground,
+  },
+});

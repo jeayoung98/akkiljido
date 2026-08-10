@@ -6,8 +6,12 @@
 # Frontend
 node_modules/
 dist/
+
 .expo/
 expo-env.d.ts
+
+claude/
+
 
 # Backend
 build/
