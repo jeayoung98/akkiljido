@@ -3,20 +3,9 @@
 > 소비 내역을 지도 위에서 돌아보고, 생활 반경에 맞는 절약 습관을 만드는 위치 기반 가계부
 > 
 
-<aside>
-📌
-
-README 대표 이미지 삽입 위치
-
-- 권장 파일: docs/images/readme/hero.png
-- 권장 내용: 앱 로고 + 홈/지도/리포트 화면을 한 장에 배치한 서비스 소개 이미지
-- 권장 비율: 16:9 또는 2:1
-
 <p align="center">
 <img src="docs/images/readme/hero.png" width="100%" alt="아낄지도 서비스 소개" />
 </p>
-
-</aside>
 
 <p align="center">
 <strong>내 소비가 어디에서, 어떻게 쌓였는지 한눈에 확인하세요.</strong>
@@ -30,20 +19,20 @@ README 대표 이미지 삽입 위치
 
 ## 📑 목차
 
-- 📌 프로젝트 개요
-- 💭 문제 인식과 해결 방향
-- ✨ 주요 기능
-- 🎬 서비스 화면
-- 🏗️ 시스템 아키텍처
-- 🔧 핵심 기술
-- 🛠️ 기술 스택
-- 🗂️ ERD
-- 📂 디렉터리 구조
-- 🚀 개발 가이드
-- 📦 포팅 매뉴얼
-- 👥 팀
-- 🤝 기여
-- 📄 라이선스
+- [📌 프로젝트 개요](#-프로젝트-개요)
+- [💭 문제 인식과 해결 방향](#-문제-인식과-해결-방향)
+- [✨ 주요 기능](#-주요-기능)
+- [🎬 서비스 화면](#-서비스-화면)
+- [🏗️ 시스템 아키텍처](#️-시스템-아키텍처)
+- [🔧 핵심 기술](#-핵심-기술)
+- [🛠️ 기술 스택](#️-기술-스택)
+- [🗂️ ERD](#️-erd)
+- [📂 디렉터리 구조](#-디렉터리-구조)
+- [🚀 개발 가이드](#-개발-가이드)
+- [📦 포팅 매뉴얼](#-포팅-매뉴얼)
+- [👥 팀](#-팀)
+- [🤝 기여](#-기여)
+- [📄 라이선스](#-라이선스)
 
 ## 📌 프로젝트 개요
 
@@ -82,19 +71,19 @@ README 대표 이미지 삽입 위치
 
 ### 01. 거래 내역 관리
 
+| 거래 내역 목록 | 거래 내역 등록 | 거래 내역 수정 |
+| --- | --- | --- |
+| <img src="docs/images/readme/거래내역목록확인.gif" width="100%" alt="거래내역 목록" /> | <img src="docs/images/readme/거래내역등록.gif" width="100%" alt="거래내역 등록" /> | <img src="docs/images/readme/거래내역수정.gif" width="100%" alt="거래내역 수정" /> | 
+
 - 수입·지출 내역 등록, 조회, 검색, 수정, 삭제
 - 날짜, 금액, 카테고리, 결제 수단, 장소와 좌표 관리
 - 최신순·오래된순 정렬 및 기간·카테고리 조건 검색
 - 소득과 지출의 도메인 규칙을 분리해 일관된 데이터 유지
 
-<!--
-기능 이미지 삽입 위치
-
-- 권장 파일: docs/images/readme/feature-transaction.gif
-- 권장 내용: 거래 등록 → 목록 확인 → 상세 수정
--->
-
 ### 02. 소비 지도
+| 줌 레벨 소비 시각화 | 내 장소 소비 시각화 |
+| --- | --- |
+| <img src="docs/images/readme/줌레벨소비시각화.gif" width="100%" alt="줌 레벨 소비 시각화" /> | <img src="docs/images/readme/내장소소비시각화.gif" width="100%" alt="내 장소 소비 시각화" /> |
 
 - 거래 좌표를 지도 마커로 시각화
 - 줌 단계에 따라 **개별 장소 → 읍·면·동 → 시·군·구 → 시·도** 단위로 집계
@@ -102,42 +91,23 @@ README 대표 이미지 삽입 위치
 - 내 장소를 중심으로 반경 내 거래 내역 조회
 - Kakao Maps JavaScript SDK를 React Native WebView에서 실행
 
-<!--
-기능 이미지 삽입 위치
-
-- 권장 파일: docs/images/readme/feature-map.gif
-- 권장 내용: 지도 줌 변경에 따라 집계 단위가 바뀌는 장면
--->
-
 ### 03. 소비 캘린더와 분석
+| 소비 캘린더 | 카테고리 분석 | 장소 분석 |
+| --- | --- | --- |
+| <img src="docs/images/readme/캘린더보기.jpg" width="100%" alt="소비 캘린더" /> | <img src="docs/images/readme/카테고리분석.jpg" width="100%" alt="카테고리 분석" /> | <img src="docs/images/readme/장소분석.jpg" width="100%" alt="장소 분석" /> | 
 
 - 월별 달력에서 날짜별 수입·지출과 순합계 확인
 - 카테고리별 지출 비중 분석
 - 사용자가 등록한 장소별 소비 분석
 
-<!--
-기능 이미지 삽입 위치
-
-- 권장 파일: docs/images/readme/feature-analysis.png
-- 권장 내용: 달력 화면과 카테고리 분석 화면을 나란히 배치
--->
-
 ### 04. 위치 기반 절약 알림
+| 방앗간 등록 | 방앗간 알림 |
+| --- | --- |
+| <img src="docs/images/readme/소비방앗간등록.gif" width="100%" alt="방앗간 등록" /> | <img src="docs/images/readme/소비방앗간알림.gif" width="100%" alt="방앗간 알림" /> |
 
 - 알림 장소, 시간대와 메시지 설정
 - 앱이 백그라운드 상태일 때도 위치 진입 조건 확인
-- 장소별 하루 1회 알림 처리로 중복 발송 완화 (보경이 오면 의논)
-
-```
-장소 등록 → 위치 이동 → 조건 판정 → 알림 → 알림함 확인
-```
-
-<!--
-기능 이미지 삽입 위치
-
-- 권장 파일: docs/images/readme/feature-location-alert.gif
-- 권장 내용: 장소 선택 → 조건 저장 → 실제 알림 수신
--->
+- 설정 시간대 내 동일 장소 재진입 시 중복 알림 방지
 
 ### 05. AI 주간·월간 소비 리포트
 
@@ -364,119 +334,6 @@ S15P11A508/
 └── .gitlab-ci.yml              # CI/CD Pipeline
 ```
 
-## 🚀 개발 가이드
-
-### 요구 사항
-
-- Node.js 20 이상 및 npm
-- JDK 21
-- Docker Engine 및 Docker Compose
-- Android Studio 또는 Android 실기기
-- Google OAuth Client ID
-- Kakao JavaScript Key 및 REST API Key
-- FCM 사용 시 Firebase `google-services.json`
-
-### 1. 저장소 받기
-
-```bash
-git clone <repository-url>
-cd S15P11A508
-```
-
-### 2. PostgreSQL·Redis 실행
-
-```bash
-cp .env.example .env.local
-docker compose --env-file .env.local -f docker-compose.local.yml up -d
-```
-
-### 3. Backend 실행
-
-Spring Boot는 `.env.local`을 자동으로 읽지 않으므로 IDE 실행 구성이나 터미널 환경에 값을 등록해야 합니다.
-
-```bash
-cd backend
-./gradlew bootRun
-```
-
-- Swagger: `/swagger-ui.html`
-
-### 4. Frontend 실행
-
-```bash
-cd frontend
-cp .env.example .env.local
-npm ci
-npm start
-```
-
-```
-EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=
-EXPO_PUBLIC_API_BASE_URL=http://localhost:8080
-EXPO_PUBLIC_KAKAO_JS_KEY=
-EXPO_PUBLIC_KAKAO_REST_KEY=
-```
-
-Android Native Build와 FCM을 사용하려면 `frontend/google-services.json`을 별도로 준비해야 하며 Git에 커밋하지 않습니다.
-
-### 5. 테스트
-
-```bash
-cd backend
-./gradlew test
-
-cd ../frontend
-npx tsc --noEmit
-```
-
-백엔드는 JUnit 5와 MockMvc를 기반으로 서비스 로직과 API 동작을 검증합니다.
-공간 데이터가 필요한 기능은 Testcontainers를 활용해 PostgreSQL·PostGIS 환경에서 통합 테스트를 수행합니다.
-
-프론트엔드는 TypeScript 정적 검사를 실행해 컴포넌트, API 응답, 상태 관리 코드의 타입 오류를 확인합니다.
-
-## 📦 포팅 매뉴얼
-
-### 서비스 구성
-
-| 서비스 | 기본 포트 | 설명 |
-| --- | --- | --- |
-| Backend | 8080 | Spring Boot API 서버 |
-| PostgreSQL·PostGIS | 5432 | 관계형·공간 데이터베이스 |
-| Redis | 6379 | Refresh Token 저장소 |
-| Nginx | 80 / 443 | HTTPS 및 Reverse Proxy |
-
-### 주요 운영 환경변수
-
-| 변수 | 용도 | Secret |
-| --- | --- | --- |
-| `SPRING_PROFILES_ACTIVE` | 운영 Profile (`prod`) | 아니요 |
-| `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USERNAME` | PostgreSQL 연결 | 일부 |
-| `DB_PASSWORD` | PostgreSQL 비밀번호 | 예 |
-| `REDIS_HOST`, `REDIS_PORT` | Redis 연결 | 아니요 |
-| `GOOGLE_CLIENT_ID` | Google ID Token Audience 검증 | 아니요 |
-| `JWT_SECRET` | JWT 서명·검증 | 예 |
-| `KAKAO_API_KEY` | Kakao Local API 인증 | 예 |
-| `GMS_BASE_URL`, `GMS_MODEL` | 생성형 AI API 및 Model | 아니요 |
-| `GMS_KEY` | 생성형 AI API 인증 | 예 |
-| `FCM_ENABLED` | 서버 Push 활성화 | 아니요 |
-| `GOOGLE_APPLICATION_CREDENTIALS` | Firebase 서비스 계정 경로 | 예 |
-
-### 운영 배포
-
-```bash
-docker compose \
-  --env-file /opt/akkiljido/.env.prod \
-  -f infra/compose.prod.yml \
-  up -d --build
-```
-
-```
-Backend Test → Production SSH Check → DB Migration → Production Deploy → Health Check
-```
-
-- 환경변수 문서: `docs/deployment/environment-variables.md`
-- DB Migration 문서: `docs/deployment/database-migrations.md`
-
 ## 👥 팀
 
 | 이름 | 역할 | 담당 기능 | 링크 |
@@ -485,29 +342,8 @@ Backend Test → Production SSH Check → DB Migration → Production Deploy →
 | 천명석 | 백엔드 | 로그인, 알림 기능, 마이페이지 CRUD | https://github.com/myeongseok12 |
 | 류남경 | 프론트엔드 | 지도, 리포트, 설정 페이지 | https://github.com/rnk00 |
 | 정인경 | 프론트엔드 | 홈, 거래내역 페이지 및 알림 | https://github.com/cik0126-design |
-| 정재영 | 인프라 | 작성 필요 | https://github.com/jeayoung98 |
-| 박준우 | AI | 작성 필요 | `[GitLab/GitHub]` |
-
-## 🤝 기여
-
-### 브랜치 규칙
-
-```
-<scope>/<type>/<issue-key>-<description>
-```
-
-예시: `frontend/feat/S15P11A508-123-home-summary`
-
-### 커밋 컨벤션
-
-| 타입 | 설명 |
-| --- | --- |
-| `feat` | 새로운 기능 추가 |
-| `fix` | 버그 수정 |
-| `docs` | 문서 수정 |
-| `refactor` | 기능 변경 없는 코드 개선 |
-| `test` | 테스트 추가·수정 |
-| `chore` | 빌드, 설정, 의존성 변경 |
+| 정재영 | 인프라 | EC2 기반 Docker 인프라 구축 및 CI/CD 배포 자동화 구성 | https://github.com/jeayoung98 |
+| 박준우 | AI | AI 레포트 및 알림 추천 기능 구현 | https://github.com/busypark |
 
 ## 📄 라이선스
 
