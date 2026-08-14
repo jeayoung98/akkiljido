@@ -20,9 +20,8 @@ export {
 } from 'expo-router';
 
 // 앱 시작 시 최초로 보여줄 라우트를 랜딩 화면으로 지정한다.
-// TEMP: 로그인 없이 바로 홈 화면부터 보려고 임시로 (tabs)로 바꿔둠. 되돌릴 때는 'landing'으로.
 export const unstable_settings = {
-  initialRouteName: '(tabs)',
+  initialRouteName: 'landing',
 };
 
 // 폰트 로딩이 끝나기 전에는 스플래시 화면을 유지해, 시스템 기본 폰트로 잠깐 그려졌다가
