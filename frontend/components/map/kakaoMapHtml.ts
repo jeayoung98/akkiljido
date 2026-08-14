@@ -130,12 +130,14 @@ export function buildMapHtml({ initialCenter, initialLevel = 3, draggable = true
       myLocationOverlay.setMap(map);
     }
 
-    // ── 내 장소(파란 점 + 반경 2km 원) ────────────────────────────────
+    // ── 내 장소(파란 점 + 반경 원) ────────────────────────────────
     // 점은 내 위치 점(연두)과 모양은 같고 색만 파랑(.my-place-dot)이다.
     // 원은 "이 범위 안의 소비 내역을 보고 있다"는 표시라서 목 데이터의 근처 판정(약 2km)과 맞춘다.
+    // radius/color를 안 넘기면(null/undefined) 실제 서비스 기준(2km, 파란색)을 그대로 쓴다.
+    // 다른 반경·색은 시연/테스트 목적(예: app/test.tsx)으로만 넘긴다.
     let myPlaceDotOverlay = null;
     let myPlaceCircleShape = null;
-    function setMyPlaceCircle(place) {
+    function setMyPlaceCircle(place, radius, color) {
       if (myPlaceDotOverlay) {
         myPlaceDotOverlay.setMap(null);
         myPlaceDotOverlay = null;
@@ -145,20 +147,21 @@ export function buildMapHtml({ initialCenter, initialLevel = 3, draggable = true
         myPlaceCircleShape = null;
       }
       if (!place) return;
+      const circleColor = color || '${PIN_COLOR}';
       const position = new kakao.maps.LatLng(place.lat, place.lng);
       myPlaceCircleShape = new kakao.maps.Circle({
         center: position,
-        radius: 2000,
+        radius: radius || 2000,
         strokeWeight: 2,
-        strokeColor: '${PIN_COLOR}',
+        strokeColor: circleColor,
         strokeOpacity: 0.8,
-        fillColor: '${PIN_COLOR}',
+        fillColor: circleColor,
         fillOpacity: 0.06,
       });
       myPlaceCircleShape.setMap(map);
       myPlaceDotOverlay = new kakao.maps.CustomOverlay({
         position: position,
-        content: '<div class="my-place-dot"></div>',
+        content: '<div class="my-place-dot" style="background:' + circleColor + '"></div>',
       });
       myPlaceDotOverlay.setMap(map);
     }
@@ -221,24 +224,24 @@ export function buildMapHtml({ initialCenter, initialLevel = 3, draggable = true
       mart: ['M4 9h16l-1.5 10h-13L4 9Z', 'M8 9l2-4', 'M16 9l-2-4', 'M8 13v3', 'M12 13v3', 'M16 13v3'],
       shopping: ['M5 8h14l-1 12H6L5 8Z', 'M9 8V6a3 3 0 0 1 6 0v2'],
       leisure: ['M8.5 13.5L12 21l3.5-7.5Z', 'M9.6 15.8h4.8', 'M12 10V5.5', 'M9.2 10.8L6.4 7.8', 'M14.8 10.8l2.8-3', 'M8 12H4.5', 'M16 12h3.5', 'M7.3 5.2l-.6-1.4', 'M16.7 5.2l.6-1.4'],
-      transport: ['M3 11l9-7 9 7', 'M5 10v10h14V10', 'M9 20v-6h6v6'],
+      transport: ['M5 16l1.3-4.8A2 2 0 0 1 8.2 9.8h7.6a2 2 0 0 1 1.9 1.4L19 16'],
       health: ['M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10Z', 'M7.5 12h2l1.2-2.5 2.2 5 1.2-2.5h2.4'],
-      living: ['M8 7V5h8v2'],
+      living: ['M3 11l9-7 9 7', 'M5 10v10h14V10', 'M9 20v-6h6v6'],
       beauty: ['M9 8.5V5.8l3.8-2.3 2.2 1.3v3.7', 'M9 8.5h6', 'M8.5 8.5h7l.7 5h-8.4l.7-5Z', 'M9 16.5h6'],
       education: ['M4 5.5A4.5 4.5 0 0 1 8.5 5H12v14H8.5A4.5 4.5 0 0 0 4 19.5v-14Z', 'M20 5.5A4.5 4.5 0 0 0 15.5 5H12v14h3.5a4.5 4.5 0 0 1 4.5.5v-14Z'],
-      other: ['M7 8h10', 'M8 12h8', 'M8 18v2', 'M16 18v2'],
+      other: ['M8 7V5h8v2'],
       income: ['M9 7 8 4.5h8L15 7', 'M8.5 8.5h7', 'M8.5 9h7c2.2 1.6 3.5 4.3 3.5 7.3 0 .7.5 1.1.5 1.9 0 1.5-1.2 2.8-2.8 2.8H7.3c-1.6 0-2.8-1.3-2.8-2.8 0-.8.5-1.2.5-1.9C5 13.3 6.3 10.6 8.5 9Z', 'M14.5 12.8a3 3 0 1 0 0 4.4'],
     };
     const CATEGORY_ICON_RECTS = {
-      living: { x: 5, y: 7, width: 14, height: 12, rx: 2 },
+      transport: { x: 4, y: 16, width: 16, height: 4, rx: 1.5 },
       beauty: { x: 7.5, y: 13.5, width: 9, height: 7, rx: 1.5 },
-      other: { x: 5, y: 3, width: 14, height: 15, rx: 3 },
+      other: { x: 5, y: 7, width: 14, height: 12, rx: 2 },
     };
     // fill=색, stroke 없음으로 그리는 작은 점(장식용)들.
     const CATEGORY_ICON_DOTS = {
       leisure: [[4.5, 7, 0.7], [19.5, 7, 0.7], [12, 3.5, 0.7]],
-      living: [[9, 13, 1], [12, 13, 1], [15, 13, 1]],
-      other: [[8.5, 15.5, 0.8], [15.5, 15.5, 0.8]],
+      transport: [[8, 20, 1.6], [16, 20, 1.6]],
+      other: [[9, 13, 1], [12, 13, 1], [15, 13, 1]],
     };
 
     function categoryIconSvg(iconKey, color) {

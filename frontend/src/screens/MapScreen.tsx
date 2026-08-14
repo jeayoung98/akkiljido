@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, View } from 'react-native';
 import { Text } from '@/components/common/typography/Text';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -17,6 +18,7 @@ import { SearchInput } from '@/components/common/input/SearchInput';
 import { KakaoMap, type KakaoMapHandle, type LatLng, type MapMarker } from '@/components/map/KakaoMap';
 import { Scroll } from '@/components/common/Scroll';
 import { MapZoom } from '@/components/map/MapZoom';
+import { CategoryIcon } from '@/components/transaction/CategoryIcon';
 import Colors from '@/constants/Colors';
 import { getCategoryColorById, getCategoryIconKey } from '@/constants/categories';
 import { getCategories, type Category } from '@/src/api/categoryApi';
@@ -33,7 +35,7 @@ import {
   type MyPlaceTransactionList,
   type TransactionMapBounds,
 } from '@/src/api/transactionMapApi';
-import { searchPlaces, type PlaceResult } from '@/utils/kakaoSearch';
+import { hasRegionKeyword, searchPlaces, type PlaceResult } from '@/utils/kakaoSearch';
 import { getZoomStage, STAGE_TARGET_LEVEL } from '@/utils/kakaoZoomStage';
 
 const INITIAL_LEVEL = 4;
@@ -46,9 +48,10 @@ const LOCATE_BUTTON_HEIGHT = 44;
 const ZOOM_CONTROL_HEIGHT = 89;
 // 내 장소 상세 모드에서 이동할 줌 레벨. 반경 2km 원(지름 4km)이 폰 화면에 통째로 들어오는 최소 축소 레벨이다.
 const PLACE_DETAIL_LEVEL = 6;
-// 내 장소 시트에서 목록 위에 고정으로 자리 차지하는 영역(드래그 핸들 + "내 장소 N개" 제목)의 대략적인 높이.
+// 내 장소 시트에서 목록 위에 고정으로 자리 차지하는 영역(드래그 핸들 + "내 장소 N개" 제목 +
+// "설정 페이지에서 가능해요" 안내 문구)의 대략적인 높이.
 // 시트의 보이는 높이에서 이만큼을 빼면 목록(Scroll)에 줄 수 있는 높이가 나온다.
-const SHEET_HEADER_HEIGHT = 56;
+const SHEET_HEADER_HEIGHT = 80;
 // 내 장소 상세에서 아코디언 목록 위 영역(드래그 핸들 + 뒤로가기·장소명·누적 금액 헤더)의 대략적인 높이.
 const DETAIL_HEADER_HEIGHT = 72;
 
@@ -117,10 +120,16 @@ function formatManwon(amount: number) {
   return `${Math.round(amount / 10000)}만원`;
 }
 
-// "2026-07-17 09:20:00+09" -> "7월 17일 · 09:20"
+// "2026-07-17" -> "7월 17일"
 function formatDateOnly(date: string) {
   const [, month, day] = date.split('-');
   return `${Number(month)}월 ${Number(day)}일`;
+}
+
+// "2026-07-17 09:20:00+09" -> "09:20". 실제 거래에 기록된 시각을 그대로 잘라 쓴다(임의 생성 아님).
+function formatTimeOnly(datetime: string) {
+  const timePart = datetime.split(' ')[1] ?? '';
+  return timePart.slice(0, 5);
 }
 
 // 지도 탭 화면. 검색·필터·내 위치·내 장소 목록을 잡아두고,
@@ -134,6 +143,9 @@ export default function MapScreen() {
   // 검색 결과 목록. MapPickerScreen과 같은 방식(카드 목록 + 지도 핀)으로 보여준다.
   const [searchResults, setSearchResults] = useState<PlaceResult[]>([]);
   const [hasSearchResults, setHasSearchResults] = useState(false);
+  // 지금 활성화된 검색이 "지역이 명시된 검색"인지(예: "수원 편의점"). true면 지도를 이동해도
+  // 결과를 다시 안 가져온다 — 검색어의 지역은 지도 위치와 무관하기 때문이다.
+  const [isRegionSearch, setIsRegionSearch] = useState(false);
   // 지도의 검색 핀을 눌렀을 때 그 핀에 해당하는 카드를 강조하기 위한 인덱스.
   const [highlightedResultIndex, setHighlightedResultIndex] = useState<number | null>(null);
   const searchScrollRef = useRef<ScrollView>(null);
@@ -210,13 +222,9 @@ export default function MapScreen() {
   };
 
   // "적용하기"를 눌렀을 때만 초안을 실제 값으로 반영하고 닫는다.
-  // 카테고리를 하나도 안 골랐으면 "아무것도 안 보기"가 아니라 전체 선택으로 간주한다.
+  // 카테고리를 하나도 안 골랐으면("전체 해제") 말 그대로 표시할 카테고리가 없는 상태로 적용한다.
   const handleApplyFilter = () => {
-    const categoryIds =
-      selectedCategoryIds.length > 0
-        ? selectedCategoryIds
-        : categoryOptions.map((category) => category.id);
-    setAppliedFilter({ period, categoryIds, customStartDate, customEndDate });
+    setAppliedFilter({ period, categoryIds: selectedCategoryIds, customStartDate, customEndDate });
     setFilterVisible(false);
   };
 
@@ -250,8 +258,23 @@ export default function MapScreen() {
   const [myPlaces, setMyPlaces] = useState<MyPlaceMap[]>([]);
   const [placeDetail, setPlaceDetail] = useState<MyPlaceTransactionList | null>(null);
   const [mapDataLoading, setMapDataLoading] = useState(false);
+  // 화면 진입 시 handleLocate가 lastKnown 위치 → 정확한 위치 순으로 지도 중심을 두 번 옮기는데,
+  // 그때마다 bounds가 바뀌어 데이터를 다시 불러오면서 "지도 내역 불러오는 중" 표시가 껐다 켜졌다
+  // 짧게 두 번 깜빡였다. mapDataLoading이 꺼지고 나서 잠깐(200ms) 동안 다시 켜지지 않을 때만
+  // 실제로 숨기도록 지연시켜서, 연달아 일어나는 로딩은 하나로 이어져 보이게 한다.
+  const [mapDataLoadingDisplay, setMapDataLoadingDisplay] = useState(false);
   const [mapDataError, setMapDataError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+
+  useEffect(() => {
+    if (mapDataLoading) {
+      setMapDataLoadingDisplay(true);
+      return;
+    }
+
+    const timer = setTimeout(() => setMapDataLoadingDisplay(false), 200);
+    return () => clearTimeout(timer);
+  }, [mapDataLoading]);
 
   // 세 상세 모드(내 장소/일반 가게/지역)는 동시에 하나만 열려야 한다. 하나를 열 때 나머지 둘은 닫는다.
   const closeAllDetails = () => {
@@ -274,6 +297,7 @@ export default function MapScreen() {
   // 이 레벨은 원래 3단계(읍면동) 구간이지만, 내 장소 상세 모드에서는 아래 markers 계산에서
   // 클러스터 대신 이 장소 주변 가맹점 개별 마커를 보여주므로 단계 규칙과 충돌하지 않는다.
   const handleSelectPlace = (place: MyPlaceMap) => {
+    userMovedMapRef.current = true;
     closeAllDetails();
     setSelectedPlaceId(place.placeId);
     mapRef.current?.setCenter({ lat: place.latitude, lng: place.longitude });
@@ -292,6 +316,7 @@ export default function MapScreen() {
 
   // 지도 마커를 누르면 모드에 따라 다르게 동작한다.
   const handleMarkerPress = (id: string) => {
+    userMovedMapRef.current = true;
     // 1) 내 장소 상세: 가맹점 마커. 그 카드로 스크롤 + 테두리 강조 + 펼치거나(닫혀 있었다면) 접는다(펼쳐져 있었다면).
     if (selectedPlaceId != null) {
       const merchant = placeMerchants.find((m) => m.name === id);
@@ -365,9 +390,14 @@ export default function MapScreen() {
   const placeMerchants = placeDetail?.transactionList ?? [];
   const placeTotal = placeMerchants.reduce((sum, merchant) => sum + merchant.amount, 0);
 
+  // 마운트 시 자동으로 위치를 잡는 동안(특히 정확한 GPS 조회는 몇 초 걸릴 수 있다) 사용자가 이미
+  // 검색·내 장소 선택·마커 탭으로 지도를 다른 곳으로 옮겼다면, 뒤늦게 도착한 GPS 결과로 지도를
+  // 도로 내 위치로 튕기지 않도록 막는 플래그. "내 위치" 버튼을 직접 누른 경우는 항상 이동시킨다.
+  const userMovedMapRef = useRef(false);
+
   // MapPickerScreen과 같은 방식: 권한 허용 시 마지막 알려진 위치를 먼저 빠르게 보여주고, 정확한 위치로 뒤이어 갱신한다.
-  // "내 위치" 버튼을 눌렀을 때도 이 함수를 다시 호출한다.
-  const handleLocate = async () => {
+  // "내 위치" 버튼을 눌렀을 때도 이 함수를 다시 호출한다(이때는 silent가 아니므로 항상 이동시킨다).
+  const handleLocate = async (options?: { silent?: boolean }) => {
     const { status } = await Location.requestForegroundPermissionsAsync();
     if (status !== 'granted') {
       return;
@@ -378,7 +408,10 @@ export default function MapScreen() {
       return;
     }
 
-    setSearchedPlace(null);
+    if (!options?.silent) {
+      userMovedMapRef.current = false;
+      setSearchedPlace(null);
+    }
 
     const lastKnown = await Location.getLastKnownPositionAsync();
     if (lastKnown) {
@@ -386,36 +419,44 @@ export default function MapScreen() {
       setCurrentLocation(coords);
       // 좌표값이 이전과 같으면 initialCenter가 안 바뀌어서 지도가 재로딩 안 될 수 있으니,
       // 명령형으로 직접 지도 중심을 옮겨서 항상 확실히 이동시킨다.
-      mapRef.current?.setCenter(coords);
+      if (!options?.silent || !userMovedMapRef.current) {
+        mapRef.current?.setCenter(coords);
+      }
     }
 
     try {
       const position = await Location.getCurrentPositionAsync({});
       const coords = { lat: position.coords.latitude, lng: position.coords.longitude };
       setCurrentLocation(coords);
-      mapRef.current?.setCenter(coords);
+      if (!options?.silent || !userMovedMapRef.current) {
+        mapRef.current?.setCenter(coords);
+      }
     } catch {
       // 실패해도 lastKnown으로 이미 떴다면 그대로 두고, 둘 다 없으면 DEFAULT_CENTER로 대체된다.
     }
   };
 
   useEffect(() => {
-    handleLocate();
+    handleLocate({ silent: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // 검색어로 장소를 찾아 목록으로 보여준다. MapPickerScreen과 동일하게, 지금 보고 있는 지도
-  // 중심을 기준 좌표로 넘겨서 결과가 "여기서 가까운 순"으로 정렬되게 한다.
+  // 검색어로 장소를 찾아 목록으로 보여준다.
+  // - 검색어에 지역이 있으면(예: "수원 편의점") 지금 지도 위치와 무관하게 검색어 자체로 전국을 찾는다.
+  // - 지역이 없으면(예: "편의점") 지금 화면에 보이는 지도 영역(mapBounds) 안으로만 결과를 제한한다
+  //   (지도 중심에서 반경으로 좁히는 게 아니라, 실제 보이는 사각형 영역 그대로 — searchPlaces의 rect).
   const handleSearch = async () => {
     if (!searchText.trim()) {
       return;
     }
-    const searchCenter = mapBounds
-      ? { lat: (mapBounds.south + mapBounds.north) / 2, lng: (mapBounds.west + mapBounds.east) / 2 }
-      : (currentLocation ?? undefined);
+    setIsRegionSearch(hasRegionKeyword(searchText));
+
     let places;
     try {
-      places = await searchPlaces(searchText, searchCenter);
+      places = await searchPlaces(searchText, {
+        bounds: mapBounds ?? undefined,
+        center: currentLocation ?? undefined,
+      });
     } catch {
       Alert.alert('검색에 실패했어요', '잠시 후 다시 시도해주세요.');
       return;
@@ -425,20 +466,54 @@ export default function MapScreen() {
     setHighlightedResultIndex(null);
     setSearchedPlace(null);
     if (places.length > 0) {
+      userMovedMapRef.current = true;
       // 좌표값이 이전과 같으면 initialCenter가 안 바뀌어 지도가 안 움직일 수 있으니,
       // 명령형으로 직접 지도 중심을 옮겨서 항상 확실히 이동시킨다("내 위치" 버튼과 같은 방식).
       mapRef.current?.setCenter({ lat: places[0].lat, lng: places[0].lng });
     }
   };
 
+  // 지역 없는 검색은 "지금 보이는 영역" 기준이라, 지도를 이동(idle)하면 그 새 영역으로 결과를
+  // 다시 가져온다. 검색어는 그대로 두고, 지도를 다시 가운데로 옮기지도 않는다(사용자가 방금
+  // 직접 이동한 것이므로). 지역이 명시된 검색은 지도 위치와 무관하므로 다시 가져오지 않는다.
+  useEffect(() => {
+    if (!hasSearchResults || isRegionSearch || !mapBounds) {
+      return;
+    }
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const places = await searchPlaces(searchText, { bounds: mapBounds });
+        if (!cancelled) {
+          setSearchResults(places);
+          setHighlightedResultIndex(null);
+        }
+      } catch (error) {
+        console.error('[transaction-map] search bounds refresh failed', error);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // hasSearchResults/isRegionSearch/searchText는 의도적으로 deps에서 뺐다 — 지도 이동(mapBounds
+    // 변경)이 있을 때만 다시 불러야 하고, 검색을 막 시작했을 때(hasSearchResults가 true로 바뀌는
+    // 순간)는 handleSearch가 이미 조회했으므로 여기서 또 부르면 중복 요청이 된다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mapBounds]);
+
   // 결과 카드에서 선택 버튼 제외한 부분을 눌렀을 때. 지도만 그 위치로 옮기고, 그 카드를 강조 표시한다.
   const handlePreviewSearchResult = (place: PlaceResult, index: number) => {
+    userMovedMapRef.current = true;
     setHighlightedResultIndex(index);
     mapRef.current?.setCenter({ lat: place.lat, lng: place.lng });
   };
 
   // 결과 카드의 "선택" 버튼을 눌렀을 때. 이 위치를 검색된 장소로 확정하고 목록을 닫는다.
   const handleSelectSearchResult = (place: PlaceResult) => {
+    userMovedMapRef.current = true;
     setSearchedPlace(place);
     setSearchText(place.name);
     setHasSearchResults(false);
@@ -451,6 +526,15 @@ export default function MapScreen() {
     setHighlightedResultIndex(index);
     const offset = searchCardOffsets.current[index] ?? 0;
     searchScrollRef.current?.scrollTo({ y: offset, animated: true });
+  };
+
+  // 검색 결과 패널의 X 버튼. 검색 관련 상태를 전부 지워서 화면을 검색 시작 전 기본 상태로 되돌린다
+  // (이때 hasSearchResults가 false가 되면서 "내 장소" 시트가 다시 visible={true}로 올라온다).
+  const handleCloseSearchResults = () => {
+    setHasSearchResults(false);
+    setSearchResults([]);
+    setSearchText('');
+    setHighlightedResultIndex(null);
   };
 
   const center = searchedPlace
@@ -477,6 +561,16 @@ export default function MapScreen() {
       return;
     }
 
+    // 카테고리를 전부 해제한 상태는 "필터 없음"이 아니라 "보여줄 카테고리가 없음"이다.
+    // categoryId를 아예 안 보내면 서버가 전체 결과를 돌려주므로, 요청하지 않고 바로 빈 목록으로 둔다.
+    if (mapFilter.categoryIds && mapFilter.categoryIds.length === 0) {
+      setPlaceListData([]);
+      setDepthData([]);
+      setMapDataLoading(false);
+      setMapDataError(null);
+      return;
+    }
+
     let cancelled = false;
 
     const timer = setTimeout(() => {
@@ -484,6 +578,11 @@ export default function MapScreen() {
         try {
           setMapDataLoading(true);
           setMapDataError(null);
+
+          // TEMP DEBUG: 지도 필터(카테고리)가 지역 클러스터 bottom sheet에 안 먹히는 문제를
+          // 진단하려고 요청에 실제로 실리는 mapFilter와 응답에 실제로 들어있는 카테고리를 찍는다.
+          // 원인을 확인한 뒤에는 이 로그들을 지워야 한다.
+          console.info('[transaction-map] fetching', { currentStage, mapFilter });
 
           if (currentStage === 4) {
             const response = await getTransactionPlaceMap(mapBounds, mapFilter);
@@ -494,6 +593,11 @@ export default function MapScreen() {
 
               console.info('[transaction-map] place map loaded', {
                 count: response.placeList.length,
+                categoryNames: [
+                  ...new Set(
+                    response.placeList.flatMap((place) => place.transactionList.map((tx) => tx.categoryName)),
+                  ),
+                ],
               });
             }
             return;
@@ -512,6 +616,9 @@ export default function MapScreen() {
             console.info('[transaction-map] region map loaded', {
               depth: currentStage,
               count: response.transactionList.length,
+              categoryNames: [
+                ...new Set(response.transactionList.flatMap((region) => region.placeList.map((tx) => tx.categoryName))),
+              ],
             });
           }
         } catch (error) {
@@ -585,39 +692,46 @@ export default function MapScreen() {
   }, [reloadKey]);
 
   // 내 장소 목록은 지도 경계와 무관하고 기간 필터만 적용한다.
-  useEffect(() => {
-    let cancelled = false;
+  // useEffect가 아니라 useFocusEffect를 쓴다 — 탭 네비게이터는 화면을 언마운트하지 않고 유지하므로,
+  // 내 장소 관리 화면에서 장소를 추가/수정/삭제하고 지도 탭으로 돌아와도 useEffect([mapFilter, reloadKey])는
+  // 재실행되지 않는다. HomeScreen.tsx의 같은 이유(다른 화면에서 추가하고 돌아오면 바로 반영돼야 함)로
+  // 이미 쓰고 있는 것과 동일한 패턴이다.
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
 
-    const loadMyPlaces = async () => {
-      try {
-        const response = await getTransactionMyPlaces(mapFilter);
+      const loadMyPlaces = async () => {
+        try {
+          const response = await getTransactionMyPlaces(mapFilter);
 
-        if (!cancelled) {
-          setMyPlaces(response);
+          if (!cancelled) {
+            setMyPlaces(response);
 
-          console.info('[transaction-map] my places loaded', {
-            count: response.length,
-          });
+            console.info('[transaction-map] my places loaded', {
+              count: response.length,
+            });
+          }
+        } catch (error) {
+          console.error('[transaction-map] my places load failed', error);
+
+          if (!cancelled) {
+            setMapDataError(
+              error instanceof Error
+                ? error.message
+                : '내 장소를 불러오지 못했습니다.',
+            );
+          }
         }
-      } catch (error) {
-        console.error('[transaction-map] my places load failed', error);
+      };
 
-        if (!cancelled) {
-          setMapDataError(
-            error instanceof Error
-              ? error.message
-              : '내 장소를 불러오지 못했습니다.',
-          );
-        }
-      }
-    };
+      void loadMyPlaces();
 
-    void loadMyPlaces();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [mapFilter, reloadKey]);
+      return () => {
+        cancelled = true;
+      };
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [mapFilter, reloadKey]),
+  );
 
   // 내 장소를 선택한 경우에만 반경 2km 내 거래 상세를 조회한다.
   useEffect(() => {
@@ -757,7 +871,7 @@ export default function MapScreen() {
         style={{ flex: 1 }}
       />
 
-      {mapDataLoading ? (
+      {mapDataLoadingDisplay ? (
         <View
           pointerEvents="none"
           style={{
@@ -899,98 +1013,84 @@ export default function MapScreen() {
         </>
       )}
 
-      {/* 검색 결과 목록. MapPickerScreen과 같은 구성(카드 목록 + 지도 핀)이다. 아래 "내 장소" 시트를
-          가리지 않도록 그 시트의 현재 보이는 높이(sheetVisibleHeight)만큼 위로 띄운다. */}
-      {hasSearchResults && (
-        searchResults.length > 0 ? (
-          <View
-            style={{
-              position: 'absolute',
-              bottom: insets.bottom + sheetVisibleHeight + 16,
-              left: 16,
-              right: 16,
-              backgroundColor: Colors.light.cardMutedBackground,
-              borderRadius: 16,
-              padding: 12,
-              maxHeight: 220,
-            }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-              <Text style={{ color: Colors.light.textSecondary }}>
-                가까운 순 · 검색 결과 {searchResults.length}개
-              </Text>
-              <IconButton
-                name="close"
-                onPress={() => {
-                  setHasSearchResults(false);
-                  setSearchResults([]);
-                }}
-              />
-            </View>
-
-            <Scroll ref={searchScrollRef} height={160}>
-              {searchResults.map((place, index) => (
-                <View
-                  key={`${place.lat}-${place.lng}`}
-                  style={{ marginBottom: 8 }}
-                  onLayout={(event) => {
-                    searchCardOffsets.current[index] = event.nativeEvent.layout.y;
-                  }}>
-                  <BaseCard
-                    style={[
-                      { flexDirection: 'row', alignItems: 'center', gap: 8 },
-                      highlightedResultIndex === index && { borderWidth: 2, borderColor: Colors.light.primary },
-                    ]}>
-                    <Pressable
-                      style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 4 }}
-                      onPress={() => handlePreviewSearchResult(place, index)}>
-                      <View style={{ flex: 1 }}>
-                        <Text>{place.name}</Text>
-                        <Text style={{ color: Colors.light.textSecondary }}>{place.address}</Text>
-                      </View>
-                      <View
-                        style={{
-                          width: 28,
-                          height: 28,
-                          borderRadius: 999,
-                          backgroundColor: Colors.light.primary,
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                        }}>
-                        <Ionicons name="location" size={16} color="#fff" />
-                      </View>
-                    </Pressable>
-                    <Button
-                      variant="green"
-                      style={{ height: 36, paddingHorizontal: 16 }}
-                      onPress={() => handleSelectSearchResult(place)}>
-                      선택
-                    </Button>
-                  </BaseCard>
-                </View>
-              ))}
-            </Scroll>
+      {/* 검색 결과 목록. "내 장소" 목록과 같은 BottomSheet 컴포넌트를 그대로 써서, 카드가 떠 있는
+          모달처럼 보이지 않고 화면 하단에 붙어 드래그로 높이를 조절할 수 있는 진짜 바텀시트로 보이게
+          한다. modal=false라 지도는 계속 조작 가능하고(핀 탭 등), 검색 중엔 "내 장소" 시트를
+          visible={false}로 내려서 화면에 시트가 하나만 보이게 한다. */}
+      <BottomSheet
+        visible={hasSearchResults}
+        onClose={handleCloseSearchResults}
+        modal={false}
+        minHeight={0.25}
+        maxHeight={0.55}
+        dismissOnDragDown={false}
+        header={
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingBottom: 8 }}>
+            <Text style={{ color: Colors.light.textSecondary }}>
+              가까운 순 · 검색 결과 {searchResults.length}개
+            </Text>
+            <IconButton name="close" onPress={handleCloseSearchResults} />
           </View>
+        }>
+        {searchResults.length > 0 ? (
+          <ScrollView
+            ref={searchScrollRef}
+            contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 16 }}
+            showsVerticalScrollIndicator={false}>
+            {searchResults.map((place, index) => (
+              <View
+                key={`${place.lat}-${place.lng}`}
+                style={{ marginBottom: 8 }}
+                onLayout={(event) => {
+                  searchCardOffsets.current[index] = event.nativeEvent.layout.y;
+                }}>
+                <BaseCard
+                  style={[
+                    { flexDirection: 'row', alignItems: 'center', gap: 8 },
+                    highlightedResultIndex === index && { borderWidth: 2, borderColor: Colors.light.primary },
+                  ]}>
+                  <Pressable
+                    style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 4 }}
+                    onPress={() => handlePreviewSearchResult(place, index)}>
+                    <View style={{ flex: 1 }}>
+                      <Text>{place.name}</Text>
+                      <Text style={{ color: Colors.light.textSecondary }}>{place.address}</Text>
+                    </View>
+                    <View
+                      style={{
+                        width: 28,
+                        height: 28,
+                        borderRadius: 999,
+                        backgroundColor: Colors.light.primary,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}>
+                      <Ionicons name="location" size={16} color="#fff" />
+                    </View>
+                  </Pressable>
+                  <Button
+                    variant="green"
+                    style={{ height: 36, paddingHorizontal: 16 }}
+                    onPress={() => handleSelectSearchResult(place)}>
+                    선택
+                  </Button>
+                </BaseCard>
+              </View>
+            ))}
+          </ScrollView>
         ) : (
-          <View
-            style={{
-              position: 'absolute',
-              bottom: insets.bottom + sheetVisibleHeight + 16,
-              left: 16,
-              right: 16,
-              backgroundColor: Colors.light.cardMutedBackground,
-              borderRadius: 16,
-              padding: 16,
-            }}>
-            <Text style={{ textAlign: 'center', color: Colors.light.textSecondary }}>검색 결과가 없어요.</Text>
+          <View style={{ paddingHorizontal: 16, paddingBottom: 16 }}>
+            <Text style={{ color: Colors.light.textSecondary }}>검색 결과가 없어요.</Text>
           </View>
-        )
-      )}
+        )}
+      </BottomSheet>
 
       {/* 내 장소 목록. 드래그로 높이를 바꿀 수 있고, 배경(지도)은 계속 조작 가능하다.
           "내 장소 N개"는 핸들 바로 아래, 접혔을 때(peek 상태)도 보이는 자리에 가운데 정렬로 둔다.
-          로드뷰가 떠 있는 동안엔 아래쪽 1/3 지도가 시트에 가리지 않도록 숨긴다. */}
+          로드뷰가 떠 있는 동안엔 아래쪽 1/3 지도가 시트에 가리지 않도록 숨긴다. 검색 결과 패널이 떠
+          있는 동안에도 이 시트를 내려서, 시트 두 개가 겹쳐 보이지 않고 항상 하나만 보이게 한다. */}
       <BottomSheet
-        visible={!roadviewOpen}
+        visible={!roadviewOpen && !hasSearchResults}
         modal={false}
         minHeight={0.08}
         maxHeight={0.5}
@@ -1034,7 +1134,7 @@ export default function MapScreen() {
               </Text>
             </View>
 
-            <Scroll ref={merchantScrollRef} height={merchantListHeight} style={{ paddingHorizontal: 16 }}>
+            <Scroll ref={merchantScrollRef} contentContainerStyle={{ paddingBottom: 16 }} height={merchantListHeight} style={{ paddingHorizontal: 16 }}>
               {/* Scroll은 contentContainerStyle을 안 받아서, 카드 사이 간격(gap)은 View로 한 번 감싸서 준다. */}
               <View style={{ gap: 12 }}>
               {placeMerchants.map((merchant) => (
@@ -1051,6 +1151,7 @@ export default function MapScreen() {
                   defaultOpen={openMerchants.has(merchant.name)}
                   // 카드를 직접 눌러서 열고 닫을 때도 지도 중심 이동 + 마커/카드 강조가 마커를 눌렀을 때와 똑같이 동작하게 한다.
                   onPress={(open) => {
+                    userMovedMapRef.current = true;
                     if (merchant.latitude != null) {
                       mapRef.current?.setCenter({ lat: merchant.latitude, lng: merchant.longitude! });
                     }
@@ -1073,13 +1174,16 @@ export default function MapScreen() {
                   }
                   header={
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <View>
-                        <Text style={{ fontSize: 15, fontWeight: '700', color: Colors.light.cardTitle }}>
-                          {merchant.name}
-                        </Text>
-                        <Text style={{ fontSize: 12, color: Colors.light.cardDescription }}>
-                          {merchant.categoryName}
-                        </Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <CategoryIcon categoryId={merchant.categoryId} categoryName={merchant.categoryName} size={20} />
+                        <View>
+                          <Text style={{ fontSize: 15, fontWeight: '700', color: Colors.light.cardTitle }}>
+                            {merchant.name}
+                          </Text>
+                          <Text style={{ fontSize: 12, color: Colors.light.cardDescription }}>
+                            {merchant.categoryName}
+                          </Text>
+                        </View>
                       </View>
                       <Text style={{ fontSize: 15, fontWeight: '700', color: Colors.light.cardTitle }}>
                         {formatWon(merchant.amount)}원
@@ -1093,7 +1197,7 @@ export default function MapScreen() {
                     {groupMapTransactionsByDate(merchant.dateList).map((tx) => (
                       <View key={tx.transactionIds[0]} style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                         <Text style={{ fontSize: 14, color: Colors.light.cardBodyText }}>
-                          {formatDateOnly(tx.date)}
+                          {formatDateOnly(tx.date)} {formatTimeOnly(tx.datetime)}
                         </Text>
                         <Text style={{ fontSize: 14, fontWeight: '700', color: Colors.light.cardTitle }}>
                           -{formatWon(tx.amount)}원
@@ -1133,14 +1237,21 @@ export default function MapScreen() {
               </Text>
             </View>
 
-            <Scroll height={merchantListHeight} style={{ paddingHorizontal: 16 }}>
+            <Scroll contentContainerStyle={{ paddingBottom: 16 }} height={merchantListHeight} style={{ paddingHorizontal: 16 }}>
               <AccordionCard
                 defaultOpen
                 header={
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Text style={{ fontSize: 15, fontWeight: '700', color: Colors.light.cardTitle }}>
-                      {generalPlaceDetail.transactionList[0]?.categoryName ?? '기타'}
-                    </Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <CategoryIcon
+                        categoryId={generalPlaceDetail.transactionList[0]?.categoryId}
+                        categoryName={generalPlaceDetail.transactionList[0]?.categoryName ?? '기타'}
+                        size={20}
+                      />
+                      <Text style={{ fontSize: 15, fontWeight: '700', color: Colors.light.cardTitle }}>
+                        {generalPlaceDetail.transactionList[0]?.categoryName ?? '기타'}
+                      </Text>
+                    </View>
                     <Text style={{ fontSize: 15, fontWeight: '700', color: Colors.light.cardTitle }}>
                       {formatWon(generalPlaceDetail.amount)}원
                     </Text>
@@ -1153,7 +1264,7 @@ export default function MapScreen() {
                   {groupMapTransactionsByDate(generalPlaceDetail.transactionList).map((tx) => (
                     <View key={tx.transactionIds[0]} style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                       <Text style={{ fontSize: 14, color: Colors.light.cardBodyText }}>
-                        {formatDateOnly(tx.date)}
+                        {formatDateOnly(tx.date)} {formatTimeOnly(tx.datetime)}
                       </Text>
                       <Text style={{ fontSize: 14, fontWeight: '700', color: Colors.light.cardTitle }}>
                         -{formatWon(tx.amount)}원
@@ -1186,20 +1297,23 @@ export default function MapScreen() {
               </Text>
             </View>
 
-            <Scroll height={merchantListHeight} style={{ paddingHorizontal: 16 }}>
+            <Scroll contentContainerStyle={{ paddingBottom: 16 }} height={merchantListHeight} style={{ paddingHorizontal: 16 }}>
               <View style={{ gap: 12 }}>
                 {regionMerchants.map((merchant) => (
                   <AccordionCard
                     key={merchant.name}
                     header={
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <View>
-                          <Text style={{ fontSize: 15, fontWeight: '700', color: Colors.light.cardTitle }}>
-                            {merchant.name}
-                          </Text>
-                          <Text style={{ fontSize: 12, color: Colors.light.cardDescription }}>
-                            {merchant.categoryName}
-                          </Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                          <CategoryIcon categoryId={merchant.categoryId} categoryName={merchant.categoryName} size={20} />
+                          <View>
+                            <Text style={{ fontSize: 15, fontWeight: '700', color: Colors.light.cardTitle }}>
+                              {merchant.name}
+                            </Text>
+                            <Text style={{ fontSize: 12, color: Colors.light.cardDescription }}>
+                              {merchant.categoryName}
+                            </Text>
+                          </View>
                         </View>
                         <Text style={{ fontSize: 15, fontWeight: '700', color: Colors.light.cardTitle }}>
                           {formatWon(merchant.amount)}원
@@ -1215,7 +1329,7 @@ export default function MapScreen() {
                           key={tx.transactionIds[0]}
                           style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                           <Text style={{ fontSize: 14, color: Colors.light.cardBodyText }}>
-                            {formatDateOnly(tx.date)}
+                            {formatDateOnly(tx.date)} {formatTimeOnly(tx.datetime)}
                           </Text>
                           <Text style={{ fontSize: 14, fontWeight: '700', color: Colors.light.cardTitle }}>
                             -{formatWon(tx.amount)}원
@@ -1230,7 +1344,19 @@ export default function MapScreen() {
           </>
         ) : (
           <>
-            <Scroll height={placeListHeight} style={{ paddingHorizontal: 16 }}>
+            {/* 장소 추가·수정·삭제는 이 목록에서 바로 할 수 없고 마이페이지 > 설정에서만 가능해서,
+                여기서 시도하다 헷갈리지 않도록 안내를 먼저 보여준다. */}
+            <Text
+              style={{
+                paddingHorizontal: 16,
+                paddingBottom: 8,
+                color: Colors.light.cardDescription,
+                fontSize: 12,
+                textAlign: 'center',
+              }}>
+              내 장소 추가, 수정, 삭제는 설정 페이지에서 가능해요!
+            </Text>
+            <Scroll contentContainerStyle={{ paddingBottom: 16 }} height={placeListHeight} style={{ paddingHorizontal: 16 }}>
               {myPlaces.map((place) => {
                 return (
                   <InfoListItem

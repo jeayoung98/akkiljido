@@ -57,7 +57,7 @@ export default function RootLayout() {
       <QueryClientProvider client={queryClient}>
         <SafeAreaProvider>
           <ThemeProvider value={DefaultTheme}>
-            <Stack screenOptions={{ headerShown: false, statusBarStyle: 'dark' }}>
+            <Stack screenOptions={{ headerShown: false, statusBarStyle: 'light' }}>
               <Stack.Screen name="landing" options={{ statusBarStyle: 'light' }} />
               <Stack.Screen name="login" />
               <Stack.Screen name="nickname-setup" />

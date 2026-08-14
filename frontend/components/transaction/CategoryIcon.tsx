@@ -69,9 +69,10 @@ const ICON_SHAPES: Record<CategoryIconName, (color: string) => ReactNode> = {
   ),
   transport: (color) => (
     <>
-      <Path d="M3 11l9-7 9 7" />
-      <Path d="M5 10v10h14V10" />
-      <Path d="M9 20v-6h6v6" />
+      <Path d="M5 16l1.3-4.8A2 2 0 0 1 8.2 9.8h7.6a2 2 0 0 1 1.9 1.4L19 16" />
+      <Rect height={4} rx={1.5} width={16} x={4} y={16} />
+      <Circle cx={8} cy={20} fill={color} r={1.6} stroke="none" />
+      <Circle cx={16} cy={20} fill={color} r={1.6} stroke="none" />
     </>
   ),
   health: (color) => (
@@ -82,11 +83,9 @@ const ICON_SHAPES: Record<CategoryIconName, (color: string) => ReactNode> = {
   ),
   living: (color) => (
     <>
-      <Rect height={12} rx={2} width={14} x={5} y={7} />
-      <Path d="M8 7V5h8v2" />
-      <Circle cx={9} cy={13} fill={color} r={1} stroke="none" />
-      <Circle cx={12} cy={13} fill={color} r={1} stroke="none" />
-      <Circle cx={15} cy={13} fill={color} r={1} stroke="none" />
+      <Path d="M3 11l9-7 9 7" />
+      <Path d="M5 10v10h14V10" />
+      <Path d="M9 20v-6h6v6" />
     </>
   ),
   beauty: (color) => (
@@ -106,13 +105,11 @@ const ICON_SHAPES: Record<CategoryIconName, (color: string) => ReactNode> = {
   ),
   other: (color) => (
     <>
-      <Rect height={15} rx={3} width={14} x={5} y={3} />
-      <Path d="M7 8h10" />
-      <Path d="M8 12h8" />
-      <Path d="M8 18v2" />
-      <Path d="M16 18v2" />
-      <Circle cx={8.5} cy={15.5} fill={color} r={0.8} stroke="none" />
-      <Circle cx={15.5} cy={15.5} fill={color} r={0.8} stroke="none" />
+      <Rect height={12} rx={2} width={14} x={5} y={7} />
+      <Path d="M8 7V5h8v2" />
+      <Circle cx={9} cy={13} fill={color} r={1} stroke="none" />
+      <Circle cx={12} cy={13} fill={color} r={1} stroke="none" />
+      <Circle cx={15} cy={13} fill={color} r={1} stroke="none" />
     </>
   ),
   // assets/icons/categories/money_bag.svg — 소득 카테고리(INCOME_CATEGORY) 아이콘입니다.

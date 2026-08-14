@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Text } from '@/components/common/typography/Text';
@@ -10,7 +9,7 @@ import { AnalysisLegend, type AnalysisLegendItem } from '@/components/transactio
 import { MonthPicker } from '@/components/transaction/MonthPicker';
 import { PieChart } from '@/components/transaction/PieChart';
 import { getCategoryColorById } from '@/constants/categories';
-import Colors from '@/constants/Colors';
+import Colors, { categoryColors } from '@/constants/Colors';
 import { useCategoryAnalysis, useMyPlaceAnalysis } from '@/hooks/useAnalysis';
 import { toCalendarParams } from '@/src/api/calendarApi';
 
@@ -28,12 +27,6 @@ const MODE_OPTIONS = [
   { label: '카테고리 분석', value: 'category' },
   { label: '장소 분석', value: 'place' },
 ] as const;
-
-const PLACE_ICON_BY_NAME: Record<string, keyof typeof Ionicons.glyphMap> = {
-  회사: 'business',
-  집: 'home',
-  학교: 'school',
-};
 
 /**
  * 소비 데이터를 카테고리·장소 기준으로 시각화하는 분석 탭입니다.
@@ -53,6 +46,11 @@ export function TransactionAnalysisTab({
   const { year, month: monthNumber } = toCalendarParams(month);
   const isCategoryMode = mode === 'category';
 
+  // 먼 미래까지 무한정 넘겨볼 수 있으면 의미가 없어서, 오늘로부터 3년 뒤 달까지만 이동을 허용한다.
+  const today = new Date();
+  const maxMonth = new Date(today.getFullYear() + 3, today.getMonth(), 1);
+  const isAtMaxMonth = month.getFullYear() === maxMonth.getFullYear() && month.getMonth() === maxMonth.getMonth();
+
   const categoryQuery = useCategoryAnalysis(year, monthNumber, isCategoryMode);
   const placeQuery = useMyPlaceAnalysis(year, monthNumber, !isCategoryMode);
   const activeQuery = isCategoryMode ? categoryQuery : placeQuery;
@@ -71,19 +69,15 @@ export function TransactionAnalysisTab({
       }));
     }
 
-    return items.map((item) => ({
+    // 장소 분석도 카테고리 분석처럼 항목마다 뚜렷이 구분되는 고정 색을 쓴다(비율 기반 초록
+    // 그라데이션은 색 차이가 잘 안 보인다는 피드백이 있었다). 장소는 categoryId 같은 고정 id가
+    // 없어서, 카테고리와 같은 팔레트(categoryColors)를 순서대로 돌려가며 배정한다.
+    return items.map((item, index) => ({
       id: item.id,
       name: item.name,
       amount: item.amount,
       percent: item.percent,
-      // 장소 분석은 고정 색이 없어 비율 기반 초록색을 쓰고, 색 점 대신 장소 아이콘을 보여줍니다.
-      icon: (
-        <Ionicons
-          color={Colors.light.textSecondary}
-          name={PLACE_ICON_BY_NAME[item.name] ?? 'location'}
-          size={14}
-        />
-      ),
+      color: categoryColors[index % categoryColors.length],
     }));
   }, [activeQuery.analysis, isCategoryMode]);
 
@@ -95,7 +89,7 @@ export function TransactionAnalysisTab({
 
   return (
     <View style={styles.container}>
-      <MonthPicker month={month} onNext={onNextMonth} onPrev={onPreviousMonth} />
+      <MonthPicker disableNext={isAtMaxMonth} month={month} onNext={onNextMonth} onPrev={onPreviousMonth} />
       <SegmentedControl onChange={onChangeMode} options={MODE_OPTIONS} value={mode} />
 
       <AnalysisCard

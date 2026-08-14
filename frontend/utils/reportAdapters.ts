@@ -7,6 +7,11 @@ export function getReportPeriodLabel(type: ReportType): string {
   return type === 'MONTHLY' ? '월간 리포트' : '주간 리포트';
 }
 
+/** "가장 자주 소비한 장소" 칸의 라벨. 리포트를 보여주는 모든 화면(홈 팝업, 과거 리포트)이 같이 쓴다. */
+export function getMostFrequentPlaceLabel(type: ReportType): string {
+  return type === 'MONTHLY' ? '이번달의 방앗간' : '이번주의 방앗간';
+}
+
 /** 추천 모달 헤더 타이틀. 리포트 요약 모달의 headline과 짝을 이룬다. */
 export function getReportRecommendationTitle(type: ReportType): string {
   return type === 'MONTHLY' ? '지난달 소비 리포트' : '지난주 소비 리포트';
@@ -63,7 +68,8 @@ export function toReportRecommendations(detail: ReportDetail): ReportRecommendat
       placeName: recommendation.placeName,
       timeRange,
       alarm: {
-        name: `${recommendation.placeName} 알림`,
+        // 알림 본문에서 "{이름} 근처입니다"로 사용하므로 접미사 없이 장소명만 저장합니다.
+        name: recommendation.placeName,
         placeName: recommendation.placeName,
         address: recommendation.address,
         lat: recommendation.latitude,

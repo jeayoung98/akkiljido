@@ -9,6 +9,7 @@ import { BrandLogo } from '@/components/onboarding/BrandLogo';
 import Colors from '@/constants/Colors';
 import { registerNickname } from '@/src/api/usersApi';
 import { saveAuthSession } from '@/src/auth/tokenStorage';
+import { syncPushTokenRegistration } from '@/utils/pushNotifications';
 
 const MAX_LENGTH = 20;
 
@@ -62,6 +63,10 @@ export default function NicknameSetupScreen() {
           tokensSaved: true,
         },
       );
+
+      // GUEST -> USER로 바뀌는 유일한 지점이다. 여기서 등록하지 않으면 앱을 완전히 껐다 켜기 전까지
+      // 이 기기 토큰이 서버에 올라가지 않아 리포트 푸시를 못 받는다.
+      void syncPushTokenRegistration();
 
       router.replace('/(tabs)');
     } catch (error) {

@@ -102,7 +102,7 @@ export function SaveAlarmModal({
   onReopenAfterLocationPicked,
   onSave,
   saveLoading = false,
-  title = '추천 위치 알림 추가',
+  title = '추천 방앗간 알림 추가',
   description = 'AI 추천 내용을 수정한 뒤 저장할 수 있어요.',
 }: SaveAlarmModalProps) {
   const router = useRouter();
@@ -242,7 +242,7 @@ export function SaveAlarmModal({
         style={styles.keyboardArea}>
         <View style={styles.overlay}>
           <Pressable
-            accessibilityLabel="추천 알림 모달 닫기"
+            accessibilityLabel="추천 방앗간 알림 모달 닫기"
             accessibilityRole="button"
             onPress={handleClose}
             style={StyleSheet.absoluteFill}

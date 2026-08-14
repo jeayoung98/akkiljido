@@ -72,7 +72,7 @@ const TYPE_CONFIG: Record<
   { label: string; icon: keyof typeof Ionicons.glyphMap; iconColor: string; iconBackground: string; unreadBackground: string }
 > = {
   LOCATION: {
-    label: '위치 알림',
+    label: '방앗간 알림',
     icon: 'location',
     iconColor: '#B8860B',
     iconBackground: '#F5E6C8',

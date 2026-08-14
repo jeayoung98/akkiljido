@@ -62,7 +62,7 @@ export function useNotificationPlaceTrigger() {
           if (!(await claimNotificationForToday(place.notificationPlaceId))) continue;
 
           const title = `${place.notificationPlaceName} 근처예요`;
-          const body = `${place.address} · ${place.reason}`;
+          const body = place.reason;
           const didPresent = await presentLocalNotification(title, body);
           if (!didPresent) {
             await releaseNotificationClaimForToday(place.notificationPlaceId);

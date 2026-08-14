@@ -6,8 +6,11 @@ import { Text } from '@/components/common/typography/Text';
 import AppScreen from '@/components/common/AppScreen';
 import AccordionCard from '@/components/common/card/AccordionCard';
 import { AppHeader } from '@/components/common/header/AppHeader';
+import { SaveAlarmModal, type AlarmFormValue } from '@/components/common/modal/SaveAlarmModal';
+import { RecommendationRow, type ReportRecommendation } from '@/components/report/RecommendModal';
 import SegmentedControl from '@/components/common/segmented-control/SegmentedControl';
 import Colors from '@/constants/Colors';
+import { useSaveRecommendedAlarm } from '@/hooks/useSaveRecommendedAlarm';
 import {
   getReportDetail,
   getReportList,
@@ -15,6 +18,7 @@ import {
   type ReportListItem,
   type ReportQueryType,
 } from '@/src/api/reportApi';
+import { getMostFrequentPlaceLabel, toReportRecommendations } from '@/utils/reportAdapters';
 
 const REPORT_TABS = [
   { value: 'weekly', label: '주간 리포트' },
@@ -56,11 +60,16 @@ function formatPeriod(report: ReportListItem): string {
 
 type ReportDetailContentProps = {
   detail: ReportDetail;
+  onSelectRecommendation: (rec: ReportRecommendation) => void;
 };
 
 function ReportDetailContent({
   detail,
+  onSelectRecommendation,
 }: ReportDetailContentProps) {
+  // 방앗간 알림 추천 모달(components/report/RecommendModal.tsx)과 같은 형태로 변환해서
+  // 같은 RecommendationRow를 그대로 쓴다 — 두 화면의 추천 UI/동작이 갈리지 않게 하기 위함.
+  const recommendations = toReportRecommendations(detail);
   const transactionCount = detail.summary?.count ?? 0;
   const placeCount = detail.summary?.placeCount ?? 0;
 
@@ -85,7 +94,7 @@ function ReportDetailContent({
 
         <View style={styles.gridCard}>
           <Text style={styles.gridLabel}>
-            가장 자주 소비한 장소
+            {getMostFrequentPlaceLabel(detail.type)}
           </Text>
 
           <Text
@@ -118,56 +127,23 @@ function ReportDetailContent({
 
       <View style={styles.sectionCard}>
         <Text style={styles.sectionCardTitle}>
-          알림 추천
+          방앗간 추천
         </Text>
 
-        {detail.recommendations.length > 0 ? (
+        {recommendations.length > 0 ? (
           <View style={styles.recList}>
-            {detail.recommendations.map(
-              (recommendation, index) => {
-                const reason =
-                  recommendation.reasonMessage ||
-                  recommendation.reasonShort;
-
-                return (
-                  <View
-                    key={[
-                      recommendation.placeName,
-                      recommendation.startTime,
-                      recommendation.endTime,
-                      index,
-                    ].join('-')}
-                    style={styles.recItem}>
-                    <View style={styles.recNumber}>
-                      <Text style={styles.recNumberText}>
-                        {index + 1}
-                      </Text>
-                    </View>
-
-                    <View style={styles.recContent}>
-                      <Text style={styles.recPlace}>
-                        {recommendation.placeName}
-                      </Text>
-
-                      <Text style={styles.recText}>
-                        {reason ||
-                          '소비 패턴을 바탕으로 추천한 장소입니다.'}
-                      </Text>
-
-                      <Text style={styles.recTime}>
-                        {recommendation.startTime}
-                        {' - '}
-                        {recommendation.endTime}
-                      </Text>
-                    </View>
-                  </View>
-                );
-              },
-            )}
+            {recommendations.map((rec, index) => (
+              <RecommendationRow
+                key={rec.id}
+                index={index}
+                onPress={() => onSelectRecommendation(rec)}
+                rec={rec}
+              />
+            ))}
           </View>
         ) : (
           <Text style={styles.emptyText}>
-            이번 리포트에는 추천 알림이 없습니다.
+            이번 리포트에는 추천 방앗간이 없습니다.
           </Text>
         )}
       </View>
@@ -177,9 +153,10 @@ function ReportDetailContent({
 
 type ReportCardProps = {
   report: ReportListItem;
+  onSelectRecommendation: (rec: ReportRecommendation) => void;
 };
 
-function ReportCard({ report }: ReportCardProps) {
+function ReportCard({ report, onSelectRecommendation }: ReportCardProps) {
   const [detail, setDetail] =
     useState<ReportDetail | null>(null);
   const [detailLoading, setDetailLoading] =
@@ -288,7 +265,7 @@ function ReportCard({ report }: ReportCardProps) {
           </Pressable>
         </View>
       ) : detail ? (
-        <ReportDetailContent detail={detail} />
+        <ReportDetailContent detail={detail} onSelectRecommendation={onSelectRecommendation} />
       ) : null}
     </AccordionCard>
   );
@@ -304,6 +281,18 @@ export default function ReportScreen() {
   const [error, setError] =
     useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+  // 방앗간 추천 항목을 눌렀을 때 열리는 알림 저장 모달. 홈 화면의 리포트 팝업과 동일한 저장 동작을
+  // 공유한다(hooks/useSaveRecommendedAlarm.ts) — 두 화면의 동작이 갈리지 않게 하기 위함.
+  const [selectedAlarm, setSelectedAlarm] = useState<AlarmFormValue | null>(null);
+  const [saveAlarmVisible, setSaveAlarmVisible] = useState(false);
+  const { saveAlarm: handleSaveRecommendedAlarm, saving: alarmSaving } = useSaveRecommendedAlarm(() =>
+    setSaveAlarmVisible(false),
+  );
+
+  const handleSelectRecommendation = (rec: ReportRecommendation) => {
+    setSelectedAlarm(rec.alarm);
+    setSaveAlarmVisible(true);
+  };
 
   useEffect(() => {
     let active = true;
@@ -426,12 +415,24 @@ export default function ReportScreen() {
             {reports.map((report) => (
               <ReportCard
                 key={report.reportId}
+                onSelectRecommendation={handleSelectRecommendation}
                 report={report}
               />
             ))}
           </View>
         )}
       </ScrollView>
+
+      {selectedAlarm ? (
+        <SaveAlarmModal
+          initialValue={selectedAlarm}
+          onClose={() => setSaveAlarmVisible(false)}
+          onReopenAfterLocationPicked={() => setSaveAlarmVisible(true)}
+          onSave={handleSaveRecommendedAlarm}
+          saveLoading={alarmSaving}
+          visible={saveAlarmVisible}
+        />
+      ) : null}
     </AppScreen>
   );
 }
@@ -541,48 +542,6 @@ const styles = StyleSheet.create({
   recList: {
     gap: 8,
     marginTop: 8,
-  },
-  recItem: {
-    flexDirection: 'row',
-    gap: 10,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: Colors.light.border,
-    borderRadius: 12,
-    backgroundColor: Colors.light.inputBackground,
-  },
-  recNumber: {
-    width: 24,
-    height: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 12,
-    backgroundColor: Colors.light.primary,
-  },
-  recNumberText: {
-    color: Colors.onboarding.inverseText,
-    fontSize: 11,
-    fontWeight: '800',
-  },
-  recContent: {
-    flex: 1,
-  },
-  recPlace: {
-    color: Colors.light.cardTitle,
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  recText: {
-    marginTop: 3,
-    color: Colors.light.cardBodyText,
-    fontSize: 12,
-    lineHeight: 18,
-  },
-  recTime: {
-    marginTop: 4,
-    color: Colors.light.primary,
-    fontSize: 12,
-    fontWeight: '700',
   },
   screenState: {
     minHeight: 240,

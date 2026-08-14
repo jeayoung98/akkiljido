@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 
 import AppScreen from '@/components/common/AppScreen';
@@ -11,22 +11,11 @@ import { CategoryIcon } from '@/components/transaction/CategoryIcon';
 import { InfoRow } from '@/components/transaction/InfoRow';
 import { TransactionDetailCard } from '@/components/transaction/TransactionDetailCard';
 import Colors from '@/constants/Colors';
-import {
-  useDeleteTransaction,
-  useTransactionDetail,
-  useTransactionList,
-} from '@/hooks/useTransactions';
-import { groupTransactions } from '@/src/utils/groupTransactions';
+import { useDeleteTransaction, useTransactionDetail } from '@/hooks/useTransactions';
 
 // "2026-07-17 09:12:00" 또는 "2026-07-17 09:12:00+09" → "2026.07.17"
 function formatDate(datetime: string) {
   return datetime.slice(0, 10).replaceAll('-', '.');
-}
-
-// address는 등록 API 기준으로 "서울 강남구 역삼동"처럼 풀 주소가 온다. 상세 화면 "장소" 칸은
-// 좁아서 풀 주소 대신 구 단위만 짧게 보여주고, "구"가 없는 값(온라인, - 등)은 그대로 보여준다.
-function formatPlace(address: string) {
-  return address.match(/[가-힣]+구/)?.[0] ?? address;
 }
 
 /** 값이 비어 있는 항목은 빈칸 대신 하이픈으로 표시합니다. */
@@ -41,25 +30,9 @@ function orDash(value: string) {
 export default function TransactionDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { transaction, isLoading, error, refetch } = useTransactionDetail(id);
-  const transactionDate = transaction?.datetime.slice(0, 10) ?? '';
-  const { dateGroups } = useTransactionList(
-    { startDate: transactionDate, endDate: transactionDate },
-    Boolean(transactionDate),
-  );
-
-  // 목록·캘린더와 같은 기준(동일 날짜·상호명·카테고리·거래 구분)으로 묶어 상세 금액도 누적으로 맞춘다.
   // 목록 API에는 주소가 없으므로, 같은 이름의 서로 다른 지점은 API에 지점 식별자가 추가되면 그 값으로 구분한다.
-  const groupedTransaction = useMemo(() => {
-    if (!transaction) return undefined;
-
-    const dayTransactions = dateGroups.find((group) => group.date === transactionDate)?.transactionList ?? [];
-    return groupTransactions(dayTransactions).find((item) =>
-      item.transactionIds.includes(transaction.transactionId),
-    );
-  }, [dateGroups, transaction, transactionDate]);
-
-  const displayedAmount = groupedTransaction?.amount ?? transaction?.amount ?? 0;
-  const transactionCount = groupedTransaction?.transactionCount ?? 1;
+  // 같은 이름의 결제라도 시간과 건이 다르면 각각 독립적인 거래로 보여줍니다.
+  const displayedAmount = transaction?.amount ?? 0;
 
   // 삭제 버튼을 누른 뒤 사용자 확인을 받을 때만 공통 모달을 표시합니다.
   const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
@@ -100,7 +73,6 @@ export default function TransactionDetailScreen() {
           <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
             <TransactionDetailCard
               amount={displayedAmount}
-              description={transactionCount > 1 ? `동일 거래 ${transactionCount}건 누적` : undefined}
               leading={
                 <CategoryIcon
                   categoryId={transaction.categoryId}
@@ -114,7 +86,7 @@ export default function TransactionDetailScreen() {
             />
 
             <View style={styles.infoCard}>
-              <InfoRow label="일자" value={formatDate(transaction.datetime)} />
+              <InfoRow label="일자" showDivider={transaction.type === 'expense'} value={formatDate(transaction.datetime)} />
               {/*
                 장소·카테고리·결제 수단은 소비에만 있는 정보입니다. 등록 화면도 소득이면 이 값들을 받지 않고,
                 수정 화면에서도 잠깁니다. 다만 소비였다가 소득으로 바뀐 거래는 서버에 예전 값이 남아 있을 수
@@ -123,12 +95,11 @@ export default function TransactionDetailScreen() {
               */}
               {transaction.type === 'expense' ? (
                 <>
-                  <InfoRow label="장소" value={orDash(formatPlace(transaction.address))} />
+                  <InfoRow label="장소" value={orDash(transaction.address)} />
                   <InfoRow label="카테고리" value={orDash(transaction.categoryName)} />
-                  <InfoRow label="결제 수단" value={orDash(transaction.paymentMethod)} />
+                  <InfoRow label="결제 수단" showDivider={false} value={orDash(transaction.paymentMethod)} />
                 </>
               ) : null}
-              <InfoRow label="메모" showDivider={false} value={orDash(transaction.memo)} />
             </View>
 
             <View style={styles.actions}>

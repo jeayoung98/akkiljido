@@ -88,6 +88,9 @@ export type GroupedMapTransaction = {
 
 export type GroupedMapTransactionDate = {
   date: string;
+  // 그룹 안 첫 거래의 실제 시각(HH:mm:ss 포함 원본 문자열)입니다. 같은 날짜에 거래가 여러 건
+  // 묶여도 시각을 임의로 만들지 않고, 실제로 기록된 첫 거래의 시각을 그대로 보여줍니다.
+  datetime: string;
   amount: number;
   transactionCount: number;
   transactionIds: number[];
@@ -235,6 +238,7 @@ export function groupMapTransactionsByDate(
 
   return Array.from(groups.entries()).map(([date, group]) => ({
     date,
+    datetime: group[0].datetime,
     amount: group.reduce((sum, transaction) => sum + transaction.amount, 0),
     transactionCount: group.length,
     transactionIds: group.map((transaction) => transaction.transactionId),

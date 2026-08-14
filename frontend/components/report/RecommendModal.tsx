@@ -36,6 +36,38 @@ export type ReportRecommendationsModalProps = {
   onSelectRecommendation: (rec: ReportRecommendation) => void;
 };
 
+export type RecommendationRowProps = {
+  rec: ReportRecommendation;
+  index: number;
+  onPress: () => void;
+};
+
+/**
+ * 방앗간 알림 추천 항목 하나(번호 원 + 설명 + "+" 아이콘)입니다.
+ * 이 모달과 과거 리포트 화면(ReportScreen.tsx)이 똑같이 써서 두 화면의 추천 UI가 갈리지 않게 합니다.
+ */
+export function RecommendationRow({ rec, index, onPress }: RecommendationRowProps) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [styles.recCard, pressed && styles.recCardPressed]}>
+      <View style={styles.recIndexCircle}>
+        <Text style={styles.recIndexText}>{index + 1}</Text>
+      </View>
+      <Text style={styles.recText}>
+        {rec.description}{' '}
+        <Text style={styles.recHighlight}>
+          {rec.placeName} {rec.timeRange}
+        </Text>
+        에 알림을 설정해 보세요!
+      </Text>
+      <View style={styles.recAction}>
+        <Ionicons name="add-circle-outline" size={26} color={Colors.light.reportHeaderBackground} />
+      </View>
+    </Pressable>
+  );
+}
+
 /** 주간·월간 리포트의 두 번째 페이지: AI가 추천한 위치 알림 목록을 보여주는 팝업 모달입니다. */
 export function ReportRecommendationsModal({
   visible,
@@ -60,27 +92,12 @@ export function ReportRecommendationsModal({
 
       <View style={styles.body}>
         <View>
-          <Text style={styles.sectionTitle}>위치 알림 추천</Text>
+          <Text style={styles.sectionTitle}>방앗간 알림 추천</Text>
           <Text style={styles.sectionSub}>소비 패턴을 분석해 알림을 추천해 드려요.</Text>
         </View>
 
         {recommendations.map((rec, index) => (
-          <Pressable
-            key={rec.id}
-            onPress={() => onSelectRecommendation(rec)}
-            style={({ pressed }) => [styles.recCard, pressed && styles.recCardPressed]}>
-            <Text style={styles.recIndex}>{index + 1}.</Text>
-            <Text style={styles.recText}>
-              {rec.description}{' '}
-              <Text style={styles.recHighlight}>
-                {rec.placeName} {rec.timeRange}
-              </Text>
-              에 알림을 설정해 보세요!
-            </Text>
-            <View style={styles.recAction}>
-              <Ionicons name="add-circle-outline" size={26} color={Colors.light.reportHeaderBackground} />
-            </View>
-          </Pressable>
+          <RecommendationRow key={rec.id} index={index} onPress={() => onSelectRecommendation(rec)} rec={rec} />
         ))}
 
         <View style={styles.buttonRow}>
@@ -149,11 +166,18 @@ const styles = StyleSheet.create({
   recCardPressed: {
     opacity: 0.7,
   },
-  recIndex: {
-    fontSize: 14,
-    lineHeight: 21,
-    fontWeight: '700',
-    color: Colors.light.cardBodyText,
+  recIndexCircle: {
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 12,
+    backgroundColor: Colors.light.primary,
+  },
+  recIndexText: {
+    color: Colors.onboarding.inverseText,
+    fontSize: 11,
+    fontWeight: '800',
   },
   recText: {
     flex: 1,
