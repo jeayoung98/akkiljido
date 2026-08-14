@@ -18,7 +18,7 @@ import {
   type ReportListItem,
   type ReportQueryType,
 } from '@/src/api/reportApi';
-import { toReportRecommendations } from '@/utils/reportAdapters';
+import { getMostFrequentPlaceLabel, toReportRecommendations } from '@/utils/reportAdapters';
 
 const REPORT_TABS = [
   { value: 'weekly', label: '주간 리포트' },
@@ -94,7 +94,7 @@ function ReportDetailContent({
 
         <View style={styles.gridCard}>
           <Text style={styles.gridLabel}>
-            가장 자주 소비한 장소
+            {getMostFrequentPlaceLabel(detail.type)}
           </Text>
 
           <Text

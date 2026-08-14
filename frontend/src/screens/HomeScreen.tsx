@@ -27,6 +27,7 @@ import { useDevModeStore } from '@/store/devModeStore';
 import { useNotificationStore } from '@/store/notificationStore';
 import { useReportPopupStore } from '@/store/reportPopupStore';
 import {
+  getMostFrequentPlaceLabel,
   getReportPeriodLabel,
   getReportRecommendationTitle,
   toReportModalData,
@@ -341,6 +342,7 @@ export default function HomeScreen() {
           onClose={dismissReportFlow}
           data={reportData}
           periodLabel={getReportPeriodLabel(reportType)}
+          frequentPlaceLabel={getMostFrequentPlaceLabel(reportType)}
           onViewRecommendations={() => {
             // ReportModal은 계속 visible로 두고, 그 위에 RecommendModal만 새로 연다(스택 유지, 번쩍임 방지).
             setRecommendVisible(true);

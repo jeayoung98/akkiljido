@@ -5,12 +5,12 @@ import Colors from '@/constants/Colors';
 
 interface BrandLockupProps {
   logoSize: number;
-  tone?: 'dark' | 'light';
+  tone?: 'light' | 'light';
 }
 
 export function BrandLockup({
   logoSize,
-  tone = 'dark',
+  tone = 'light',
 }: BrandLockupProps) {
   const isLight = tone === 'light';
 

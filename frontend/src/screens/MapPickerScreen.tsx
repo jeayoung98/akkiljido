@@ -157,7 +157,7 @@ export default function MapPickerScreen() {
     const searchCenter = mapCenterRef.current ?? currentLocation ?? DEFAULT_CENTER;
     let places;
     try {
-      places = await searchPlaces(query, searchCenter);
+      places = await searchPlaces(query, { center: searchCenter });
     } catch {
       Alert.alert('검색에 실패했어요', '잠시 후 다시 시도해주세요.');
       return;

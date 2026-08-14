@@ -25,11 +25,18 @@ const BACKGROUND_LOCATION_OPTIONS: Location.LocationTaskOptions = {
 // 있어서, 훅이나 컴포넌트 안이 아니라 모듈이 로드되는 즉시(앱 진입점에서 이 파일이 import되는
 // 시점에) 무조건 등록해야 한다. 조건부로 등록하면 헤드리스 실행 시 등록이 안 돼 있을 수 있다.
 TaskManager.defineTask(BACKGROUND_LOCATION_TASK, async ({ data, error }) => {
+  // TEMP DEBUG: 백그라운드 상태에서 알림이 안 오는 문제를 진단하려고 __DEV__ 없이 항상 찍는다.
+  // 원인을 확인한 뒤에는 이 로그들을 지우거나 다시 __DEV__로 감싸야 한다.
+  console.info('[notification-trigger] background task invoked', { hasError: Boolean(error) });
+
   if (error) return;
 
   const { locations } = (data ?? {}) as { locations?: Location.LocationObject[] };
   const position = locations?.[locations.length - 1];
-  if (!position) return;
+  if (!position) {
+    console.info('[notification-trigger] background task: no position in payload');
+    return;
+  }
 
   const now = new Date();
   const places = await loadNotificationPlaces();
@@ -39,20 +46,22 @@ TaskManager.defineTask(BACKGROUND_LOCATION_TASK, async ({ data, error }) => {
     now
   );
 
-  if (__DEV__) {
-    console.info('[notification-trigger] background evaluation', {
-      time: now.toTimeString().slice(0, 5),
-      placeCount: places.length,
-      triggeredPlaceIds: triggeredPlaces.map((place) => place.notificationPlaceId),
-    });
-  }
+  console.info('[notification-trigger] background evaluation', {
+    time: now.toTimeString().slice(0, 5),
+    placeCount: places.length,
+    triggeredPlaceIds: triggeredPlaces.map((place) => place.notificationPlaceId),
+  });
 
   for (const place of triggeredPlaces) {
-    if (!(await claimNotificationForToday(place.notificationPlaceId))) continue;
+    if (!(await claimNotificationForToday(place.notificationPlaceId))) {
+      console.info('[notification-trigger] background: already claimed today', place.notificationPlaceId);
+      continue;
+    }
 
     const title = `${place.notificationPlaceName} 근처예요`;
-    const body = `${place.address} · ${place.reason}`;
+    const body = place.reason;
     const didPresent = await presentLocalNotification(title, body);
+    console.info('[notification-trigger] background: presentLocalNotification result', { didPresent });
     if (!didPresent) {
       await releaseNotificationClaimForToday(place.notificationPlaceId);
       continue;

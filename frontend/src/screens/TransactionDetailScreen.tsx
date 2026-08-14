@@ -18,12 +18,6 @@ function formatDate(datetime: string) {
   return datetime.slice(0, 10).replaceAll('-', '.');
 }
 
-// address는 등록 API 기준으로 "서울 강남구 역삼동"처럼 풀 주소가 온다. 상세 화면 "장소" 칸은
-// 좁아서 풀 주소 대신 구 단위만 짧게 보여주고, "구"가 없는 값(온라인, - 등)은 그대로 보여준다.
-function formatPlace(address: string) {
-  return address.match(/[가-힣]+구/)?.[0] ?? address;
-}
-
 /** 값이 비어 있는 항목은 빈칸 대신 하이픈으로 표시합니다. */
 function orDash(value: string) {
   return value.trim() ? value : '-';
@@ -92,7 +86,7 @@ export default function TransactionDetailScreen() {
             />
 
             <View style={styles.infoCard}>
-              <InfoRow label="일자" value={formatDate(transaction.datetime)} />
+              <InfoRow label="일자" showDivider={transaction.type === 'expense'} value={formatDate(transaction.datetime)} />
               {/*
                 장소·카테고리·결제 수단은 소비에만 있는 정보입니다. 등록 화면도 소득이면 이 값들을 받지 않고,
                 수정 화면에서도 잠깁니다. 다만 소비였다가 소득으로 바뀐 거래는 서버에 예전 값이 남아 있을 수
@@ -101,12 +95,11 @@ export default function TransactionDetailScreen() {
               */}
               {transaction.type === 'expense' ? (
                 <>
-                  <InfoRow label="장소" value={orDash(formatPlace(transaction.address))} />
+                  <InfoRow label="장소" value={orDash(transaction.address)} />
                   <InfoRow label="카테고리" value={orDash(transaction.categoryName)} />
-                  <InfoRow label="결제 수단" value={orDash(transaction.paymentMethod)} />
+                  <InfoRow label="결제 수단" showDivider={false} value={orDash(transaction.paymentMethod)} />
                 </>
               ) : null}
-              <InfoRow label="메모" showDivider={false} value={orDash(transaction.memo)} />
             </View>
 
             <View style={styles.actions}>

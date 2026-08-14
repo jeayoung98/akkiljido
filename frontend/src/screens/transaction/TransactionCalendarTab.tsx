@@ -77,6 +77,7 @@ export function TransactionCalendarTab({
 
   // 먼 미래까지 무한정 넘겨볼 수 있으면 의미가 없어서, 오늘로부터 3년 뒤 달까지만 이동을 허용한다.
   const today = new Date();
+  const todayKey = toDateKey(today);
   const maxMonth = new Date(today.getFullYear() + 3, today.getMonth(), 1);
   const isAtMaxMonth = month.getFullYear() === maxMonth.getFullYear() && month.getMonth() === maxMonth.getMonth();
 
@@ -129,12 +130,14 @@ export function TransactionCalendarTab({
               <View key={weekIndex} style={styles.calendarWeekRow}>
                 {week.map((cell) => {
                   const totals = monthTotalsByDay.get(cell.day);
+                  // 오늘 이후 날짜는 거래가 있을 수 없으므로, 선택은 그대로 두되 금액 표시만 감춘다.
+                  const showAmounts = cell.inCurrentMonth && cell.dateKey <= todayKey;
                   return (
                     <CalendarDayCell
                       day={cell.day}
                       disabled={!cell.inCurrentMonth}
-                      expenseAmount={cell.inCurrentMonth ? totals?.expense || undefined : undefined}
-                      incomeAmount={cell.inCurrentMonth ? totals?.income || undefined : undefined}
+                      expenseAmount={showAmounts ? totals?.expense || undefined : undefined}
+                      incomeAmount={showAmounts ? totals?.income || undefined : undefined}
                       key={cell.dateKey}
                       onPress={cell.inCurrentMonth ? () => onSelectDate(cell.dateKey) : undefined}
                       selected={cell.dateKey === selectedDateKey}

@@ -58,11 +58,6 @@ function formatDateDisplay(date: Date) {
   return toDateString(date).replaceAll('-', '.');
 }
 
-// TransactionDetailScreen과 같은 규칙: 상세 화면 "장소" 칸은 풀 주소 대신 구 단위만 짧게 보여준다.
-function formatPlace(address: string) {
-  return address.match(/[가-힣]+구/)?.[0] ?? address;
-}
-
 /**
  * 소득·소비 구분 드롭다운의 선택지.
  * +/− 부호만으로는 어느 쪽인지 한눈에 안 들어온다는 피드백이 있어, 글자와 색으로 구분한다.
@@ -103,7 +98,6 @@ export default function TransactionEditScreen() {
   const [coords, setCoords] = useState<{ latitude: number; longitude: number } | null>(null);
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [paymentMethod, setPaymentMethod] = useState('');
-  const [memo, setMemo] = useState('');
 
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
@@ -135,7 +129,6 @@ export default function TransactionEditScreen() {
     );
     setCategoryId(String(transaction.categoryId));
     setPaymentMethod(transaction.paymentMethod);
-    setMemo(transaction.memo);
   }, [transaction?.transactionId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // map-picker에서 장소를 고르고 돌아오면 store에 값이 채워진다. 여기서 읽어서 반영한 뒤 비운다.
@@ -224,7 +217,6 @@ export default function TransactionEditScreen() {
     if (type !== original.type) changes.type = type;
     // 서버가 "+09" 같은 오프셋을 붙여 보낼 수 있으므로 앞 19자리(yyyy-MM-dd HH:mm:ss)만 비교합니다.
     if (nextDatetime !== original.datetime.slice(0, 19)) changes.datetime = nextDatetime;
-    if (memo !== original.memo) changes.memo = memo;
 
     /*
      * 장소·카테고리·결제 수단·좌표는 소비에만 있는 항목이라, 소득으로 저장할 때는 아무것도 보내지 않습니다.
@@ -382,6 +374,7 @@ export default function TransactionEditScreen() {
             <EditableInfoRow
               label="일자"
               onPress={() => setIsDatePickerOpen(true)}
+              showDivider={!isIncome}
               trailingIcon={<Ionicons color={Colors.light.textSecondary} name="calendar-outline" size={16} />}
               value={formatDateDisplay(date)}
             />
@@ -395,7 +388,7 @@ export default function TransactionEditScreen() {
                   label="장소"
                   onPress={handleOpenMapPicker}
                   trailingIcon={<Ionicons color={Colors.light.textSecondary} name="location-outline" size={16} />}
-                  value={formatPlace(address)}
+                  value={address}
                 />
 
                 <View>
@@ -424,11 +417,12 @@ export default function TransactionEditScreen() {
                             key={option.value}
                             onPress={() => handleSelectCategory(option.value)}
                             style={({ pressed }) => [
-                              styles.categoryOption,
-                              isSelected && styles.categoryOptionSelected,
+                              styles.categoryChip,
+                              isSelected && styles.categoryChipSelected,
                               pressed && styles.categoryOptionPressed,
                             ]}>
                             <Text
+                              numberOfLines={1}
                               style={[
                                 styles.categoryOptionText,
                                 isSelected && styles.categoryOptionTextSelected,
@@ -448,19 +442,11 @@ export default function TransactionEditScreen() {
                   onChangeText={setPaymentMethod}
                   onClear={() => setPaymentMethod('')}
                   placeholder="결제 수단을 입력해 주세요"
+                  showDivider={false}
                   value={paymentMethod}
                 />
               </>
             ) : null}
-            <EditableInfoRow
-              editable
-              label="메모"
-              onChangeText={setMemo}
-              onClear={() => setMemo('')}
-              placeholder="메모를 입력해 주세요"
-              showDivider={false}
-              value={memo}
-            />
           </View>
 
           <View style={styles.actions}>
@@ -686,18 +672,31 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.light.border,
   },
+  // 세로로 긴 목록이라 카테고리를 고르기 번거롭다는 피드백이 있어, 한 줄에 2개씩 나오는
+  // 칩 그리드로 바꿨다. justifyContent:'space-between' + 칩 width 48%로 2열을 맞추고,
+  // 3번째 칩부터는 flexWrap이 다음 줄로 넘긴다.
   categoryDropdown: {
-    paddingBottom: 8,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: Colors.light.border,
   },
-  categoryOption: {
-    paddingHorizontal: 16,
+  categoryChip: {
+    width: '48%',
+    marginBottom: 8,
+    paddingHorizontal: 12,
     paddingVertical: 10,
-    borderRadius: 10,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
+    alignItems: 'center',
   },
-  categoryOptionSelected: {
+  categoryChipSelected: {
     backgroundColor: Colors.light.primary,
+    borderColor: Colors.light.primary,
   },
   categoryOptionPressed: {
     opacity: 0.7,
@@ -705,7 +704,7 @@ const styles = StyleSheet.create({
   categoryOptionText: {
     color: Colors.light.text,
     fontSize: 14,
-    textAlign: 'right',
+    textAlign: 'center',
   },
   categoryOptionTextSelected: {
     color: Colors.onboarding.inverseText,
