@@ -41,8 +41,12 @@ type KakaoMapProps = {
   zoomable?: boolean;
   // 내 위치. 있으면 연두색 동그라미로 표시한다(핀 아님). 없으면 아무것도 안 보인다.
   myLocation?: LatLng;
-  // 내 장소(집/직장 등). 있으면 그 좌표에 파란 점 + 반경 2km 반투명 원을 표시한다.
+  // 내 장소(집/직장 등). 있으면 그 좌표에 파란 점 + 반경 원을 표시한다.
   myPlaceCircle?: LatLng;
+  // myPlaceCircle 원의 반경(m). 생략하면 기본 2km(실제 서비스 기준). 시연/테스트용으로 다른 반경을 보고 싶을 때만 넘긴다.
+  myPlaceCircleRadius?: number;
+  // myPlaceCircle의 점·원 색. 생략하면 기본 파란색(실제 서비스 기준). 시연/테스트용으로 다른 색을 보고 싶을 때만 넘긴다.
+  myPlaceCircleColor?: string;
   // myPlaceCircle과 같은 파란 점이지만 반경 원 없이 점만 표시한다(홈 화면 미니 지도처럼 원이 필요 없을 때).
   myPlaceDot?: LatLng;
   // 이름+금액이 적힌 말풍선 마커 목록 (지도 탭의 가게별/클러스터 마커용).
@@ -78,6 +82,8 @@ export const KakaoMap = forwardRef<KakaoMapHandle, KakaoMapProps>(function Kakao
     zoomable,
     myLocation,
     myPlaceCircle,
+    myPlaceCircleRadius,
+    myPlaceCircleColor,
     myPlaceDot,
     markers,
     pins,
@@ -158,9 +164,11 @@ export const KakaoMap = forwardRef<KakaoMapHandle, KakaoMapProps>(function Kakao
 
   useEffect(() => {
     if (isReady) {
-      webViewRef.current?.injectJavaScript(`setMyPlaceCircle(${JSON.stringify(myPlaceCircle ?? null)}); true;`);
+      webViewRef.current?.injectJavaScript(
+        `setMyPlaceCircle(${JSON.stringify(myPlaceCircle ?? null)}, ${JSON.stringify(myPlaceCircleRadius ?? null)}, ${JSON.stringify(myPlaceCircleColor ?? null)}); true;`
+      );
     }
-  }, [isReady, myPlaceCircle]);
+  }, [isReady, myPlaceCircle, myPlaceCircleRadius, myPlaceCircleColor]);
 
   useEffect(() => {
     if (isReady) {

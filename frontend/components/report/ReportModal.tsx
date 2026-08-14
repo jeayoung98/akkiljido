@@ -31,6 +31,8 @@ export type ReportModalProps = {
   data: ReportData;
   // 헤더 배지 위에 뜨는 작은 라벨. "주간 리포트"/"월간 리포트"처럼 호출부가 정한다. 기본은 "주간 리포트".
   periodLabel?: string;
+  // "가장 자주 소비한 장소" 칸의 라벨. "이번주의 방앗간"/"이번달의 방앗간"처럼 호출부가 정한다.
+  frequentPlaceLabel?: string;
   // "알뜰 추천 보기" 버튼을 눌렀을 때. recommendations를 어떻게 보여줄지는 호출부(화면)가 결정한다.
   onViewRecommendations: () => void;
 };
@@ -55,6 +57,7 @@ export function ReportModal({
   onClose,
   data,
   periodLabel = '주간 리포트',
+  frequentPlaceLabel = '가장 자주 소비한 장소',
   onViewRecommendations,
 }: ReportModalProps) {
   // 왼쪽 칸: 카테고리 집계가 있으면 그걸, 없으면 최다 지출 장소를 같은 자리에 그린다.
@@ -108,7 +111,7 @@ export function ReportModal({
             </View>
           ) : null}
           <View style={[styles.gridCard, primaryCell ? styles.gridCardDivider : null]}>
-            <Text style={styles.gridLabel}>가장 자주 소비한 장소</Text>
+            <Text style={styles.gridLabel}>{frequentPlaceLabel}</Text>
             <Text style={styles.gridValue} numberOfLines={1}>
               {data.topPlace.name || '-'}
             </Text>
@@ -127,7 +130,7 @@ export function ReportModal({
           onPress={onViewRecommendations}
           style={styles.cta}
           variant="green">
-          알뜰 추천 보기
+          방앗간 알림 추천 보기
         </Button>
       </View>
     </CentralModal>

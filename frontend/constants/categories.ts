@@ -69,31 +69,34 @@ function normalizeCategoryName(categoryName: string) {
   return categoryName.replace(/\s*·\s*/g, '·').trim();
 }
 
+/**
+ * 카테고리는 회원가입 시 사용자별로 자동 생성돼서 실제 categoryId가 이 목록의 1~11과
+ * 다를 수 있지만(이름은 항상 이 11개 중 하나로 내려옵니다), categoryId가 우연히 다른
+ * 카테고리의 id와 겹치면 엉뚱한 아이콘이 나올 수 있습니다. 그래서 항상 믿을 수 있는
+ * categoryName을 먼저 매칭하고, 이름이 없거나 못 찾았을 때만 id로 대신 찾습니다.
+ */
 export function getCategoryIconKey(categoryName?: string, categoryId?: number | string): CategoryIconKey {
-  const matchedById = CATEGORIES.find((category) => category.id === Number(categoryId));
-  if (matchedById) return matchedById.icon;
-
   const normalizedName = normalizeCategoryName(categoryName ?? '');
-  return CATEGORIES.find((category) => category.name === normalizedName)?.icon ?? 'other';
+  const matchedByName = CATEGORIES.find((category) => category.name === normalizedName);
+  if (matchedByName) return matchedByName.icon;
+
+  const matchedById = CATEGORIES.find((category) => category.id === Number(categoryId));
+  return matchedById?.icon ?? 'other';
 }
 
-/**
- * 색상은 categoryId를 기준으로 가져오지만, 카테고리는 회원가입 시 사용자별로 자동 생성돼서
- * 실제 categoryId가 이 목록의 1~11과 다를 수 있습니다(이름은 항상 이 11개 중 하나로 내려옵니다).
- * 그래서 id가 이 목록에 없으면 categoryName으로 한 번 더 찾아보고, 그래도 없으면 `기타` 색을 씁니다.
- */
+/** getCategoryIconKey와 같은 이유로, 색상도 categoryName을 id보다 먼저 매칭합니다. */
 export function getCategoryColorById(categoryId: number | string, categoryName?: string) {
   // 소득은 CATEGORIES에 없는 예약 id(INCOME_CATEGORY)라서 팔레트에서 바로 찾습니다.
   if (Number(categoryId) === INCOME_CATEGORY_ID) return Colors.category[INCOME_CATEGORY_ID];
-
-  const matchedById = CATEGORIES.find((category) => category.id === Number(categoryId));
-  if (matchedById) return Colors.category[matchedById.id];
 
   if (categoryName) {
     const normalizedName = normalizeCategoryName(categoryName);
     const matchedByName = CATEGORIES.find((category) => category.name === normalizedName);
     if (matchedByName) return Colors.category[matchedByName.id];
   }
+
+  const matchedById = CATEGORIES.find((category) => category.id === Number(categoryId));
+  if (matchedById) return Colors.category[matchedById.id];
 
   return Colors.category[11];
 }
