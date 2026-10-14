@@ -20,18 +20,17 @@
 ## 📑 목차
 
 - [📌 프로젝트 개요](#-프로젝트-개요)
+- [🙋 담당 역할](#-담당-역할)
 - [💭 문제 인식과 해결 방향](#-문제-인식과-해결-방향)
 - [✨ 주요 기능](#-주요-기능)
-- [🎬 서비스 화면](#-서비스-화면)
 - [🏗️ 시스템 아키텍처](#️-시스템-아키텍처)
 - [🔧 핵심 기술](#-핵심-기술)
 - [🛠️ 기술 스택](#️-기술-스택)
 - [🗂️ ERD](#️-erd)
 - [📂 디렉터리 구조](#-디렉터리-구조)
-- [🚀 개발 가이드](#-개발-가이드)
-- [📦 포팅 매뉴얼](#-포팅-매뉴얼)
+- [🚀 로컬 실행](#-로컬-실행)
+- [📦 배포 · 운영 문서](#-배포--운영-문서)
 - [👥 팀](#-팀)
-- [🤝 기여](#-기여)
 - [📄 라이선스](#-라이선스)
 
 ## 📌 프로젝트 개요
@@ -42,10 +41,25 @@
 | **개발 기간** | 2026.07.20 ~ 2026.08.10 |
 | **플랫폼** | Android 중심 Expo·React Native 모바일 앱 |
 | **팀원 구성** | 총 6명 — 프론트엔드 2명, 백엔드 2명, 인프라 1명, AI 1명 |
+| **원본 저장소** | SSAFY GitLab (비공개) — 이 저장소는 포트폴리오 공개용 사본입니다 |
 
 **아낄지도**는 일반적인 가계부의 숫자 중심 기록을 위치와 생활 맥락으로 확장한 모바일 서비스입니다.
 
 사용자는 수입과 지출을 기록하고 지도에서 소비가 발생한 장소와 지역을 탐색할 수 있습니다. 자주 방문하는 장소에는 알림을 설정해 소비 전 한 번 더 계획을 떠올릴 수 있으며, 주간·월간 소비 데이터를 바탕으로 생성된 AI 리포트로 자신의 소비 패턴을 간결하게 돌아볼 수 있습니다.
+
+## 🙋 담당 역할
+
+**정재영 · 인프라** — EC2 기반 Docker 운영 환경과 GitLab CI/CD 배포 자동화를 담당했습니다.
+
+| 영역 | 작업 내용 | 관련 파일 |
+| --- | --- | --- |
+| **컨테이너 환경** | 백엔드 Dockerfile, 로컬 개발용 PostGIS·Redis Compose, 운영용 Compose 구성. 운영 DB·Redis는 외부 포트 비공개, 백엔드는 `127.0.0.1:8080`에만 바인딩 | `Dockerfile`, `docker-compose.local.yml`, `infra/compose.prod.yml` |
+| **Reverse Proxy · HTTPS** | Nginx가 443 수신 후 백엔드로 프록시, Let's Encrypt 인증서 적용, HTTP → HTTPS 리다이렉트 | `infra/nginx/akkiljido.conf` |
+| **CI/CD 파이프라인** | `test → verify-deploy → migrate → deploy` 4단계. MR 시 백엔드 테스트, main 머지 시 SSH 검증 후 마이그레이션·배포까지 자동 수행 | `.gitlab-ci.yml`, `scripts/deploy-production.sh` |
+| **무중단 배포 스크립트** | 커밋·파이프라인·잡 ID 조합의 release ID로 릴리스 디렉터리를 분리해 재시도 충돌 방지, 배포 후 외부 헬스체크로 결과 검증 | `scripts/deploy-production.sh` |
+| **DB 마이그레이션 자동화** | 번호 순 SQL 파일을 CI가 EC2의 PostgreSQL 컨테이너 내부 `psql`로 적용. Runner는 DB에 직접 접근하지 않음 | `scripts/run-db-migrations.sh`, `scripts/apply-db-migrations.sh`, `docs/deployment/database-migrations.md` |
+| **환경변수 · Secret 정책** | 변수별 용도·필수 여부·Secret 여부 명세, Secret은 서버의 `.env.prod`에서만 관리하고 저장소에 기록하지 않음 | `.env.example`, `docs/deployment/environment-variables.md` |
+| **프론트엔드 지원** | 프로젝트 초기 구조 세팅, 온보딩 진입 화면, 공통 세그먼트 컨트롤 컴포넌트 | `frontend/` |
 
 ## 💭 문제 인식과 해결 방향
 
@@ -132,26 +146,6 @@
 - Secure Store를 활용한 모바일 토큰 보관
 - 닉네임, 알림 설정, 내 장소 관리
 
-## 🎬 서비스 화면
-
-> 아래 경로에 실제 캡처를 추가하면 README에서 바로 표시할 수 있습니다. 세로 화면은 동일한 기기 크기와 비율로 맞추는 것을 권장합니다.
-> 
-
-| 홈 | 거래 내역 | 소비 지도 |
-| --- | --- | --- |
-| `docs/images/readme/screen-home.png` | `docs/images/readme/screen-transactions.png` | `docs/images/readme/screen-map.png` |
-| 오늘·주변·카테고리 소비 요약 | 목록·달력·분석 탭 | 지역·장소별 소비 탐색 |
-
-| AI 리포트 | 위치 알림 | 마이페이지 |
-| --- | --- | --- |
-| `docs/images/readme/screen-report.png` | `docs/images/readme/screen-notification.png` | `docs/images/readme/screen-my.png` |
-| 주간·월간 회고와 장소 추천 | 장소·반경·시간 조건 설정 | 프로필과 내 장소 관리 |
-
-<!--
-이미지를 추가한 뒤 위 경로를 다음 형식으로 교체하세요.
-<img src="docs/images/readme/screen-home.png" width="220" alt="홈 화면" />
--->
-
 <a id="architecture"></a>
 
 ## 🏗️ 시스템 아키텍처
@@ -200,7 +194,7 @@ flowchart LR
 
 ### 01. PostGIS 기반 공간 소비 분석
 
-거래와 내 장소의 좌표를 공간 데이터로 저장하고 거리·반경 조건을 데이터베이스에서 처리합니다. 지도 확대 수준에 따라 법정도 집계와 개별 장소 조회를 나누며, 동일 좌표의 거래는 하나의 마커로 묶습니다.
+거래와 내 장소의 좌표를 공간 데이터로 저장하고 거리·반경 조건을 데이터베이스에서 처리합니다. 지도 확대 수준에 따라 법정동 집계와 개별 장소 조회를 나누며, 동일 좌표의 거래는 하나의 마커로 묶습니다.
 
 ```mermaid
 flowchart LR
@@ -237,7 +231,7 @@ flowchart LR
 
 ### 04. 모바일 위치 작업과 알림
 
-Expo Location과 Task Manager를 이용해 백그라운드 상태일 때도 사용자의 위치 건을 확인합니다. 위치 반경·시간대가 모두 일치할 때 로컬 알림을 만들며, 서버가 생성한 리포트는 FCM으로 전달합니다.
+Expo Location과 Task Manager를 이용해 백그라운드 상태일 때도 사용자의 위치를 확인합니다. 위치 반경·시간대가 모두 일치할 때 로컬 알림을 만들며, 서버가 생성한 리포트는 FCM으로 전달합니다.
 
 ### 05. 안전한 인증 흐름
 
@@ -333,6 +327,36 @@ S15P11A508/
 ├── docs/                       # 운영 및 프로젝트 문서
 └── .gitlab-ci.yml              # CI/CD Pipeline
 ```
+
+## 🚀 로컬 실행
+
+사전 준비: Docker, JDK 21, Node.js 20+, Android 기기 또는 에뮬레이터
+
+```bash
+# 1. 환경변수 준비 (.env.example 참고, 값 채우기)
+cp .env.example .env
+
+# 2. PostGIS · Redis 실행
+docker compose -f docker-compose.local.yml up -d
+
+# 3. 백엔드 실행 (.env 값을 환경변수로 로드한 상태에서)
+cd backend && ./gradlew bootRun
+
+# 4. 모바일 앱 실행
+cd frontend && npm install && npx expo start
+```
+
+- Swagger UI: `http://localhost:8080/swagger-ui/index.html`
+- 시연용 시드 데이터: `scripts/seed.sql`, `scripts/seed_report.sql`
+
+## 📦 배포 · 운영 문서
+
+| 문서 | 내용 |
+| --- | --- |
+| [환경변수 관리 정책](docs/deployment/environment-variables.md) | 변수 명세, 로컬·운영 값, Secret 관리 기준 |
+| [운영 DB Migration](docs/deployment/database-migrations.md) | 마이그레이션 파일 규칙과 CI 자동 적용 절차 |
+| [CI/CD 파이프라인](.gitlab-ci.yml) | test → verify-deploy → migrate → deploy |
+| [운영 Compose](infra/compose.prod.yml) · [Nginx](infra/nginx/akkiljido.conf) | 운영 컨테이너 구성과 Reverse Proxy 설정 |
 
 ## 👥 팀
 
